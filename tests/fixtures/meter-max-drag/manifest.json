@@ -1,0 +1,18 @@
+[
+  {
+    "source": "b2204e0685ee4a1b90e77c2c9a41c33f-before.png",
+    "fixture": "range-before.png"
+  },
+  {
+    "source": "396d26fdc37348fab8e3f829e34bf2b6-before.png",
+    "fixture": "near-before.png"
+  },
+  {
+    "source": "fafac72576e246479ee2b1457a55cb7a-before.png",
+    "fixture": "stuck-before.png"
+  },
+  {
+    "source": "bc1d9eda0d834966a1a0d4a0130566b5-after.png",
+    "fixture": "stuck-after.png"
+  }
+]

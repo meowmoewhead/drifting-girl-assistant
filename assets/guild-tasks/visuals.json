@@ -1,0 +1,293 @@
+{
+  "g-icon": {
+    "file": "g-icon.png",
+    "area": [
+      610,
+      500,
+      720,
+      1130
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.96
+  },
+  "direct": {
+    "file": "direct.png",
+    "area": [
+      400,
+      500,
+      680,
+      1120
+    ],
+    "scales": [
+      1.5,
+      1.55,
+      1.6,
+      1.65,
+      1.7,
+      1.75,
+      1.8,
+      1.85,
+      1.9,
+      1.95,
+      2.0,
+      2.05,
+      2.1,
+      2.15,
+      2.2,
+      2.25
+    ],
+    "threshold": 0.9
+  },
+  "view-guild": {
+    "file": "view-guild.png",
+    "area": [
+      400,
+      300,
+      680,
+      1090
+    ],
+    "scales": [
+      1.5,
+      1.55,
+      1.6,
+      1.65,
+      1.7,
+      1.75,
+      1.8,
+      1.85,
+      1.9,
+      1.95,
+      2.0,
+      2.05,
+      2.1,
+      2.15,
+      2.2,
+      2.25
+    ],
+    "threshold": 0.9
+  },
+  "tab-home": {
+    "file": "tab-home.png",
+    "area": [
+      110,
+      210,
+      210,
+      300
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.94
+  },
+  "tab-members": {
+    "file": "tab-members.png",
+    "area": [
+      245,
+      210,
+      345,
+      300
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.94
+  },
+  "tab-tasks": {
+    "file": "tab-tasks.png",
+    "area": [
+      380,
+      210,
+      480,
+      300
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.94
+  },
+  "purple": {
+    "file": "purple.png",
+    "area": [
+      140,
+      300,
+      260,
+      390
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.94
+  },
+  "blue": {
+    "file": "blue.png",
+    "area": [
+      325,
+      300,
+      430,
+      395
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.94
+  },
+  "completed": {
+    "file": "completed.png",
+    "area": [
+      470,
+      425,
+      585,
+      985
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.96
+  },
+  "panel-close": {
+    "file": "panel-close.png",
+    "area": [
+      590,
+      145,
+      710,
+      260
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.94
+  },
+  "guild-location": {
+    "file": "guild-location.png",
+    "area": [
+      285,
+      8,
+      440,
+      55
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.94
+  },
+  "teleport-question": {
+    "file": "teleport-question.png",
+    "area": [
+      220,
+      555,
+      515,
+      680
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.96
+  },
+  "teleport-currency": {
+    "file": "teleport-currency.png",
+    "area": [
+      130,
+      415,
+      185,
+      475
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.96
+  },
+  "teleport-continue": {
+    "file": "teleport-continue.png",
+    "area": [
+      120,
+      780,
+      285,
+      860
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.96
+  },
+  "teleport-cancel": {
+    "file": "teleport-cancel.png",
+    "area": [
+      405,
+      780,
+      600,
+      860
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.96
+  },
+  "claimed": {
+    "file": "claimed.png",
+    "area": [
+      465,
+      425,
+      590,
+      985
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.94
+  },
+  "balance-zero": {
+    "file": "balance-zero.png",
+    "area": [
+      190,
+      430,
+      214,
+      464
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.98
+  },
+  "restore-success": {
+    "file": "restore-success.png",
+    "area": [
+      290,
+      960,
+      435,
+      1058
+    ],
+    "threshold": 0.96
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "rank5-occluded-result.png": {
+    "source": "error-20261013-234436.png",
+    "sha256": "816bca518b64c4bc319ee680572700b729e292f305bafe3473f8edc692cb37c6"
+  },
+  "rank22-battle.png": {
+    "source": "b174e8de1fb3426d876b2762c09a7427.png",
+    "sha256": "015f0512ece3c35683b69c03ebba1079fcb206cc1ed9507923ff66c22cd92757"
+  },
+  "rank22-filled-preparation.png": {
+    "source": "370f73bac8164bd3aab9b6baea43ceed.png",
+    "sha256": "f60941ed27bb7a282aaebd8ca15ca7a8330dd095f0949b7783b1278091f8379f"
+  },
+  "rank22-success.png": {
+    "source": "a78ce8b311b840438f14170c5e7ebc10.png",
+    "sha256": "3caa25d5dd07ce86dde9a89a4b15457794c390afda9a05b02ea836018571caff"
+  }
+}

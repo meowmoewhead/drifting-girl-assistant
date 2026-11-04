@@ -1,0 +1,58 @@
+[
+  {
+    "file": "negative-03989.png",
+    "source": "before-618de0cdd8484b0caaa90bb6a9590281.png",
+    "sha256": "a61f205acabce97d5322ce16c3a4ce278d22fc745300580099d86cbb5d7c1852",
+    "original_roi_score": 0.39891886711120605,
+    "expanded_roi_score": 0.3989171087741852,
+    "expected_bounds": [
+      204,
+      831,
+      51,
+      43
+    ],
+    "icon_visible": false
+  },
+  {
+    "file": "s02.png",
+    "source": "s02.png",
+    "sha256": "016a5e4d403d532777c9e4aab2ea1be9c113ef4ab31a71bba502b47219de5814",
+    "original_roi_score": 0.8879625201225281,
+    "expanded_roi_score": 0.887962818145752,
+    "expected_bounds": [
+      551,
+      271,
+      51,
+      43
+    ],
+    "icon_visible": true
+  },
+  {
+    "file": "s03.png",
+    "source": "s03.png",
+    "sha256": "e75192ad3599f2f70ca0ddb23bcc0743fe23262d7bb2c11d8dc3f53c28e2b945",
+    "original_roi_score": 0.25229471921920776,
+    "expanded_roi_score": 0.8750967979431152,
+    "expected_bounds": [
+      18,
+      271,
+      51,
+      43
+    ],
+    "icon_visible": true
+  },
+  {
+    "file": "s04.png",
+    "source": "s04.png",
+    "sha256": "c089ffd72a2c85b414e268731bfc28be1b6aea70fe7c2341bebd7e60321ec5e2",
+    "original_roi_score": 0.251051127910614,
+    "expanded_roi_score": 0.8773138523101807,
+    "expected_bounds": [
+      18,
+      271,
+      51,
+      43
+    ],
+    "icon_visible": true
+  }
+]

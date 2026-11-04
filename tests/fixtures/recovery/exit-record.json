@@ -1,0 +1,30 @@
+{
+  "activity": [
+    "    topResumedActivity=ActivityRecord{221916384 u0 com.github.metacubex.clash.meta/com.github.kr328.clash.ProxyActivity t64}",
+    "  mFocusedApp=ActivityRecord{221916384 u0 com.github.metacubex.clash.meta/com.github.kr328.clash.ProxyActivity t64}"
+  ],
+  "exit_info": [
+    "ACTIVITY MANAGER PROCESS EXIT INFO (dumpsys activity exit-info)",
+    "Last Timestamp of Persistence Into Persistent Storage: 2026-10-07 04:40:15.899",
+    "  package: com.daerigame.girladriftrm",
+    "    Historical Process Exit for uid=0",
+    "        ApplicationExitInfo #0:",
+    "          timestamp=2026-09-26 16:16:52.019 pid=49248 realUid=99046 packageUid=10057 definingUid=10026 user=0",
+    "          process=com.android.webview:sandboxed_process0:org.chromium.content.app.SandboxedProcessService0:0 reason=1 (EXIT_SELF) subreason=0 (UNKNOWN) status=0",
+    "          importance=400 pss=0.00 rss=192MB description=null state=empty trace=null",
+    "    Historical Process Exit for uid=10057",
+    "        ApplicationExitInfo #0:",
+    "          timestamp=2026-10-07 05:50:01.346 pid=4721 realUid=10057 packageUid=10057 definingUid=10057 user=0",
+    "          process=com.daerigame.girladriftrm reason=2 (SIGNALED) subreason=0 (UNKNOWN) status=9",
+    "          importance=400 pss=0.00 rss=0.91GB description=null state=empty trace=null",
+    "        ApplicationExitInfo #1:",
+    "          timestamp=2026-10-07 04:10:15.921 pid=19334 realUid=10057 packageUid=10057 definingUid=10057 user=0",
+    "          process=com.daerigame.girladriftrm reason=2 (SIGNALED) subreason=0 (UNKNOWN) status=9",
+    "          importance=400 pss=0.00 rss=1.0GB description=null state=empty trace=null",
+    "        ApplicationExitInfo #2:",
+    "          timestamp=2026-10-05 12:33:31.436 pid=62661 realUid=10057 packageUid=10057 definingUid=10057 user=0",
+    "          process=com.daerigame.girladriftrm reason=2 (SIGNALED) subreason=0 (UNKNOWN) status=9",
+    "          importance=400 pss=0.00 rss=873MB description=null state=empty trace=null",
+    "        ApplicationExitInfo #3:"
+  ]
+}

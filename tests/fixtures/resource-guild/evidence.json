@@ -1,0 +1,29 @@
+{
+  "battle": {
+    "frame_id": "f08c4240166a4561939909cb0e81babc",
+    "source": "diagnostics\\2026-10-09\\equipment-cadence\\heartbeat-20261010-0920\\resume-visual-0-f08c4240166a4561939909cb0e81babc.png",
+    "sha256": "a91ac19051fb8bd4e1cb90337eaf84a06eb8b4b6a37b461da15695c6f8bd703c",
+    "stage": 8,
+    "rank": 37,
+    "character_level": 1114,
+    "fish_level": 1260,
+    "resource_sailing": true,
+    "task_boss": false
+  },
+  "rejected_arrow_frame": {
+    "frame_id": "8ae806a8934247d6a3d0f6e4a15eff6c",
+    "source": "diagnostics\\2026-10-09\\equipment-cadence\\heartbeat-20261010-0920\\resume-visual-2-8ae806a8934247d6a3d0f6e4a15eff6c.png",
+    "reason": "current running arrow match is unknown; no recovery input"
+  },
+  "event_battle": {
+    "frame_id": "26c83d70f8524499938b3f7dbb0ad52c",
+    "source": "diagnostics\\2026-10-09\\equipment-cadence\\heartbeat-20261010-0920\\post-observation\\native-26c83d70f8524499938b3f7dbb0ad52c.png",
+    "sha256": "5cd93afecd9cee6cae14862b919cc6092d4e06d4046ea1569ac807a22beebb16",
+    "rank": 37,
+    "stage": 8,
+    "fish_level": 1347,
+    "character_level": 1304,
+    "sailing": true,
+    "task_boss": false
+  }
+}

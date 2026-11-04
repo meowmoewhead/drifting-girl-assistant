@@ -1,0 +1,12 @@
+[
+  {
+    "file": "night-stop-text.png",
+    "source": "error-20261011-134731.png",
+    "sha256": "b31ad871a8c80f9b80e95ce5848130936b75f62b15b52fc2323e9aab78841873"
+  },
+  {
+    "file": "night-moving-location.png",
+    "source": "6144fd3ae0ba4e14afb155f3dfc7be84-before.png",
+    "sha256": "09c3fe8f200ac442581ec91e73ad2467a5d9ebda9af07060af1d2f1cf3080bc8"
+  }
+]

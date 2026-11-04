@@ -1,0 +1,102 @@
+[
+  {
+    "id": "driftinggirl_achievements_fold",
+    "name": "皇冠奖励：收起入口菜单",
+    "enabled": true,
+    "asset": "assets/achievements-menu-native.png",
+    "source_crop": [
+      555,
+      625,
+      592,
+      646
+    ],
+    "search_area": [
+      510,
+      590,
+      635,
+      690
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.91,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "achievements_fold",
+    "absent_rule": "driftinggirl_achievements_ready",
+    "click_source_area": [
+      650,
+      550,
+      690,
+      587
+    ],
+    "next_stage": "achievements_return",
+    "next_delay": 0.8,
+    "stage_timeout": 15
+  },
+  {
+    "id": "driftinggirl_achievements_close",
+    "name": "皇冠奖励：没有绿色按钮后关闭页面",
+    "enabled": true,
+    "asset": "assets/achievements-list-native.png",
+    "source_crop": [
+      283,
+      934,
+      518,
+      955
+    ],
+    "search_area": [
+      220,
+      880,
+      570,
+      1000
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "achievements_claim",
+    "absent_rule": "driftinggirl_achievements_claim",
+    "click_source_area": [
+      630,
+      225,
+      710,
+      294
+    ],
+    "next_stage": "achievements_fold",
+    "stage_timeout": 15,
+    "next_delay": 0.8,
+    "note": "奖励页保持可见且连续三帧没有绿色领取按钮后，按页面位置点击用户第三张图右上红叉。"
+  },
+  {
+    "id": "driftinggirl_achievements_return",
+    "name": "皇冠奖励：返回主画面后继续挂机任务",
+    "enabled": true,
+    "asset": "assets/main-ui-native.png",
+    "source_crop": [
+      650,
+      550,
+      690,
+      587
+    ],
+    "search_area": [
+      600,
+      510,
+      720,
+      670
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.92,
+    "interval": 1.0,
+    "stable_frames": 2,
+    "stage": "achievements_return",
+    "absent_rule": "driftinggirl_achievements_fold",
+    "action": "observe",
+    "next_stage": "main",
+    "note": "只观察入口本体与奖励页是否消失，不要求领取后的绿色 N 仍存在；返回后恢复其他任务。"
+  }
+]

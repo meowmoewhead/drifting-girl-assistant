@@ -1,0 +1,34 @@
+{
+  "night-full-range": {
+    "source": "9c2b9fcca03d48b0951de7ca46623723-before.png",
+    "sha256": "c3bd1482fa732d2c9af8d1d68ed885de283326bcee673fa14b96c8a345559390"
+  },
+  "night-after-drag": {
+    "source": "9c2b9fcca03d48b0951de7ca46623723-after.png",
+    "sha256": "0ada4ae2647b332a096e3beee291d65f34dd2a51f77c3a699f8b29c75275ea50"
+  },
+  "night-ready": {
+    "source": "be30fc0f425d434eab75675fff5e31b4-before.png",
+    "sha256": "69178c7aad996899067d202ce1eb8e1d72afa7fc301c740ea654d4cc9fb76e68"
+  },
+  "night-hold-during": {
+    "source": "f4b01d63955943bc94887862db22543c-before.png",
+    "sha256": "c6f2d633f0d7a7bf6ac409d349558c06cfcdf9feceadec6c2f5597676aaa0c42"
+  },
+  "night-hold-after": {
+    "source": "f4b01d63955943bc94887862db22543c-after.png",
+    "sha256": "dba22f5d15d306d7741e4d02e1577e87fb6f431066d251e25efef480cb9a4d15"
+  },
+  "night-second-during": {
+    "source": "66139554aa1545c6854baae576a6eaea-before.png",
+    "sha256": "f255f0ba86cb20fabbb156322ec874369ed3aded654ab28b5a40a8b1fdb2e35a"
+  },
+  "night-second-after": {
+    "source": "66139554aa1545c6854baae576a6eaea-after.png",
+    "sha256": "6ba8830389ccef17167fe3be21b9899b2ac002769107d950feab18b82cec551c"
+  },
+  "night-filled-prebattle": {
+    "source": "7f1381aff03a428da008de9bb6a7d278-before.png",
+    "sha256": "0512f273347f2a77cadf39785eea6722c44681a8164389d2d1ed6c0d40959566"
+  }
+}

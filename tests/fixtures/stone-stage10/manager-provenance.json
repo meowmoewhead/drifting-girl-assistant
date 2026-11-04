@@ -1,0 +1,30 @@
+[
+  {
+    "file": "manager-0.png",
+    "frame_id": "76d7e23b15fa42979abdc6ecb4f673c5",
+    "source": "diagnostics\\2026-11-01\\lower-resume-1357\\manager-probe\\76d7e23b15fa42979abdc6ecb4f673c5.png",
+    "sha256": "c807ab1fcfad20aa985116b7d9e8410aaa5cb716a629d1a1896aa807e6baca71",
+    "expected_stage": 10
+  },
+  {
+    "file": "manager-1.png",
+    "frame_id": "ef67dfcad232451181247e63ccb28bce",
+    "source": "diagnostics\\2026-11-01\\lower-resume-1357\\manager-probe\\ef67dfcad232451181247e63ccb28bce.png",
+    "sha256": "9b4bee6df2b053a9b412672deb99e85a595f7eaefe2cfc9585b8a38c487c2106",
+    "expected_stage": 10
+  },
+  {
+    "file": "manager-2.png",
+    "frame_id": "db9640af1159414d8c62c90b2e84c74f",
+    "source": "diagnostics\\2026-11-01\\lower-resume-1357\\manager-probe\\db9640af1159414d8c62c90b2e84c74f.png",
+    "sha256": "ee200e3398c495af0d26e0d416e29b11c86ac33e79721a46d680dbc16fc577b0",
+    "expected_stage": 10
+  },
+  {
+    "file": "manager-3.png",
+    "frame_id": "cbd2cf8e77c2420bb3efa661cedd971a",
+    "source": "diagnostics\\2026-11-01\\lower-resume-1357\\manager-probe\\cbd2cf8e77c2420bb3efa661cedd971a.png",
+    "sha256": "8ff20d8de32f21b6787506842b640f6da74fcefd90fcf379f4a3a07a0b3176ee",
+    "expected_stage": 10
+  }
+]

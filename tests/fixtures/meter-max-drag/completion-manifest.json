@@ -1,0 +1,22 @@
+{
+  "restored-boss-1.png": {
+    "source": "966e8848e1e14591ab8931302bd24975.png",
+    "sha256": "c40c19dd4dc790d3641b62a6920ae7a7e0282a9a19a8fc4d6a63b4ea51870fad"
+  },
+  "restored-boss-2.png": {
+    "source": "90b74279b4da45e9b8f07f5be7769ad9.png",
+    "sha256": "5e7a82e0c598370f1d81b994d3d60306f6b89cace2aa99005fe1cb2b33b1c31e"
+  },
+  "restored-boss-3.png": {
+    "source": "591d8fe7d27e4c828ffe600d27639aa7.png",
+    "sha256": "99772e7c1daa033bb56ad250764485b2e4e8d3e530fdb3a64e0e80924e6b5a52"
+  },
+  "restored-obscured.png": {
+    "source": "6e2d9eaee18c4401b0213d21a25695fb.png",
+    "sha256": "b8cd872b3d233f672c5b97832954b6048ab4a4b5d7005035d2400e23d5b2522b"
+  },
+  "restored-menu.png": {
+    "source": "a5c237fab352414fb62f3159322accb2.png",
+    "sha256": "070156bbd64b00d5b0503b091ece154039f26d5770d29c5ff447dbf047c0800e"
+  }
+}

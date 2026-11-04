@@ -1,0 +1,4361 @@
+{
+  "version": "0.1.0",
+  "files": {
+    ".gitattributes": {
+      "sha256": "bd1e325540bbebb71eade4ee6b1c0f320695224372467f14521e097270b89e58",
+      "bytes": 180
+    },
+    ".gitignore": {
+      "sha256": "9549045e5aeb9bb51efa10b33390b57cae777574e0dd484338e580793164fca8",
+      "bytes": 262
+    },
+    "alas_core/__init__.py": {
+      "sha256": "7ab6d98ccb4d7e121607b044255a6538e79ac7caa60dca36295eb0bb85e7457e",
+      "bytes": 161
+    },
+    "alas_core/base.py": {
+      "sha256": "2d4fc24b9bf6cbf6d9064ef1a197056eae7050d6127622132159c9aa12cf32fa",
+      "bytes": 4847
+    },
+    "alas_core/button.py": {
+      "sha256": "2516bf8ef643847c3e5e86c8a8641213299c0043a4e7e29825ade0d114610cea",
+      "bytes": 17289
+    },
+    "alas_core/decorator.py": {
+      "sha256": "216530cf1ef4324b69069e7dcf45ed2ecf6a161bf83b757cfd9462d474441e5e",
+      "bytes": 1113
+    },
+    "alas_core/log.py": {
+      "sha256": "6bc14278436319414b200e02606c7156729fd548b303d432a855e16922f09003",
+      "bytes": 218
+    },
+    "alas_core/resource.py": {
+      "sha256": "812847516863027990807784e7e4c97605f23f9c7cf193b1acd049df3302fc57",
+      "bytes": 1609
+    },
+    "alas_core/timer.py": {
+      "sha256": "c18225746465a94044166465114a3beb6716ddf4b84a0f921d8ca7d6ed2141c2",
+      "bytes": 5336
+    },
+    "alas_core/UPSTREAM.json": {
+      "sha256": "f412319278dc87a16ee983fc266fb18c85e77d0d8658477ce63d302caec0eff7",
+      "bytes": 448
+    },
+    "alas_core/utils.py": {
+      "sha256": "7fc3d3381c1ffbf3f09024ed9b36c50e418e0b4ea5382c6ebf0348a060008e9a",
+      "bytes": 39404
+    },
+    "app.py": {
+      "sha256": "0d30faf374acfc11c52ee942a352b5a00e279e3578cf5cdb31e23231ba3ebb73",
+      "bytes": 4252
+    },
+    "assets/achievements-crown-source.png": {
+      "sha256": "051b65279cd7000f96a441500f92f936acaf30a187c4a18d49c78591dd2051de",
+      "bytes": 8577
+    },
+    "assets/achievements-entry-source.png": {
+      "sha256": "40e5169c13e78f3589c8f5551ff7e4e42ff02918143595079dbe27b3449c7c1f",
+      "bytes": 8295
+    },
+    "assets/achievements-list-native.png": {
+      "sha256": "fcb63badf8968b6b51a4ce3281a4a4af7c15245aefd13ce7710632f2d5ada6d0",
+      "bytes": 919975
+    },
+    "assets/achievements-list-source.png": {
+      "sha256": "10e3033d6a1f5b02515d16454616092befefe0333f8fdced6974ce2c643c53ab",
+      "bytes": 394544
+    },
+    "assets/achievements-menu-native.png": {
+      "sha256": "9c03f787b7d817e1b4601229fb19b703acef8270b8f1a2b4bccd9fdc222f3487",
+      "bytes": 1099184
+    },
+    "assets/achievements-menu-parallel.png": {
+      "sha256": "4147db445fca78f8884a3fb2868fe06fccad824d63aea8dcba629e5e369506b3",
+      "bytes": 1028494
+    },
+    "assets/ad-confirm-source.png": {
+      "sha256": "ed73a1a6f5f5d55b80e0da2b28b811dfe7669687c7d6dc913beded97012943fe",
+      "bytes": 912029
+    },
+    "assets/ad-entry-source.png": {
+      "sha256": "12abd1c02dbcad561c29737184d9285f63636f91f33a8102ae1f42dc2039a381",
+      "bytes": 1045155
+    },
+    "assets/ad-reward-active-source.png": {
+      "sha256": "39d61cc0946ddf442f01e78c0d0358a9b00c304e52f11cb1aa67a5a9b461734c",
+      "bytes": 1108028
+    },
+    "assets/backpack/bag-icon.png": {
+      "sha256": "293f766d0675815b755657a73dd4b145f658e710adaa6b989732c164b77b361a",
+      "bytes": 6147
+    },
+    "assets/backpack/bag-title.png": {
+      "sha256": "5b17020848d6b76e39df90f4a7aa4bbc82322a2f9da669f508ac5a83aca2381b",
+      "bytes": 8172
+    },
+    "assets/backpack/header-port.png": {
+      "sha256": "2198a19353163e4b0db8d73989dd9138084411db60987671f5b404caa4b94dfe",
+      "bytes": 3549
+    },
+    "assets/backpack/map-player-current.png": {
+      "sha256": "8949bb8fa6cfd62749028b38880acb89a99a8c3ff25cf78eec14cd7d9a8f1589",
+      "bytes": 4128
+    },
+    "assets/backpack/map-port.png": {
+      "sha256": "4eb3c6c8bf97f35dff3c861ffb42c2f2ec3020fac4a540f22737980dafb6ee42",
+      "bytes": 4788
+    },
+    "assets/backpack/moving.png": {
+      "sha256": "6e2898a9f9b8e8bd3490bb6cabb8df7f9c20a5fc4120adebe78bbac37a7115db",
+      "bytes": 2846
+    },
+    "assets/backpack/port-trade.png": {
+      "sha256": "c15ec0e253a3ae0594af869572bcd45fbfe9f148b00d295fa1312c7ec6b019f9",
+      "bytes": 10562
+    },
+    "assets/backpack/sell.png": {
+      "sha256": "d222ac454c7dd4fe22e2013167175add5ffdc9f179672a01c40f98180c5341e2",
+      "bytes": 10493
+    },
+    "assets/backpack/tab-first.png": {
+      "sha256": "0638810c8b33f7711da469f6c6ad89e6b0909152eae9014c9ac08267d536c687",
+      "bytes": 4751
+    },
+    "assets/boss-defense/damage-sword.png": {
+      "sha256": "dacd83f3af3097a3c073fe4bb3ff4d430af202a417ceae360d45021296abc31a",
+      "bytes": 1970
+    },
+    "assets/boss-defense/guardian-name.png": {
+      "sha256": "1c0ff4cecc4477300d6c7cab8f38a20fc513037ce43f82d9563a898efc0fb801",
+      "bytes": 2133
+    },
+    "assets/boss-defense/rank38.png": {
+      "sha256": "a69d014faf3c0bb4eb6fb721954c0bca1c9da902dfcc9b4a64f262974b06ce6b",
+      "bytes": 4752
+    },
+    "assets/boss-defense/rank39.png": {
+      "sha256": "a9c027314f62d10f7c2d192b31e30abfde1129c96cc7c12170fbbe0cb18ee160",
+      "bytes": 4970
+    },
+    "assets/boss-defense/sea-god-name.png": {
+      "sha256": "b693b2ed77c414d16cd0843088f829619cd05ef1355fe3374be8bbd0aecd7c34",
+      "bytes": 1642
+    },
+    "assets/boss-defense/swords.png": {
+      "sha256": "5a3733708b44b29ee0214af50a713f8dcc290b119db68a5fb219719ce811d056",
+      "bytes": 14198
+    },
+    "assets/boss-defense/timer.png": {
+      "sha256": "365be7241df296ebad470ddec171562d3b9e3f149b81fd785d163d888315c5f7",
+      "bytes": 1678
+    },
+    "assets/bottom-right-icon-source.png": {
+      "sha256": "99b58e2e9469a4636f03818e3b4979d93af01e66f3e4cf4fdb8e2fdcf5590204",
+      "bytes": 8713
+    },
+    "assets/cruise-settings/ticket-label.png": {
+      "sha256": "d4c2f8f166e0c2ebea3c70ed2c02d7deabb0d1597fb38919faef4c7acd89f6f2",
+      "bytes": 10335
+    },
+    "assets/cruise-settings/ticket-plus.png": {
+      "sha256": "e562c848c77285e802aedb0d674619d22b8d4f8a7513d3ad283746c732535473",
+      "bytes": 2553
+    },
+    "assets/daily-reward/bonus-claimed.png": {
+      "sha256": "5d889a1792bf7e0f1657086de882af8039c7fc3c7e7cc46864f9dd02e44b84bb",
+      "bytes": 932761
+    },
+    "assets/daily-reward/bonus-ready.png": {
+      "sha256": "feb1a59baf02674b06f68aed198d238025501ee60f71774693a54405a5771350",
+      "bytes": 968856
+    },
+    "assets/daily-reward/main.png": {
+      "sha256": "206c196c622737e4c9ec2fdaae1df5cd5b432305d4a9523eebd4b7f5f4b6f593",
+      "bytes": 1074780
+    },
+    "assets/daily-reward/premium-claimed.png": {
+      "sha256": "3c68d7490a840cd2a04dd2a4fc218fd3a7e79665a973d08d7d5114f71452d955",
+      "bytes": 972174
+    },
+    "assets/daily-reward/premium-ready.png": {
+      "sha256": "fbdaff1d16082b8e86d6c9e4179a5fe0b3f1cfc763eb1b757436a05182ca5d83",
+      "bytes": 986065
+    },
+    "assets/daily-reward/return.png": {
+      "sha256": "4ca9cab20d61def8fc515ceff3b1899c25b7d90d68c44954dd5bbca2feb5e9f3",
+      "bytes": 1026484
+    },
+    "assets/daily-reward/shop-open.png": {
+      "sha256": "0b0d5a5787ed1d7bac7e5ff71ac67fcc7340f3993a0ab2851dbc3cfc6f8ff6f1",
+      "bytes": 940109
+    },
+    "assets/equipment/arrow.png": {
+      "sha256": "ac21ffddfee76217f0be59837c1900e33ec6fc129ef47052baaebd9922c1c16f",
+      "bytes": 3681
+    },
+    "assets/equipment/cannon-icon.png": {
+      "sha256": "bf31b45584871ac4becba29332b8f99e42ff3ac96e9faf188956e5cd2a9093e5",
+      "bytes": 5521
+    },
+    "assets/equipment/cannon-name.png": {
+      "sha256": "a47f35503cd2769f25d25f1d215c5a8634aeccd6fa5d601d7359f9ad2e740755",
+      "bytes": 2536
+    },
+    "assets/equipment/entry.png": {
+      "sha256": "1889c5a699439fd3039341bfc2de3a3bd4caf1cda0d0070ffa31e79eff81b837",
+      "bytes": 4074
+    },
+    "assets/equipment/guard-diamond.png": {
+      "sha256": "cd03d0bdb71d89990c71613568722f3144e98173f08ff71de104215ec5a57c5c",
+      "bytes": 4313
+    },
+    "assets/equipment/guard-star.png": {
+      "sha256": "16fbc2eed501c4e4ee80282be8e925102b48bf67c1bb783cafaf6f514152931e",
+      "bytes": 6126
+    },
+    "assets/equipment/harpoon-icon.png": {
+      "sha256": "214a7c8c1f108c5c07e815ea9c49e0d6ff4e2e792f10daab757172a5244f2d8a",
+      "bytes": 7287
+    },
+    "assets/equipment/harpoon-name.png": {
+      "sha256": "ecd9809936c3275c1b7cac8d63648eddbdea4fb0def99aec602bc9d56befdc0e",
+      "bytes": 5119
+    },
+    "assets/equipment/header-attack.png": {
+      "sha256": "acca431de6c63e58b5d39cd20454a01f85feb819b0f9de261e6c5e90f787ad37",
+      "bytes": 2056
+    },
+    "assets/equipment/header-currency.png": {
+      "sha256": "4b2c24f2c00d02c0a9550d4a6ea8471ae694a595389f5de794982b9dbc8af287",
+      "bytes": 2100
+    },
+    "assets/equipment/header-tap.png": {
+      "sha256": "4fd9b1cc52205584ed89ca9ba1562d30b56c0fa1432033e083d649864d336e0e",
+      "bytes": 2856
+    },
+    "assets/equipment/magic-icon.png": {
+      "sha256": "d7ded7332a5e33bed43d50a3457e11be1e67fef0e4643e265b750eff0a020691",
+      "bytes": 5939
+    },
+    "assets/equipment/magic-name.png": {
+      "sha256": "290d3aa528ba75fb48392638e6f7d95ee4a510d9c6a3da1f1ef4e45ffe574234",
+      "bytes": 3725
+    },
+    "assets/equipment/main-auto.png": {
+      "sha256": "508728d1f0178e979c2aa55fc0b793029966fbd9c1b14270298ecf7ccd05988b",
+      "bytes": 1518
+    },
+    "assets/equipment/rod-icon.png": {
+      "sha256": "16e36182798dc35ac9cf790d90f3da7e88a18e4a39300a8b5e0b73dce1ba64ad",
+      "bytes": 7208
+    },
+    "assets/equipment/rod-name.png": {
+      "sha256": "7997dd502ee8133fb5896a9c8cf32e542ab5030ce9045ad12af8d1ed891ea7d2",
+      "bytes": 3432
+    },
+    "assets/equipment/row-currency.png": {
+      "sha256": "73a0eea14de9862989e830733132a3fad1f0473fcba9fcfcb59a3e01322e3088",
+      "bytes": 1631
+    },
+    "assets/equipment/turret-icon.png": {
+      "sha256": "8a657c1365adee2aaca3e3950c58ade1962aaddc91f796b773e39695670e9d04",
+      "bytes": 7394
+    },
+    "assets/equipment/turret-name.png": {
+      "sha256": "73c6b4c4e607636228cee67edc7526a47f6ab98d462bca66d4bc80cdbca18cb9",
+      "bytes": 5153
+    },
+    "assets/event-potion/confirm-candy.png": {
+      "sha256": "c7576eb1a99f1ab126aa46d2e3faa86997a763f808c2cae04ebb5c7b83b36a90",
+      "bytes": 843847
+    },
+    "assets/event-potion/confirm-ghost.png": {
+      "sha256": "ba19a8f5c431079abbf46af2b74e9ec2c5a4658c2623bec41530f6ddabdbfd48",
+      "bytes": 930347
+    },
+    "assets/event-potion/confirm.png": {
+      "sha256": "b6c48016c1274b69a2da12be13027585b6711ce90cf4e28e6f9bb8ee74f529bf",
+      "bytes": 843511
+    },
+    "assets/event-potion/main-candy.png": {
+      "sha256": "2387171c2a6d2be7e53bc0d155c34d7c86c56010d450f4db4df1757da0aa793d",
+      "bytes": 1071444
+    },
+    "assets/event-potion/main-ghost.png": {
+      "sha256": "8c79935a1982c982baff9f588a100bbe52c57329e07f8f48344b40a17c5735c4",
+      "bytes": 1193735
+    },
+    "assets/event-potion/main.png": {
+      "sha256": "bcf3e3710f704e75135205056f6a135f033e9df969824a60df64d5ca7a61f7b2",
+      "bytes": 1020887
+    },
+    "assets/event-potion/shop-candy.png": {
+      "sha256": "1c01b21dc823a785b06a0111aaa70fdc24531c741899bbe538e55c375dfdd472",
+      "bytes": 1012079
+    },
+    "assets/event-potion/shop-ghost.png": {
+      "sha256": "82fa0f79693b2f9f3e8aa4279de413800d6f25c55889e11b3d6616ec8a5e06c7",
+      "bytes": 1114663
+    },
+    "assets/event-potion/shop.png": {
+      "sha256": "cef83fba9cdab0f8bef7de3f6b2d6b1a962287037597d8a28c6a21574bc41df4",
+      "bytes": 1031686
+    },
+    "assets/fishing-meter/bite-warning-night.png": {
+      "sha256": "593caecca7d5e17925a4f7931ecda88a48d24b30fced1f742cf256758bb0b53d",
+      "bytes": 3209
+    },
+    "assets/fishing-meter/bite-warning.png": {
+      "sha256": "e73c44bc5e092187d8d51cc5e264e8b9751db1520c6e71b61b27f41363763f43",
+      "bytes": 3200
+    },
+    "assets/fishing-meter/cancel-cast.png": {
+      "sha256": "085e822266128bb8c41fb2733a5b46ad2e03046bf160ceaa9c6a7fa9ea6b1688",
+      "bytes": 1882
+    },
+    "assets/fishing-meter/hook.png": {
+      "sha256": "9b00a413f96e5f749912c581fa53669db0b935a452b047e60178a5d283b321c3",
+      "bytes": 8355
+    },
+    "assets/fishing-meter/port-anchor.png": {
+      "sha256": "b855fda7ac636b6704fabe01548574faff7352e1fbb497aef456744a0ec84de7",
+      "bytes": 12794
+    },
+    "assets/fishing-meter/sleep.png": {
+      "sha256": "908e436c328ebd4a779a29fe13c431e7b263140fd2a0eed5d6a50358e99eff4b",
+      "bytes": 7700
+    },
+    "assets/fishing-meter/waiting-dot-filled.png": {
+      "sha256": "c4cd9cab02da01ef79576804e43e083b43e5d1ad208f8fdb944713f22fbe9df9",
+      "bytes": 648
+    },
+    "assets/fishing-meter/waiting-dot.png": {
+      "sha256": "4a1880da069ca2c646142dc82f924a91c7a8efb80ca81290de9c2142642e5e43",
+      "bytes": 781
+    },
+    "assets/guild-shop/guild-all-bought.png": {
+      "sha256": "1ab8f1f3bb9ba5343cd59f6c51cefc845d3b93b482cc2ab36b2221715d3606c1",
+      "bytes": 952021
+    },
+    "assets/guild-shop/guild-potion-bought.png": {
+      "sha256": "7947880bc76eeca0132db8412cad4c580ab7ea8cf3e4c74cf39c9d6c49c87d02",
+      "bytes": 944548
+    },
+    "assets/guild-shop/guild.png": {
+      "sha256": "c4458422c2caff0119439f38ed5c9875743cd54a91a87fb93c2796d5644d7230",
+      "bytes": 927678
+    },
+    "assets/guild-shop/main.png": {
+      "sha256": "b327e9fddb72ed9fb2d6ed5169446b7b604e941b023eb013306909b2c367a001",
+      "bytes": 1010258
+    },
+    "assets/guild-shop/material-050.png": {
+      "sha256": "990159ca1d1147c51fea70fb93cdee8fb12f32ccf8428895a416a803e02f5d67",
+      "bytes": 869312
+    },
+    "assets/guild-shop/material-100.png": {
+      "sha256": "09ccd8f4ec14e1e0117614f96c702d73ff7d8eb4bed4397bd38d8a79a8d8e589",
+      "bytes": 889375
+    },
+    "assets/guild-shop/material-150.png": {
+      "sha256": "ffab426f14455f0e4796ddd0f9ab190d98058dbbb8c32803dac8102b731feeef",
+      "bytes": 862994
+    },
+    "assets/guild-shop/material-200.png": {
+      "sha256": "bf22273c5467b34926984e0c49a8eba731b1b1852706b5e00c0a577cdc5795ce",
+      "bytes": 862432
+    },
+    "assets/guild-shop/material-250.png": {
+      "sha256": "9fc155a25457666f34500617fe82238aa63d2dfe2fb2adee1cadd1182a707971",
+      "bytes": 880243
+    },
+    "assets/guild-shop/material-confirm.png": {
+      "sha256": "23d8687ebbd3f9244bf78720f699b74d3247cd14bcd015c427e4f7113442ced2",
+      "bytes": 829364
+    },
+    "assets/guild-shop/material-min.png": {
+      "sha256": "829b7556f60a5ffc576b90d65662ee3d1910535439a17c3ecb0dfa6b342acac8",
+      "bytes": 869893
+    },
+    "assets/guild-shop/open.png": {
+      "sha256": "5260039c82eae429c3434c199968cc2c1fb072201345a3f8146357681c7ae66f",
+      "bytes": 960334
+    },
+    "assets/guild-shop/potion-001.png": {
+      "sha256": "86d396398c3baeff06b5b56fd9871cfa49541eca7334cec9e8e49603e666e064",
+      "bytes": 863715
+    },
+    "assets/guild-shop/potion-002.png": {
+      "sha256": "3842750a12d101aa81b67a2d9bfae0a31426c539dc622f485925d5f29e7e478a",
+      "bytes": 865517
+    },
+    "assets/guild-shop/potion-003.png": {
+      "sha256": "d8ea0b0a80be92206795ab960fef8a51a32809ce7f262a74188f432132f913f4",
+      "bytes": 865811
+    },
+    "assets/guild-shop/potion-004.png": {
+      "sha256": "4a3a668edc124eba735b7204d9cafff5b0cc77f204d11569108da84bf3590904",
+      "bytes": 863183
+    },
+    "assets/guild-shop/potion-005.png": {
+      "sha256": "443f0e1f910660f802a36eab98169a796fb5fc97502226b90d0834e9de9164c1",
+      "bytes": 869335
+    },
+    "assets/guild-shop/potion-006.png": {
+      "sha256": "8b7bb24a6e3a9a8a4c3d5d1d74caf5659fdf1c1b7318dbdf312151536f091536",
+      "bytes": 866319
+    },
+    "assets/guild-shop/potion-007.png": {
+      "sha256": "d12f776aed19e197bac1c5c5a6b3a4b6d2024f5d620f586b3e9ce1866a7cb0da",
+      "bytes": 864969
+    },
+    "assets/guild-shop/potion-008.png": {
+      "sha256": "6d74b1b84495363103cef2337f1f6328537f4530300933d6a29bd2c5e62e0191",
+      "bytes": 865932
+    },
+    "assets/guild-shop/potion-009.png": {
+      "sha256": "58d0a3505ab57f3400a9e9d61eec7e2a9133e6a018764bcd1db7ed2b751e7e1a",
+      "bytes": 864666
+    },
+    "assets/guild-shop/potion-010.png": {
+      "sha256": "7572d803a918a11f3b1cfb35997c2fa6573e51a39b34e1eac77341e0c4f6e9ae",
+      "bytes": 861651
+    },
+    "assets/guild-shop/potion-confirm.png": {
+      "sha256": "e036655dfc221564372b37081f33230d5d6fe697bef73625b664c87235b3fdb3",
+      "bytes": 745437
+    },
+    "assets/guild-shop/potion-min.png": {
+      "sha256": "b21b6d2af4b394b8e4acd3235262852ca90fa11f9e7b325a65f18aa03622f000",
+      "bytes": 851429
+    },
+    "assets/guild-shop/special.png": {
+      "sha256": "572adcb0401b8a8e92f9634fa6b1c5328d7fc8a5046eb986cda645b7f91b27c3",
+      "bytes": 950542
+    },
+    "assets/guild-tasks/balance-zero.png": {
+      "sha256": "b6d34e7e1322f10e94ac35db27e5277cf4394dc45b7a57ae44e4d45e9a350a0a",
+      "bytes": 863
+    },
+    "assets/guild-tasks/blue.png": {
+      "sha256": "433a284511a67a2b4ee8adaeb7d31cb2be6b01e640b0814180f36f8df8e62427",
+      "bytes": 6120
+    },
+    "assets/guild-tasks/claimed.png": {
+      "sha256": "bbc193ce7bdc7b8cac527f80d37f2152d23e4c8125de541baa0df58d249187b8",
+      "bytes": 2864
+    },
+    "assets/guild-tasks/completed.png": {
+      "sha256": "9a79b993e705a4b85285bc2689f9cd7e83db8e76362f26aac00fb77a8312d3d2",
+      "bytes": 2705
+    },
+    "assets/guild-tasks/direct.png": {
+      "sha256": "850147ff9f59087876866bdbb87f83e9b61653e751df04f8f15da790b3571f94",
+      "bytes": 3678
+    },
+    "assets/guild-tasks/g-icon.png": {
+      "sha256": "ad44a381f915b90ec48b92e9705824b0748a871ba904fa8586fa84be7093b656",
+      "bytes": 2798
+    },
+    "assets/guild-tasks/guild-location.png": {
+      "sha256": "9bdcf38f71e604b5756be8e9956c1044d5ae1aa34ea8cf59acfd5106b4fb7780",
+      "bytes": 5465
+    },
+    "assets/guild-tasks/panel-close.png": {
+      "sha256": "96f07e5e6613c672477fdc7b4a740e2c0b84388d416f46370ef17639b224e027",
+      "bytes": 9367
+    },
+    "assets/guild-tasks/purple.png": {
+      "sha256": "af4a24e9ac6b20f3b5612c699e0c05f76217216ee2642cd44335248cdd09c07a",
+      "bytes": 4634
+    },
+    "assets/guild-tasks/restore-success.png": {
+      "sha256": "a0ccfbb26ad409b5fa8aac3a2d0dddde1ff540c1020b27c26c856675b3337b94",
+      "bytes": 6879
+    },
+    "assets/guild-tasks/tab-home.png": {
+      "sha256": "f5dfe31445f9006792053bd5f32c6a54a6e6d16437dfc156ffdd25af02fb10eb",
+      "bytes": 2263
+    },
+    "assets/guild-tasks/tab-members.png": {
+      "sha256": "e582be2dd379f8f3e9c5e0a9a0a22569884671420d61f8c48c30e466a95b45da",
+      "bytes": 2344
+    },
+    "assets/guild-tasks/tab-tasks.png": {
+      "sha256": "20a3afbf3471747c3a4541428f02eb019971443561ef1a32c6b4f14806a55c7d",
+      "bytes": 2348
+    },
+    "assets/guild-tasks/teleport-cancel.png": {
+      "sha256": "23beeeab9bc3c323280d5b6c3a2c06173689a1b95b99234b95555e9c370a0fc0",
+      "bytes": 6815
+    },
+    "assets/guild-tasks/teleport-continue.png": {
+      "sha256": "6607e5b6c828cceab1fe849aaaa8aa9ccb5b3f8f9e150cc50dfb809e54046981",
+      "bytes": 6865
+    },
+    "assets/guild-tasks/teleport-currency.png": {
+      "sha256": "2b595b2d26be77c8853104d4a7c5138fe53d632f514859359529fa92546b8183",
+      "bytes": 2346
+    },
+    "assets/guild-tasks/teleport-question.png": {
+      "sha256": "c6cd51b0e268d76780f29edfcaf4e8160abf5bf9965481eeadd9b74e9632c32d",
+      "bytes": 29954
+    },
+    "assets/guild-tasks/view-guild.png": {
+      "sha256": "f0530d2eb7e4347052ee243ce8f76d6e6c37ccff621a647524a2de18b96c79a1",
+      "bytes": 3496
+    },
+    "assets/guild-tasks/visuals.json": {
+      "sha256": "bec7bde85aaf49404e4377f7c14917b5fe15d978a23da090858752fdc0bb2632",
+      "bytes": 4062
+    },
+    "assets/mailbox-claim-all-source.png": {
+      "sha256": "0a9cf8aee61a6b775fab93b193eff234e1c597ba395119207f4448def30f78db",
+      "bytes": 11421
+    },
+    "assets/mailbox-empty-native.png": {
+      "sha256": "4cc7bd05b0011100551373110a02b03885175f1ba4c757e938a22d5c25420a9b",
+      "bytes": 901894
+    },
+    "assets/mailbox-limit-native.png": {
+      "sha256": "dadc8ff5f969a427b512e85f1274459f1c75766e1ea78d17c9e410f63ffdaedf",
+      "bytes": 892950
+    },
+    "assets/mailbox-loading-native.png": {
+      "sha256": "ffca4a392e0ed82594ef12486aaafb27adeaa0d9975d6e2194a7b9924e4353fb",
+      "bytes": 475410
+    },
+    "assets/mailbox-native.png": {
+      "sha256": "be6432a0cb2dbc92f5b27750c7c3358bfcf0feebedae636f6a2d9a05920fb9b5",
+      "bytes": 897543
+    },
+    "assets/mailbox-new-source.png": {
+      "sha256": "0a616f496bc38e13888ed75e6dec504f6457eb27d79105ac3c084fe75b0cb709",
+      "bytes": 7315
+    },
+    "assets/main-ui-native.png": {
+      "sha256": "1b37949b1c9d1241171eaf555df48d80659f8a89884db1a270b2119ebf3675ce",
+      "bytes": 1057196
+    },
+    "assets/mana-confirm-native.png": {
+      "sha256": "e648bcdf2155c9c37e14ae9ba70c1ff4d8c14b721d046032c1acbba41572c691",
+      "bytes": 989198
+    },
+    "assets/mana-confirm-source.png": {
+      "sha256": "ea89b0d4643b075bd2efbb5a476cb22ef8045ff4f7656240f6a31548bdc3736c",
+      "bytes": 205693
+    },
+    "assets/mana-panel-native.png": {
+      "sha256": "e2ed5b2963331b56ae38c79b59880b0a2ed97266c3fe5102e3a9561a67e0d310",
+      "bytes": 1125959
+    },
+    "assets/mana-panel-source.png": {
+      "sha256": "02163852d8d35d212137a8419101903b407e5dded96809831297e06d26200e77",
+      "bytes": 222567
+    },
+    "assets/mana-skills-source.png": {
+      "sha256": "3314596858aa07c28be51165b5e7e83f7477261eeee2df1393d40a43616a9a43",
+      "bytes": 10044
+    },
+    "assets/navigation/main.png": {
+      "sha256": "6f1b35e97aafb56852dc9e998074312fe6f810d382144fdc4cebb9e7baa5a432",
+      "bytes": 1050009
+    },
+    "assets/navigation/parallel-boss-battle.png": {
+      "sha256": "9164367be3991c4e27ab3a234a54cc0faa0fa565faa56da62858fd9fdce06157",
+      "bytes": 931093
+    },
+    "assets/navigation/world-battle.png": {
+      "sha256": "f04022a4c37db7985e8a15baf3e4a29253b9870a084d200d07e7ab7339881d02",
+      "bytes": 1026802
+    },
+    "assets/parallel/continue.png": {
+      "sha256": "1368dbea5bad011b344d6ee4d752d4725bfa48e6218802042d1d1d5255a236f3",
+      "bytes": 23898
+    },
+    "assets/parallel/enter-question.png": {
+      "sha256": "700dcaa5408d173e266cc606ab8a2b1f9fa321d4c5af8dbe6a4b29334f872427",
+      "bytes": 23697
+    },
+    "assets/parallel/gate-activate.png": {
+      "sha256": "2daa800afd3892288a160c88868c7e5b55e92a745076e6dca8bd46565282cae6",
+      "bytes": 39898
+    },
+    "assets/parallel/gate-close.png": {
+      "sha256": "0820710b2bf1f4e345347b69a67eeec00e0a2aeb5bd64e71a801c02060d73a62",
+      "bytes": 37204
+    },
+    "assets/parallel/map-boss.png": {
+      "sha256": "0ffa76b2412f3ee8b0f4413451f414138a8c5eede97e1ed851f793dec785d67c",
+      "bytes": 2549
+    },
+    "assets/parallel/map-close.png": {
+      "sha256": "17311dca1ded7f57502293ed5a451b553b2c020d3eb46dbe6d8fa3783b429f5f",
+      "bytes": 7740
+    },
+    "assets/parallel/map-observatory.png": {
+      "sha256": "998bfd923f4ef2219d6b068a45142ee4154e9034e3197965f0ad7582e2422282",
+      "bytes": 3830
+    },
+    "assets/parallel/next-arrow.png": {
+      "sha256": "18b27c2a136be4d18ec6b585f160161c23dc666c994a6e977fbfc6315fc352c0",
+      "bytes": 7660
+    },
+    "assets/parallel/observatory-label.png": {
+      "sha256": "025229371611092a3c22eb6d715e9335993bf49ab969eb38a7d3f36d2e0b4236",
+      "bytes": 5327
+    },
+    "assets/parallel/panel-close.png": {
+      "sha256": "09fa2968e02c4522a337c86481f65e90273082f5966ada2f74079df695863ca5",
+      "bytes": 12298
+    },
+    "assets/parallel/return-question.png": {
+      "sha256": "9c868ff75be926808bec4d43cfee0fef95af6913d3708d69cb16535ac6a19cae",
+      "bytes": 31610
+    },
+    "assets/parallel/search-question.png": {
+      "sha256": "33e215b8763056812d1cf40cf15fd0acbcb02e6f4bdd7d33f0205ced03363926",
+      "bytes": 28912
+    },
+    "assets/parallel/world-badge.png": {
+      "sha256": "26a9d5d6ce9237e4524a317294b22e2721879d3ce7af30a4ff931f452b696f95",
+      "bytes": 1673
+    },
+    "assets/parallel-skills/clock.png": {
+      "sha256": "341d84f33f3ef45127eb977b6561ccfcda865654ee78e2fe70a58c8220d89eba",
+      "bytes": 1981
+    },
+    "assets/parallel-skills/confirm-cost.png": {
+      "sha256": "8b6f49fa2138bbb605974abcae38977a5df64b4c238125427d2e556316deb1e9",
+      "bytes": 3419
+    },
+    "assets/parallel-skills/confirm-currency.png": {
+      "sha256": "f5b2cab34edd08772459b5c592ab08f3beba862adefcf76f48dabe8463928e0d",
+      "bytes": 5895
+    },
+    "assets/parallel-skills/confirm-growth.png": {
+      "sha256": "806aa91b5cd1fa5ea064c4dc93dbdd2e9d61b7f7084d3172830b1cc016101bf8",
+      "bytes": 19529
+    },
+    "assets/parallel-skills/continue.png": {
+      "sha256": "a9cbd07431c73cdd3a85f1261c9e428c019d1917258ce15647c865b194557717",
+      "bytes": 8439
+    },
+    "assets/parallel-skills/fishing.png": {
+      "sha256": "83f33aa8d2e2ae91e0a80d12e8870bf2b20a7d31ea3bf19df9159e2f1c97d3de",
+      "bytes": 5906
+    },
+    "assets/parallel-skills/growth.png": {
+      "sha256": "ea6f56e8241df12b4dc01cc502cf1472fdbb0829ba9d571280dfa2cd1fe859da",
+      "bytes": 6255
+    },
+    "assets/parallel-skills/points.png": {
+      "sha256": "733cf1f4775bbcc595916415d88b222ea9fa74fc1bba7844af5a43aedba262fc",
+      "bytes": 5519
+    },
+    "assets/parallel-skills/title.png": {
+      "sha256": "cbcc917eedda7137285628c853e9ef08107f0c8018ec721c34e335cfe541ce8d",
+      "bytes": 5960
+    },
+    "assets/pass/daily-claimed.png": {
+      "sha256": "9f85d7cc0e23d36ad364833548bb758586cd5dddf3bfd44a107532179f675643",
+      "bytes": 872049
+    },
+    "assets/pass/daily-ready.png": {
+      "sha256": "d45e7d5b50edf255cfec92fcb49e49bf6b1d9f2d9fc29b28160900ac1d2a8df6",
+      "bytes": 934218
+    },
+    "assets/pass/entry.png": {
+      "sha256": "8e0d94c60b65debab2d2a4b77cac9b913004065d38f74e5b7433ffdbb537487f",
+      "bytes": 1016546
+    },
+    "assets/potion-ad/return-world-confirm-source.png": {
+      "sha256": "888b3cc0b84a0810f7de6089785a0dbe8deda0a7133f6f6dce3d1f884ea4d777",
+      "bytes": 940684
+    },
+    "assets/potion-ad-confirm-source.png": {
+      "sha256": "128a4fb092b39b7759b1f119cdfc403fda980f76c8ed1fefd45462c219a56e9a",
+      "bytes": 964753
+    },
+    "assets/potion-ad-source.png": {
+      "sha256": "bf37328f80d9e1464c56041d4aa4717c72b37ed03fea73d226db10d2ceb89b93",
+      "bytes": 1092209
+    },
+    "assets/raid/battle.png": {
+      "sha256": "caf2b4ca9eeca14224225042a7fef43588d762af7b6b31d56e9cdebaa8e956d7",
+      "bytes": 911240
+    },
+    "assets/raid/main-octopus.png": {
+      "sha256": "092060ff16814cc7fbe254dfd547e0958df0980920ee96c62c032bee9558bc7b",
+      "bytes": 1027344
+    },
+    "assets/raid/main.png": {
+      "sha256": "edbbf011326c6bb8001596054f3125b4f502d3105de1bf8c6de39c8e420d798a",
+      "bytes": 1080222
+    },
+    "assets/raid/prepare.png": {
+      "sha256": "4148dbac9b3cd28df7ca5eee87c54ec04fbf879d033c108c82c5d62bae319ee3",
+      "bytes": 1018890
+    },
+    "assets/raid/ready-live.png": {
+      "sha256": "91010531b295c3ce476efac94fd5742ccac1011a05b5add12dee48e237b9ed6f",
+      "bytes": 877809
+    },
+    "assets/raid/ready.png": {
+      "sha256": "95817e2b25b4e30dcf7153db21a85efb11dcc7c7ac7f283b44c71a128d117a8f",
+      "bytes": 863178
+    },
+    "assets/raid/result-reference.png": {
+      "sha256": "99a42fe19ad1593d77e6169a4b120ecdd55ab0a25a581a87d5318f38653c4d9b",
+      "bytes": 342804
+    },
+    "assets/raid/result.png": {
+      "sha256": "60fb1752d289bdc8348c6c8862e30d389a73e6fa1e51696aa984261469e34bc8",
+      "bytes": 1028563
+    },
+    "assets/raid/return.png": {
+      "sha256": "76c9a6f88eefd1d779d8526d4a16d4c2c430beb3ad2487c40e940db25d43aeca",
+      "bytes": 1073643
+    },
+    "assets/raid/returned-without-confirm.png": {
+      "sha256": "dc63170d467370e36b4d4c789fdd81a0c2cb14db2c667f3480975e33dd321394",
+      "bytes": 1086432
+    },
+    "assets/raid/task-popup.png": {
+      "sha256": "36f53055dd4096846e83dbb3fb9317df80347950ba4b5e5ff09dd1beb6543806",
+      "bytes": 963389
+    },
+    "assets/raid/waiting.png": {
+      "sha256": "c1eb5228d7cb4baae210503fc142624e5ae00583a0ffa7608e0743c1f5abc2f4",
+      "bytes": 909214
+    },
+    "assets/recovery/equipment-tap-title.png": {
+      "sha256": "c3ca72513156b449a051c75149b886583ca7ff50c6982d6973e0d9fc57399a79",
+      "bytes": 2789
+    },
+    "assets/recovery/login.png": {
+      "sha256": "b72468f93489465628b849ec7662c60db4e2ca0e9658c21353e918588463e200",
+      "bytes": 915936
+    },
+    "assets/recovery/network-error.png": {
+      "sha256": "6e95e8bc9013753c2de3d53b68d7c974353eae857f7cc2012aa902f578993a0b",
+      "bytes": 878844
+    },
+    "assets/recovery/observatory-npc-day.png": {
+      "sha256": "a28ae344ee311d29d84981855d6afba7effdc78b333212a830f684a7ef5d1b1d",
+      "bytes": 1068906
+    },
+    "assets/recovery/observatory-npc.png": {
+      "sha256": "bcc99aeb4fb4e0617455e6d33c20b2ea63690f067afe722b63b1b9d196fb34ba",
+      "bytes": 1019805
+    },
+    "assets/recovery/parallel-complete.png": {
+      "sha256": "685a205a34ffe8c260fb7c353d134bfac8293dc7e096468d419ebc04f89a0ef4",
+      "bytes": 990426
+    },
+    "assets/recovery/parallel-lower-question.png": {
+      "sha256": "ba17249cd92a730110eeadb336b05f2276fa662f9825bbe341350b3843584cf6",
+      "bytes": 839496
+    },
+    "assets/recovery/parallel-manager-inactive.png": {
+      "sha256": "32c1deb35f6cc83f68167dc806e7689014f87efe40edbecd647a2022f3adc545",
+      "bytes": 960770
+    },
+    "assets/recovery/parallel-manager.png": {
+      "sha256": "0c932593a50b9210d3565e90562474120d5c77e6a20f21e0c68f16108d995fa8",
+      "bytes": 964172
+    },
+    "assets/relief-parachute-source.png": {
+      "sha256": "ae376cedbad0dadd55988c3910d9d7993730777e96b19c34208077eef1680bce",
+      "bytes": 90005
+    },
+    "assets/relief-star-native.png": {
+      "sha256": "9befc0252362beaad0dadf2f8c113182c90e742c3888be23b3cb758baabf07fb",
+      "bytes": 1092042
+    },
+    "assets/relief-star-source.png": {
+      "sha256": "9dd556dd1b81ea05ee45606e877bdd93dc5a14e9173850c5402bd5eba35a1223",
+      "bytes": 14951
+    },
+    "assets/relief-water-native.png": {
+      "sha256": "2d812e135858e5325420a3409e09296a35c5873eefd98e7c41d5ff30ffc9607c",
+      "bytes": 1104880
+    },
+    "assets/restaurant/atlas-tab.png": {
+      "sha256": "3a494bf446ea693989d0d2f0537d446bb7df76c60dc87d10cfec2b0b96fe3e82",
+      "bytes": 10572
+    },
+    "assets/restaurant/atlas-title.png": {
+      "sha256": "8827cf4493f1bcef0d3a1c26924bf9ae325068ddaeb15aaa84ca8be6606bac10",
+      "bytes": 14916
+    },
+    "assets/restaurant/category-0.png": {
+      "sha256": "9f0b8e4f7a5a6ecd78d55fe8a70e80be77175b342233baa1a405e58f146d96d1",
+      "bytes": 3792
+    },
+    "assets/restaurant/category-1.png": {
+      "sha256": "f2a08e8500808fad6865fa22c8939e9390dc914e938cf313f3e2d884e2917fe9",
+      "bytes": 3639
+    },
+    "assets/restaurant/category-2.png": {
+      "sha256": "232b1a1a45a0a61df8244417ec97109dfcd0139e01dd3949f27cc54798d8dede",
+      "bytes": 4017
+    },
+    "assets/restaurant/category-3.png": {
+      "sha256": "67d5b6702c0f0a84690c3c0c11b7e8d62c0968fc1130b66242fbe09b0e45f1d7",
+      "bytes": 4234
+    },
+    "assets/restaurant/category-4.png": {
+      "sha256": "180db7b5f5b190e81921ee7d044b112d133662e065bb77cde9ae4f64c311bfc4",
+      "bytes": 4399
+    },
+    "assets/restaurant/category-5.png": {
+      "sha256": "ab07e7822c52ff3be2984836d4fae2773b6bcf4737921ee8ed6476cbc244b57b",
+      "bytes": 3879
+    },
+    "assets/restaurant/category-6.png": {
+      "sha256": "2ae19bf903b82a5736b3deb52b76fab07f02e9e4925d7cf1ab0dfe42f9c22dbb",
+      "bytes": 3671
+    },
+    "assets/restaurant/category-7.png": {
+      "sha256": "97a7a0c76bf5f632df4e5e8060566994e9d446811e7f7df7408565bbd32660c6",
+      "bytes": 3520
+    },
+    "assets/restaurant/category-8.png": {
+      "sha256": "3cf8d133c88c2506213e77e4f1848014cbb97c2307d961f3cc8f8479747716b4",
+      "bytes": 4394
+    },
+    "assets/restaurant/craft-label.png": {
+      "sha256": "6791a7bd5aeed3f314db5d2865a9c69f560244e2ab3dac8ae204b1ac0f2481f6",
+      "bytes": 2384
+    },
+    "assets/restaurant/delivered.png": {
+      "sha256": "85cf6d5bb7009b17fd3d8bb4fd4d11ab5ebc3f99ae8387bc3a589340a3d143bc",
+      "bytes": 7669
+    },
+    "assets/restaurant/detail-book.png": {
+      "sha256": "6d7c768a8219522c539dc1d0e8cda9bd992415cd60a78de89f9b4ab9513dc05b",
+      "bytes": 7730
+    },
+    "assets/restaurant/detail-close.png": {
+      "sha256": "c79b02a84ab7be86a12d6b98c50f5656d91200acf0e4b51e852a28bea5b5ae1c",
+      "bytes": 12551
+    },
+    "assets/restaurant/detail-level.png": {
+      "sha256": "2ea9624820453c0c2ce41b9790c40e62a40553a87ff94b83ffed3a068de58a1d",
+      "bytes": 3727
+    },
+    "assets/restaurant/entry.png": {
+      "sha256": "233395a04b0833f80ccb3b26a75e1c7357e2ce41cc6cc2d0f5f9c9abb45ac2b3",
+      "bytes": 7654
+    },
+    "assets/restaurant/ingredient-0.png": {
+      "sha256": "4b3cba4ac01e2b6ae7f2157e22fa01a1bf534c018ffa1eeaf524fc8ee3c07c75",
+      "bytes": 12007
+    },
+    "assets/restaurant/ingredient-1.png": {
+      "sha256": "cf7785226c49891796e51d1f89f0993f082542baaa1e2287859b7ec2d6538bbf",
+      "bytes": 10318
+    },
+    "assets/restaurant/ingredient-2.png": {
+      "sha256": "56ed9614a33d5ac76eb99dbe47a6a79c2da6cd7eabe6cf453106df4e01ec79b0",
+      "bytes": 10488
+    },
+    "assets/restaurant/ingredient-3.png": {
+      "sha256": "b4516745f5bc561cc78611bc49b81987472ee34675837b49cdbb3927cdedce1c",
+      "bytes": 9866
+    },
+    "assets/restaurant/ingredient-available-0.png": {
+      "sha256": "583f69a3162bedf298b15b823bbc32496158b68a72919b506d2ead98763b6c46",
+      "bytes": 908
+    },
+    "assets/restaurant/ingredient-available-1.png": {
+      "sha256": "efdf15f026a8cf1e0d908aa502b2d5b3307bdaea91ddfbb4265c7e4e50fb576c",
+      "bytes": 922
+    },
+    "assets/restaurant/ingredient-available-2.png": {
+      "sha256": "3bfef5538458652f5fc40cc2d48b6ae78909a00cae40bc0a0d66845890b3c82a",
+      "bytes": 928
+    },
+    "assets/restaurant/ingredient-available-3.png": {
+      "sha256": "307db02c25d8e1609db221e54e71647aa179157d07e55fa5a460bbfb29fed082",
+      "bytes": 940
+    },
+    "assets/restaurant/ingredient-available.png": {
+      "sha256": "583f69a3162bedf298b15b823bbc32496158b68a72919b506d2ead98763b6c46",
+      "bytes": 908
+    },
+    "assets/restaurant/ingredients-title.png": {
+      "sha256": "69e1772835ab4a9670eae2f644a7836ae16ac6a5a43d0131fe0c9748580099e3",
+      "bytes": 8077
+    },
+    "assets/restaurant/level-label-half.png": {
+      "sha256": "038c5c967c1b42f65232aacccae96f6399c46453b819ad84d7d680698a3d6bba",
+      "bytes": 1673
+    },
+    "assets/restaurant/level-label.png": {
+      "sha256": "f61ab4a3e7d52af1750abfdef93a9c17c77d8d8bdcdc1d8819d8d0918699e3de",
+      "bytes": 1604
+    },
+    "assets/restaurant/location.png": {
+      "sha256": "246eaa8e08c4429de15f53ebd019270550dad191957c67ab3bdd89cd08a775ec",
+      "bytes": 1771
+    },
+    "assets/restaurant/map-restaurant.png": {
+      "sha256": "cab02a665fee25acc01260f93c86ee8b0def5e6aad956534ac1dae8bbbc2fa46",
+      "bytes": 5511
+    },
+    "assets/restaurant/max-detail-book.png": {
+      "sha256": "97bd456bdd7932e04fba81c02ee5dc7a430819da34c9d0bc45d4a5ebf5699401",
+      "bytes": 8585
+    },
+    "assets/restaurant/max-detail-full.png": {
+      "sha256": "9a2171a139432cf60d39bf2ac3f3fa73625d4cbf30f64505ef0c474dbb344fb8",
+      "bytes": 2804
+    },
+    "assets/restaurant/next.png": {
+      "sha256": "45434773e17678cb84e117d4aba9a77e13b1e9e6ba02b0bf1d08c913418b555f",
+      "bytes": 1262
+    },
+    "assets/restaurant/panel-close.png": {
+      "sha256": "4c61c36635639be24b3696efd6506ce48d5dc6462600b040240b61058302e1c6",
+      "bytes": 11218
+    },
+    "assets/restaurant/prev.png": {
+      "sha256": "e04cba1478f088c51924bcd219a3daf21d40cd6ff8e116db9bbdf733e59a7901",
+      "bytes": 1423
+    },
+    "assets/restaurant/upgrade-ready.png": {
+      "sha256": "8afc0d2afedd6b9715c5278aaa073e981ac82066430fd442d15e44c102a5c999",
+      "bytes": 1446
+    },
+    "assets/restaurant/visuals.json": {
+      "sha256": "a33600dea27b1b2b0ae17f1bf9382d38ccef994ef47d074e580568cc482ba9e6",
+      "bytes": 5186
+    },
+    "assets/stone-farm/boss-abandon.png": {
+      "sha256": "aa9083d4b97de313fe2cebfdb3419d4158d23ef305535ad985e4bd1d9271b198",
+      "bytes": 3084
+    },
+    "assets/stone-farm/cast-stop-fish.png": {
+      "sha256": "7d2a25715a3f3843d42bbc90945f0291616f0a978c8d6057d84aefde665c2ab4",
+      "bytes": 5431
+    },
+    "assets/stone-farm/choose-destination.png": {
+      "sha256": "eef1a81837ecda8d4d51d887f83f5ccfbc06ea76dcd9b52d0c744dbabc55daa4",
+      "bytes": 6684
+    },
+    "assets/stone-farm/first-map-skull-core.png": {
+      "sha256": "4457b7f6aee6c2bce96d0b2e8b525775d0a482d1e6957f07fa3b7dab6fb3dc21",
+      "bytes": 1030
+    },
+    "assets/stone-farm/lower-map-skull-bone.png": {
+      "sha256": "617e281c8c87afd316b39502e2965a9f540192e0e957bd3f8d23816b31914062",
+      "bytes": 958
+    },
+    "assets/stone-farm/lower-map-skull-core.png": {
+      "sha256": "4a2b13e7ed15250ab1c891cc7bddce706222e3350af108f618aa9cce9f58469c",
+      "bytes": 1229
+    },
+    "assets/stone-farm/manifest.json": {
+      "sha256": "e6e0544d2be64e56e162ae182212d1720b551442ec01151597bab5b074f8a3a8",
+      "bytes": 231
+    },
+    "assets/stone-farm/menu-rank-one.png": {
+      "sha256": "22eda6131a60ed4611b1e934fb5d32e1db96d96c3d49294ffb4f1104402ba67e",
+      "bytes": 4219
+    },
+    "assets/stone-farm/menu-rank-zero.png": {
+      "sha256": "a30212c4ff0458b2df8bcedc0176b7ff3e6d5c5be50918e523c96a31bb939d8d",
+      "bytes": 4381
+    },
+    "assets/stone-farm/native-entry-auto-label.png": {
+      "sha256": "e02851fc2307b52850320418d5214aa00c97847ceec1dd74d7257fae758bb1e0",
+      "bytes": 4632
+    },
+    "assets/stone-farm/return-icon.png": {
+      "sha256": "6f2a76489d796ed9171def64dbc71c6278fc458fdec7686178ab71bff275a5a0",
+      "bytes": 9578
+    },
+    "assets/stone-farm/selected-first-map-skull-core.png": {
+      "sha256": "0144056fc1016fc593017b525ed953f5488ac779419d8b931b59557544535357",
+      "bytes": 1031
+    },
+    "assets/storage/storage-full-banner-source.png": {
+      "sha256": "888b3cc0b84a0810f7de6089785a0dbe8deda0a7133f6f6dce3d1f884ea4d777",
+      "bytes": 940684
+    },
+    "assets/task-popup/kraken-arrival.png": {
+      "sha256": "988d73d8a11ed89d777a024d31bc997fa1aab12fab553f1c09686c6c76c61211",
+      "bytes": 976562
+    },
+    "assets/task-popup/kraken-stage3.png": {
+      "sha256": "17f648c5b26b0953e1f46f0f1c7e7326da671ddec31e23a6993f83e01852e3f4",
+      "bytes": 1030158
+    },
+    "assets/task-popup/main-battle.png": {
+      "sha256": "fa31cf53f6c991fd728bfedd77eb52bb7ae102ea2d7b6a309b644b96c9a9f665",
+      "bytes": 1051473
+    },
+    "assets/task-popup/main-idle.png": {
+      "sha256": "4663690df9cf1a8a5604fba7fd8be6298ba4de337ea96a783fb0a58c461abb2a",
+      "bytes": 1129833
+    },
+    "assets/task-popup/main.png": {
+      "sha256": "1eb58b7a181115a27e7309485d5832c3ecccae9690a5b24bcb935bf577677541",
+      "bytes": 1058070
+    },
+    "assets/task-popup/map-legend.png": {
+      "sha256": "374b9d840df44b85f359fe24180d363ae98526930c5d900c301e7bb02a6a2238",
+      "bytes": 41942
+    },
+    "assets/task-popup/notice.png": {
+      "sha256": "05abfd51fac4c711e64cad1077a2a8ce920f18f82ba20d19b386072555d4ca61",
+      "bytes": 979247
+    },
+    "assets/training/failure-cross.png": {
+      "sha256": "fa021b048925b6b70c3b595b7200eba978a1013545ea1b330d65d6fa13761cae",
+      "bytes": 8689
+    },
+    "assets/training/map-pin.png": {
+      "sha256": "b7116bfe1ffe64ef81380c86c9b918bd1365561c2537131c42824ce83086bad6",
+      "bytes": 2168
+    },
+    "assets/training/map-player.png": {
+      "sha256": "bc41d8fb0615d708e70325c875b304335d743219bbef09baff4e2b87e5a6b975",
+      "bytes": 1604
+    },
+    "assets/training/success-check.png": {
+      "sha256": "76f0d07a34d39af252b3a7d4c9e0abcd3ce4a2477e9c9cba910d1bbf3281dd1e",
+      "bytes": 7064
+    },
+    "assets/training-sailing/active-arrow.png": {
+      "sha256": "b4940dc52e870c57e20e5a0647983f822c9b7e730ccada82bdcf46002c740ba3",
+      "bytes": 4486
+    },
+    "assets/training-sailing/amber-icon.png": {
+      "sha256": "45908f32f13f609c01cbd605b680ea002b4d2856e0f182751a3ba63711f1a1c9",
+      "bytes": 5125
+    },
+    "assets/training-sailing/auto-label.png": {
+      "sha256": "151d69d8c469b3a1656aa61f9c7dcc5e6096f08fd3fb2851b6f9f0761db6f359",
+      "bytes": 4786
+    },
+    "assets/training-sailing/boss-icon.png": {
+      "sha256": "b25612a09ee1d5a97a86333055d56adc79e69e4f8fb066f585c0ab5fbe072673",
+      "bytes": 5326
+    },
+    "assets/training-sailing/checkbox-off.png": {
+      "sha256": "c32d3171f9f4f259ee7db331f70c30c315ff102666db4e918cd6e4aa89ddc9f3",
+      "bytes": 1805
+    },
+    "assets/training-sailing/checkbox-on.png": {
+      "sha256": "7f38316cc7d15a3daa69c851930b73d4d932898f3ffb65b8f31969261de822b7",
+      "bytes": 3027
+    },
+    "assets/training-sailing/gem-icon.png": {
+      "sha256": "7ef8cdb929aed90ada593180d7abe5724909b569dcb1f60fb89e6ace228df2c6",
+      "bytes": 4442
+    },
+    "assets/training-sailing/inactive-face.png": {
+      "sha256": "567a9b3be5f4d177ea6cda8c8ab847d7cbe22a4a5d15d5bee1cc47e21bb262e4",
+      "bytes": 3985
+    },
+    "assets/training-sailing/main-auto-sailing.png": {
+      "sha256": "f2a762c67a600fdd6c956c69b4b6ef73e362e5245d6f2cdf58201038c3bf4da6",
+      "bytes": 2292
+    },
+    "assets/training-sailing/main-bottle.png": {
+      "sha256": "5a9579b312d39547c646e6ea3d5741b8f33ae7f0487060d0fbfb44e44f666d6a",
+      "bytes": 3724
+    },
+    "assets/training-sailing/material-icon.png": {
+      "sha256": "4e69d2bcc7b9316855e0580c990e190d0d4553f70e9d0e51826cda0770eed3e2",
+      "bytes": 6066
+    },
+    "assets/training-sailing/menu-close.png": {
+      "sha256": "ca5fbbf87bfb3efed8963e1025ea52ca0eac8011326c636d30894130a6b4a020",
+      "bytes": 9130
+    },
+    "assets/training-sailing/menu-destination.png": {
+      "sha256": "b54163b8732898b9b15ca0bae50ab5d34c3a9c2f57a2874c1cbb773e3716a339",
+      "bytes": 4797
+    },
+    "assets/training-sailing/menu-start.png": {
+      "sha256": "6b00df1c09f48e66d486145a625489eb41f8edcdbd131cee72b0674a6e194052",
+      "bytes": 12989
+    },
+    "assets/training-sailing/menu-target.png": {
+      "sha256": "85005062264ea0dad74bd66df8e9c3ea512a58fff86623fcfd3fcbf71101512c",
+      "bytes": 2995
+    },
+    "assets/training-sailing/pearl-icon.png": {
+      "sha256": "fdf9c467a2498077784ca0f68c1ea0a893657c21afca26aeb5b9f20ceac04405",
+      "bytes": 4672
+    },
+    "assets/update-prompt/source.png": {
+      "sha256": "2ef72bdbafe9beb0fd3dc38159c9eb7bdabc0f385309ebeb27183d132968c1e1",
+      "bytes": 923895
+    },
+    "backpack_sale.py": {
+      "sha256": "0571d902567b7aca6ad8feb3c659848874760d1608cd90173c6f795ea6ef3e9e",
+      "bytes": 360
+    },
+    "boss_defense.py": {
+      "sha256": "919596470a5c7a01a7d3b6952f6b6bba1681c94e2e0138ec071afe51f61fe26d",
+      "bytes": 356
+    },
+    "boss_evidence.py": {
+      "sha256": "253fc7da5ac98482978bd90b0633054baf13593f536022e7fce10e965d9e0ab0",
+      "bytes": 377
+    },
+    "boss_training.py": {
+      "sha256": "2e82e649954bc651181cc4f813870945802a78ae37447c3bd42efa72dee0875c",
+      "bytes": 360
+    },
+    "CHANGELOG.md": {
+      "sha256": "68e9666252b7b2d06844afd49ac9c6fe1cfd2b9b145d8737868de8f2cd8e822d",
+      "bytes": 617
+    },
+    "config.example.json": {
+      "sha256": "0ccc68050ea4ca90d4fb03fb3a8347461de4d8de52898e468d00d0bb0137f3be",
+      "bytes": 99898
+    },
+    "daily_schedule.py": {
+      "sha256": "37a437bb6dc14b59603b0a1b35dcc87f88a3ed39a27f87334444f15a463e3490",
+      "bytes": 83
+    },
+    "digit_ocr.py": {
+      "sha256": "2cf853bc4790e43ba03fcfbc93c8a41d5e0e593e0593d3506ab2a6431684ca58",
+      "bytes": 92
+    },
+    "docs/DEVELOPMENT.md": {
+      "sha256": "bac0392dce687490836e19d8b53f0307eeb572559b4885232c97049a599bc69b",
+      "bytes": 3222
+    },
+    "docs/INTRO.md": {
+      "sha256": "ad1b3a26eee99c225cb936ab8e02437636220b0f9afd728272d50e6210c0ba73",
+      "bytes": 2260
+    },
+    "docs/screenshots/console.png": {
+      "sha256": "81f1cb11fdc34a48ee3803c3d3e995bb5b4083b96dbe02983c481d37ceaffb46",
+      "bytes": 299152
+    },
+    "docs/screenshots/cruise.png": {
+      "sha256": "2e98aa91a87ee9dc938fd5a618325ad18148a916dae07eaeedc80f4a2fdf0bd9",
+      "bytes": 177119
+    },
+    "docs/screenshots/cycle.png": {
+      "sha256": "568fc3013a712faeb30ac58abae1d8aa5867afee133b3e309147fd0ff54dd5ad",
+      "bytes": 141419
+    },
+    "docs/screenshots/restaurant.png": {
+      "sha256": "5f3744d1741ac46d75beed1011e8989682fa2b86f1c3b671435b6ab86b9b673c",
+      "bytes": 137235
+    },
+    "drift/__init__.py": {
+      "sha256": "01d692ab3c2b14cc8f37e37c4712eab07e66a4b8bc27e70806a839b792c2476a",
+      "bytes": 738
+    },
+    "drift/compat.py": {
+      "sha256": "911d620134120d0048a98f5b399a676df257801ea23383af0a020ad05f691210",
+      "bytes": 2867
+    },
+    "drift/core/__init__.py": {
+      "sha256": "5ee5c5ea33dbd6a0fcaa9cff6629a7d03810b091f9213aeeb9a0c5ec9d7cb417",
+      "bytes": 415
+    },
+    "drift/core/exceptions.py": {
+      "sha256": "98ffebf0bde25a5bd44d1e8509d2f7e1e4aa74ae6ddb5f075d71c70116de9601",
+      "bytes": 1688
+    },
+    "drift/core/journal.py": {
+      "sha256": "85abb23fa7ac101cf570070b81a784683210a57e8c9262e6bee795ab73f9c38c",
+      "bytes": 1795
+    },
+    "drift/core/logger.py": {
+      "sha256": "0872ce4df24e0ee78356a7e2c1bcc24cdb861038ee00452da1dd995868a6eef7",
+      "bytes": 1264
+    },
+    "drift/core/maa_engine.py": {
+      "sha256": "f33ccb79af1a9a89b811e476c3c6f6ad9d0aa33a7d193de9b3fe291bc94eb45c",
+      "bytes": 9666
+    },
+    "drift/core/matcher.py": {
+      "sha256": "cc0e7dd5c222a1c982fc3c4aa752dcd6a1ce47050e1233baac3183a8cf392747",
+      "bytes": 10517
+    },
+    "drift/core/observability.py": {
+      "sha256": "5920a055936a8eea8870877aa3fc0b54e2848f718df36541269ac46803db8119",
+      "bytes": 3744
+    },
+    "drift/core/pages.py": {
+      "sha256": "40ca8fce63727231bf15a260e6c24525999f177bf043ae699662b3ad794ddb3a",
+      "bytes": 6896
+    },
+    "drift/core/paths.py": {
+      "sha256": "bf9fc403d61fea4be1cdfb3bc2805254fd157965ead511919e8c66c612701156",
+      "bytes": 1046
+    },
+    "drift/core/progress.py": {
+      "sha256": "862a38065576d198d174a5570686df52aea1ced00c9a858c4af14df7d599227e",
+      "bytes": 1991
+    },
+    "drift/core/session.py": {
+      "sha256": "0d532749307991fe87969859ab8e658c1ac695a8b9665f7107eacc08a41295cf",
+      "bytes": 5591
+    },
+    "drift/core/ui.py": {
+      "sha256": "df3aa35c916c0c3a222b3210603fb5f324cede31c9783b9e82e99ce189687e30",
+      "bytes": 5156
+    },
+    "drift/core/util.py": {
+      "sha256": "91329441c335678e22041d09b61bf123f5b30f2f715a8a4b05cd2fc4d1c25e3c",
+      "bytes": 1480
+    },
+    "drift/core/winruntime.py": {
+      "sha256": "55bcfa3d337695b258ffe7cbe345cbf79138f54539a916b4cd997428d7aa853f",
+      "bytes": 2734
+    },
+    "drift/device/__init__.py": {
+      "sha256": "6cfa3de8195433836f93680a38f0101c9703bfb3ad3e73e0a5bbd8b6ddfdcace",
+      "bytes": 185
+    },
+    "drift/device/adb.py": {
+      "sha256": "9f62e7411b8719e8bcf3849a7c4896f64c0b19a5ae1b01342aa44475c6816d29",
+      "bytes": 12171
+    },
+    "drift/device/evidence.py": {
+      "sha256": "c9bb899730eefde3be54f195411fd4ba95a953fd4bb8f440b098c571cb406df0",
+      "bytes": 3795
+    },
+    "drift/device/native.py": {
+      "sha256": "97ce52d92410828421bbe879a76248871f8e6a895f62c2c33da8f00ecd23df6a",
+      "bytes": 8245
+    },
+    "drift/perception/__init__.py": {
+      "sha256": "ca046f36fc292dbc2c48621855a3cf3d351411c108fe24176f8d07b55e32505e",
+      "bytes": 988
+    },
+    "drift/perception/daily_bonus.py": {
+      "sha256": "82836bfa16d6c5d3f78cf0bf4b591b3f9e1f6cfd94852328bf29249eaad52563",
+      "bytes": 2749
+    },
+    "drift/perception/digit_ocr.py": {
+      "sha256": "c2c45a5d15b7579d899d3bd38340fcdc22c8c533f181cbbabd965743727bf77e",
+      "bytes": 11644
+    },
+    "drift/perception/purchase_checks.py": {
+      "sha256": "a12f0435f31d19c68f840e61da855c59a3f05fc3d3e00766f84cd0c19bd3b051",
+      "bytes": 12961
+    },
+    "drift/perception/restaurant.py": {
+      "sha256": "705b8c5eab63cdd9e143db8ad1cd11984e44f0513b57f0fa17f482337c3cd91b",
+      "bytes": 10885
+    },
+    "drift/perception/reward_list.py": {
+      "sha256": "cb40c9a32e2c1b9abfdc48b1d578f8372bb1665faafc1e4227d9b8427e2a7671",
+      "bytes": 3873
+    },
+    "drift/runtime.py": {
+      "sha256": "275d97ae21b0e54788fcd0cec683776f539b05d813bf6b70392c33a7c6cf1255",
+      "bytes": 286239
+    },
+    "drift/tasks/__init__.py": {
+      "sha256": "a6a28f5eded1ffe6f21e77e726c31e32c62eada4248bee5c474c7410d703d5be",
+      "bytes": 752
+    },
+    "drift/tasks/backpack_sale.py": {
+      "sha256": "8677c2fba8889fcac0c196ad8d110500da30e078c3e8b916b25c5181251435b5",
+      "bytes": 26576
+    },
+    "drift/tasks/base.py": {
+      "sha256": "0df3378d78100f5eeb596c9641ab695d261e2d98f87d4ce6bb22022c0b61a673",
+      "bytes": 4642
+    },
+    "drift/tasks/boss_defense.py": {
+      "sha256": "8ca78d0565fa8cf6b9b44c50b974f3bd2000f499a82d8323b3147b773ccc9788",
+      "bytes": 21676
+    },
+    "drift/tasks/boss_training.py": {
+      "sha256": "85a65511c3d538a63bc918bf9fd98f2696a150ba4ef7dffda980b55b606dc01d",
+      "bytes": 24703
+    },
+    "drift/tasks/cruise_gate.py": {
+      "sha256": "54dbc795c29cd1fe3b367946335d4f22f40770b532ce4ffb2ee0a6948f04e6f3",
+      "bytes": 2039
+    },
+    "drift/tasks/cruise_options.py": {
+      "sha256": "d133a983af1d213ef9d6f85d4ae5ddc1018da7de891eb4c384f4ff6c4b445d87",
+      "bytes": 2025
+    },
+    "drift/tasks/cruise_settings.py": {
+      "sha256": "37134403ba43335b2a237271683c276c5c34c6a128deaea791a103b53aa584a0",
+      "bytes": 29872
+    },
+    "drift/tasks/cruise_setup.py": {
+      "sha256": "f88da3e28e0165f699bc22ff8e726da352617c250fc149d0ce2def9e61077a1f",
+      "bytes": 11390
+    },
+    "drift/tasks/cruise_watchdog.py": {
+      "sha256": "78fb8e8c8e6139fad25cadcc98976b552f0d94117a29a13a984df2fbaff58002",
+      "bytes": 13328
+    },
+    "drift/tasks/daily.py": {
+      "sha256": "36f3ad9155639314beae690ec3f86c33fa8eb9988ead3df0bbac6042c103085c",
+      "bytes": 6105
+    },
+    "drift/tasks/equipment_upgrade.py": {
+      "sha256": "ed04e338ce8759bb41b52d1b8350ad60a795315b73a2faf81c7d711646c7cca3",
+      "bytes": 15960
+    },
+    "drift/tasks/features.py": {
+      "sha256": "8e46d4ca9a57cec1442fe48b0d41ace63beb778411d07d1e1821c769e28b5e43",
+      "bytes": 26365
+    },
+    "drift/tasks/final_boss_attack.py": {
+      "sha256": "f1cb6082db1f3a49e5ca17f978fe41be71166e234aaf58629e407838afdb67ed",
+      "bytes": 2940
+    },
+    "drift/tasks/fishing_meter.py": {
+      "sha256": "18d3ab391cf9b4a6ce94685ac5ae7edfcee62e63bc1e7aba3e04303a67659eec",
+      "bytes": 46690
+    },
+    "drift/tasks/frame_runtime.py": {
+      "sha256": "46a2c5c45fd26dc34ae9f5679b12e9d811af5ea7f6208b6740be64a311e659a2",
+      "bytes": 5152
+    },
+    "drift/tasks/game_recovery.py": {
+      "sha256": "af83b53613412556971ee58a14edf350b62c06381c735297d0510d6495715207",
+      "bytes": 13097
+    },
+    "drift/tasks/guild_daily.py": {
+      "sha256": "ffc1d9af2a08445059debb69199b070f15a9ee8eb901af83d63eaa0e1bdbdbeb",
+      "bytes": 67629
+    },
+    "drift/tasks/handoff_journal.py": {
+      "sha256": "230db6ec6c61ecf8d173d55afb5ba7a77713251d9b50101d9eb0c1eef1a5acbc",
+      "bytes": 3809
+    },
+    "drift/tasks/meter_calibration.py": {
+      "sha256": "9df42e316f9aedf0deb083cc707f47dd1318d7a5f83749508ad1cf51194ad175",
+      "bytes": 90737
+    },
+    "drift/tasks/meter_journal.py": {
+      "sha256": "f429e781352a87a091cdc573d9db1b77f99ac8e441d7b3a1fed43d2263852528",
+      "bytes": 2855
+    },
+    "drift/tasks/meter_limits.py": {
+      "sha256": "e3000b033b350b00331a33ab6a7c07471bda8fc77321d108442546aabebef41b",
+      "bytes": 197
+    },
+    "drift/tasks/native_auto_sale.py": {
+      "sha256": "41dfa5dd446776815088266af0a1516db1341e67c1deffd74c1248a2d62c5eee",
+      "bytes": 3160
+    },
+    "drift/tasks/optional_timeout.py": {
+      "sha256": "44d54cf614954463f699fe4ae2aa751b362e596c2e7b5534a5bb8cdabb11e381",
+      "bytes": 17151
+    },
+    "drift/tasks/parallel_screen.py": {
+      "sha256": "b9823c84a764e8b92c1eaf12d26ad06a0bdf0211d8b77dc423deaa9b94123581",
+      "bytes": 9923
+    },
+    "drift/tasks/parallel_skills.py": {
+      "sha256": "0c1af1bdc762c3234603b13fff72e0badd0bf1c5ff114a458e6c05c9cc8d5966",
+      "bytes": 18743
+    },
+    "drift/tasks/parallel_world.py": {
+      "sha256": "672e4f53be9ea6a1253bd40084ff8fc1e253b33cdc8c6440372cebc046a501c3",
+      "bytes": 91902
+    },
+    "drift/tasks/pass_daily.py": {
+      "sha256": "66e0c0ec4c45a8934c7dfb9e6741f9f5f3ed4ee04a2a2897cd82f7002ef03ebc",
+      "bytes": 11679
+    },
+    "drift/tasks/raid_cast.py": {
+      "sha256": "72778c5111522907d60b1ffc09437bc9f9972bc5027c859a8e9175358c58bca0",
+      "bytes": 3054
+    },
+    "drift/tasks/registry.py": {
+      "sha256": "17589209f0663cd3e8c05476754c6f1c27232b077360df9e4b1e7eb7e9b9b75e",
+      "bytes": 1139
+    },
+    "drift/tasks/restaurant_upgrade.py": {
+      "sha256": "2b01cf8e573646bb332b98598b0bb056a1d9fffd382d3aeceba1c6a6428d5e87",
+      "bytes": 61050
+    },
+    "drift/tasks/return_parallel.py": {
+      "sha256": "32c9a9ffd7f32166d357530fb13afb9b939b3002c3f8a78d4483857ca5f96447",
+      "bytes": 19157
+    },
+    "drift/tasks/schedule.py": {
+      "sha256": "5f8540871c41d3182f0f81254d68a3c8630c97b3d8f86a3b2b9449fac3ee7b50",
+      "bytes": 10028
+    },
+    "drift/tasks/stone_farm.py": {
+      "sha256": "39e79d6c90355dadec125690eabb3b46ceeabd2c2a4ecd1ee4fb12be8435fc23",
+      "bytes": 184564
+    },
+    "drift/tasks/training_sailing.py": {
+      "sha256": "5330bdc5f808c9474ec7802acb19300a37d21520547810caeb55f8137525436e",
+      "bytes": 24148
+    },
+    "drift/ui/__init__.py": {
+      "sha256": "ee42b81d9c30bf88d26e3d5cdce61fa061f7eac19a2ec8b121ccbc77043f3b61",
+      "bytes": 177
+    },
+    "drift/ui/button.py": {
+      "sha256": "003fbb0661ffed2142fb35aec047d0b99f7abdf923fb9af34aad32a81751990b",
+      "bytes": 6533
+    },
+    "drift/ui/guild_selection.py": {
+      "sha256": "8974f824eeb5944a892d89cf76be724ab8b1adfaa115cb792d5fac3e4ebe9371",
+      "bytes": 6113
+    },
+    "drift/ui/mailbox_close.py": {
+      "sha256": "a3cca44c22d8bb50fab62a09e67f25f01cd29bb33cb659ac103ff927a3eb2ff8",
+      "bytes": 2945
+    },
+    "drift/ui/popup_cruise.py": {
+      "sha256": "965ae51887d52c2da302e9034475f3f9654ecebb5def03103a9afca49249591a",
+      "bytes": 2033
+    },
+    "drift/ui/popup_raid.py": {
+      "sha256": "9842f5dac4f9b6884eac25350614b2acef441be9f33c3212d3d072a3b41214d9",
+      "bytes": 6766
+    },
+    "drift/ui/resource_battle.py": {
+      "sha256": "ced2703a3ac707873957442a677df6659d4fe5e6b727dc7b0d6b431cedd43989",
+      "bytes": 3430
+    },
+    "drift/ui/sidebar.py": {
+      "sha256": "f9afccc1ab713a33d2066cebd5a5561069b585b6eee4d4be1563c519a5d1b98b",
+      "bytes": 5079
+    },
+    "drift/web/__init__.py": {
+      "sha256": "721e7be2690ab58703f22780f580589fc61475e5bd1a0bf33c1c763d17ae2e0a",
+      "bytes": 1420
+    },
+    "drift/web/cli.py": {
+      "sha256": "7cd6792415f6f9f8218f9cf748a7b326663c0555ee19e810a3e48400cc500b22",
+      "bytes": 5809
+    },
+    "drift/web/server.py": {
+      "sha256": "6d7e11d2aadcc2bd8101c6ae099264e97667b77f45ca2c472ccc1616213fcc2a",
+      "bytes": 7215
+    },
+    "drift/web/watchdog.py": {
+      "sha256": "942aa94b6c02bc9599d3486d4865a01c381f5545a9df36acbd4a3e77a54410c6",
+      "bytes": 6747
+    },
+    "equipment_upgrade.py": {
+      "sha256": "2494ffce2832f5cb0719b77036a289957688bf452e85d96850fef73018e7a0bb",
+      "bytes": 376
+    },
+    "features.py": {
+      "sha256": "df634de15d0f06b3e3f01b5df6a89f0593ff1f333fc7ee2df2778041ddbc1ac8",
+      "bytes": 86
+    },
+    "fishing_meter.py": {
+      "sha256": "1038efbe4d66f8c7f1d6fb5751c7af4cf7c2ddc1435875366a1fdf77eea1b907",
+      "bytes": 360
+    },
+    "frame_runtime.py": {
+      "sha256": "e3dc977d4ced6d49a3198f09c287254611a955566589d0f5e50024ca25f77b8d",
+      "bytes": 91
+    },
+    "game_recovery.py": {
+      "sha256": "280c31149036289580b05c564bb660a64b5e772facaaba16762d989920c3180d",
+      "bytes": 360
+    },
+    "LICENSE": {
+      "sha256": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
+      "bytes": 35823
+    },
+    "licenses/bundled/index.json": {
+      "sha256": "5a6e97822e197a8444b1446989f2a9b211254a9fc3a5cf1392c7ac8aa7b72009",
+      "bytes": 7037
+    },
+    "licenses/bundled/maafw/maafw-5.14.3.dist-info/licenses/LICENSE.md": {
+      "sha256": "446e755fae55ff034bbb21be44670b5f116c2b2667947e7036f2bfe6632539a8",
+      "bytes": 7560
+    },
+    "licenses/bundled/numpy/numpy/_core/include/numpy/random/LICENSE.txt": {
+      "sha256": "d544761558b510866c21f7e8a2d5716fca76e0b98117e3b6b86314db7244d150",
+      "bytes": 1039
+    },
+    "licenses/bundled/numpy/numpy/ma/LICENSE": {
+      "sha256": "d78dbb208b80d92b4d333e41a4baae50d12444f46e53199fa7726a91de6e2da7",
+      "bytes": 1616
+    },
+    "licenses/bundled/numpy/numpy/random/LICENSE.md": {
+      "sha256": "b4bc2f4fa1c95778f1ed3dd8f14706bece399475b978f9f34b5d3cd72521b48a",
+      "bytes": 3582
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/LICENSE.txt": {
+      "sha256": "a804dff0ead9fadc5293456410bcbfc32bf024be9c4513459663fb7b442d2341",
+      "bytes": 45831
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/_core/include/numpy/libdivide/LICENSE.txt": {
+      "sha256": "d544761558b510866c21f7e8a2d5716fca76e0b98117e3b6b86314db7244d150",
+      "bytes": 1039
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/_core/src/common/pythoncapi-compat/COPYING": {
+      "sha256": "aea41976c720f91bd19725c16916a1ace40eb1ea42620d340e587a5de4bbcea0",
+      "bytes": 704
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/_core/src/highway/LICENSE": {
+      "sha256": "d208152e2777ffd0126eacc1bd21c0320d69e4e6b622d21a2a12a47e8ef73763",
+      "bytes": 21155
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/_core/src/multiarray/dragon4_LICENSE.txt": {
+      "sha256": "b0fd592d4ead563148e3977e7b589169d46a5ef2ff133c755a81af880a3fc919",
+      "bytes": 1441
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/_core/src/npysort/x86-simd-sort/LICENSE.md": {
+      "sha256": "a732977853530066790c42817087f4829b518dd98d340c916acbfd227e39d3cb",
+      "bytes": 1542
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/_core/src/umath/svml/LICENSE": {
+      "sha256": "585483905b13d4b42f800c55ba99e89d6e2e33ccd5f503e201c07531d148ff41",
+      "bytes": 1573
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/fft/pocketfft/LICENSE.md": {
+      "sha256": "8db000e158c162e7249787852d8c69764706502ccee725c06641b31c1e95c8af",
+      "bytes": 1523
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/linalg/lapack_lite/LICENSE.txt": {
+      "sha256": "19060ef465e1797d682ee0fc3081bd25ab1395e995e43d25c9d13c95d9a3cd6b",
+      "bytes": 2314
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/ma/LICENSE": {
+      "sha256": "d78dbb208b80d92b4d333e41a4baae50d12444f46e53199fa7726a91de6e2da7",
+      "bytes": 1616
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/random/LICENSE.md": {
+      "sha256": "b4bc2f4fa1c95778f1ed3dd8f14706bece399475b978f9f34b5d3cd72521b48a",
+      "bytes": 3582
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/random/src/distributions/LICENSE.md": {
+      "sha256": "cf5619f25b112d5ce7c896efffc8e610bcb345dfadcc19f2c1460aa48fff2c9e",
+      "bytes": 2805
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/random/src/mt19937/LICENSE.md": {
+      "sha256": "92c10699884321f1c2947fe2a70ab23b0fbf1507f756d89dd08f38c61fc3d4fa",
+      "bytes": 2986
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/random/src/pcg64/LICENSE.md": {
+      "sha256": "41190663b77bee5302386495a07b7eabfbfa571aa0ae2f11da6764162062fc4f",
+      "bytes": 1176
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/random/src/philox/LICENSE.md": {
+      "sha256": "322ac46d870c8aeead6c53adcccc839296fb3c8e456eae155081297daf7f8013",
+      "bytes": 1540
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/random/src/sfc64/LICENSE.md": {
+      "sha256": "28cad82ce1379dc529df30da78ec012d7d0d1d576b03ddcb93388aee53659f59",
+      "bytes": 1253
+    },
+    "licenses/bundled/numpy/numpy-2.5.1.dist-info/licenses/numpy/random/src/splitmix64/LICENSE.md": {
+      "sha256": "454ec7350e478e037061850b67395753b425b1cb0a34bbc26290b020bf89d763",
+      "bytes": 340
+    },
+    "licenses/bundled/onnxruntime/onnxruntime/LICENSE": {
+      "sha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674",
+      "bytes": 1094
+    },
+    "licenses/bundled/onnxruntime/onnxruntime/ThirdPartyNotices.txt": {
+      "sha256": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622",
+      "bytes": 344457
+    },
+    "licenses/bundled/opencv-python-headless/cv2/LICENSE-3RD-PARTY.txt": {
+      "sha256": "c1d60169b55cee56452b227c2fd2a7b9ddda3dd3741065f1c6201072be73fadb",
+      "bytes": 183251
+    },
+    "licenses/bundled/opencv-python-headless/cv2/LICENSE.txt": {
+      "sha256": "edef0fac1eb08d29d34563f724742e078da2513e196133a12c6ad9ff01e26107",
+      "bytes": 1090
+    },
+    "licenses/bundled/opencv-python-headless/opencv_python_headless-5.0.0.93.dist-info/LICENSE-3RD-PARTY.txt": {
+      "sha256": "c1d60169b55cee56452b227c2fd2a7b9ddda3dd3741065f1c6201072be73fadb",
+      "bytes": 183251
+    },
+    "licenses/bundled/opencv-python-headless/opencv_python_headless-5.0.0.93.dist-info/LICENSE.txt": {
+      "sha256": "edef0fac1eb08d29d34563f724742e078da2513e196133a12c6ad9ff01e26107",
+      "bytes": 1090
+    },
+    "licenses/bundled/Pillow/pillow-12.3.0.dist-info/licenses/LICENSE": {
+      "sha256": "4f7866a74802c6326f81faff59a56546b6aec2b10b91973e0e9308de95e79857",
+      "bytes": 78016
+    },
+    "licenses/bundled/PyInstaller/pyinstaller-6.22.3.dist-info/licenses/COPYING.txt": {
+      "sha256": "0598064c7d2718e38d7914a7d08343b2fa008e3bea9ebba2aa7a6ffa5900dd64",
+      "bytes": 32604
+    },
+    "licenses/MaaFramework-LGPL-3.0.txt": {
+      "sha256": "446e755fae55ff034bbb21be44670b5f116c2b2667947e7036f2bfe6632539a8",
+      "bytes": 7560
+    },
+    "licenses/ONNXRuntime-MIT.txt": {
+      "sha256": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674",
+      "bytes": 1094
+    },
+    "licenses/ONNXRuntime-ThirdPartyNotices.txt": {
+      "sha256": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622",
+      "bytes": 344457
+    },
+    "licenses/PaddleOCR-APACHE-2.0.txt": {
+      "sha256": "3840c5c0c61c294264d2dd77b8777be6ddd90121ef4e0e64abcd22edea581d6e",
+      "bytes": 11376
+    },
+    "licenses/Python-LICENSE.txt": {
+      "sha256": "935cf13e19f8c31b497d20b05d73623431a226b230c3599bc30fa3348979bc68",
+      "bytes": 35407
+    },
+    "licenses/RapidOCR-APACHE-2.0.txt": {
+      "sha256": "3e0af25fdd06aa9586ae97adb00ea927ebe5a3805ac77d2d3a81ce5f55693333",
+      "bytes": 11422
+    },
+    "meter_calibration.py": {
+      "sha256": "d695b095fc7988696c4a9a39529627e4b5429fbabc29aa4552673c0dd561706f",
+      "bytes": 376
+    },
+    "models/digit-model.json": {
+      "sha256": "39bdcaa7ee11187b32271294e4595019938417d145da7258df63c63af9c67dfb",
+      "bytes": 486
+    },
+    "models/en_PP-OCRv4_rec_mobile.onnx": {
+      "sha256": "e8770c967605983d1570cdf5352041dfb68fa0c21664f49f47b155abd3e0e318",
+      "bytes": 7653044
+    },
+    "native_capture.py": {
+      "sha256": "ec78ca3faf7145b92e822c180b141414c80208baef5d7495af2aebea79e2b8bb",
+      "bytes": 369
+    },
+    "parallel_skills.py": {
+      "sha256": "d6a72eb79e437de5d981a666b89dc7662b7c93c6d8e0bd034113ca962c8fc58c",
+      "bytes": 368
+    },
+    "parallel_world.py": {
+      "sha256": "c13c1ac84b454c8365ee74ae0e119a5e97f69f6cb4c2dd18bcaf92594c180c2e",
+      "bytes": 364
+    },
+    "PUBLISH.md": {
+      "sha256": "6239f44dc625d33f65a2168a06aed0c5b4646ad80171462177adb5198469b046",
+      "bytes": 1988
+    },
+    "purchase_checks.py": {
+      "sha256": "adb8940fe8b67c4542b8eb2f7a1a48e9f050a3e2e29d2fe821612670fc6f7e76",
+      "bytes": 98
+    },
+    "README.md": {
+      "sha256": "93a7856e2c837cd2ce6da3e6ca1d114547dc97c7932deaefed34f6373ee4aaeb",
+      "bytes": 7741
+    },
+    "requirements-build.txt": {
+      "sha256": "574d5e0534aa1d6be73775b81f2bb3665df8bde61a5127821b955892465654e5",
+      "bytes": 96
+    },
+    "requirements.txt": {
+      "sha256": "0602161adea34b57a223d0ce7e4184caa93a06421c423256864b361b83a60f91",
+      "bytes": 95
+    },
+    "reward_list.py": {
+      "sha256": "831a5b430d79e53677ffc0c3b8147a72ebaa9d87a00c52557e77914ae2920f9d",
+      "bytes": 94
+    },
+    "start-panel.cmd": {
+      "sha256": "6adee5be4a0de91eda0237013f5bfc6de71cd52fe5507b00ce6daebc87887945",
+      "bytes": 109
+    },
+    "start-panel.ps1": {
+      "sha256": "553ec911d563c87df7638be51e4111ff126f1b0243adb277a5948802c183c789",
+      "bytes": 2748
+    },
+    "task_schedule.py": {
+      "sha256": "184d01f80d5b8ff778eedbf61bd4ac256bb74eecc27fb77754cd26fdcdb1ef4d",
+      "bytes": 86
+    },
+    "tests/fixtures/achievements-return/battle-after-close.png": {
+      "sha256": "2452252f965499bd55ae0a18ab0c47356432ec324be508a22f398b201258e76c",
+      "bytes": 1022323
+    },
+    "tests/fixtures/achievements-return/battle-after-fold.png": {
+      "sha256": "fa31cf53f6c991fd728bfedd77eb52bb7ae102ea2d7b6a309b644b96c9a9f665",
+      "bytes": 1051473
+    },
+    "tests/fixtures/achievements-return/legacy-rules.json": {
+      "sha256": "fc66d9a19bf8d3abecd12f07d2af022d145ff37e72a0537ec9be763e8bd9476c",
+      "bytes": 2294
+    },
+    "tests/fixtures/achievements-return/task-popup.png": {
+      "sha256": "adb2019b620ee1ae0c97e2f3ce0b6c8ef51e32e519be24bc63b669bf61705754",
+      "bytes": 1041519
+    },
+    "tests/fixtures/ad-position/growth-up-before.png": {
+      "sha256": "2b8cdf3cb2850019dbc8fb877a4a515a09e2cf1e6a05065e2c0295494af31a81",
+      "bytes": 1055969
+    },
+    "tests/fixtures/ad-position/growth-up-paused.png": {
+      "sha256": "eab2f6df8f980d3c6c9d576036e49bd54403c7fa69306c0802c30dee1e7513f6",
+      "bytes": 1060518
+    },
+    "tests/fixtures/ad-position/potion-up-0.png": {
+      "sha256": "b6764a8fc38c9044f09a639d34f136c9ac332a1eb15ef869156d8425f60f9df4",
+      "bytes": 1033496
+    },
+    "tests/fixtures/ad-position/potion-up-1.png": {
+      "sha256": "a54770158081619d5504abc4981c3b35f37d5bc197d8403c81f887bb58a8763c",
+      "bytes": 1071635
+    },
+    "tests/fixtures/ad-position/potion-up-2.png": {
+      "sha256": "20e915ad2aaa2060b962e73b93217baaeb898852e685fc2edd7ad5611e2ca4ac",
+      "bytes": 1068873
+    },
+    "tests/fixtures/ad-position/potion-up-paused.png": {
+      "sha256": "660a9c74b3836c7625291ef69aeaebdcd36e9d5dc1d4af9eaa5b824b7d33ac99",
+      "bytes": 1018625
+    },
+    "tests/fixtures/ad-recovery/growth-missed.png": {
+      "sha256": "0a62ba83e1a322a221c84d1c19afddf3ed1ee52a7467e260ee5bed90ad76b7ba",
+      "bytes": 1079052
+    },
+    "tests/fixtures/ad-recovery/whale-battle.png": {
+      "sha256": "50348e70fd725f729e05bddc7d1d50a64b8cd1fbf86aa97eab67992a1659546e",
+      "bytes": 1020089
+    },
+    "tests/fixtures/backpack/bag-help-closed.png": {
+      "sha256": "9785227c8aabc7a91a4b55ed6f9bf8398e4276537c3a4dbf4a426cda68fa3104",
+      "bytes": 1205181
+    },
+    "tests/fixtures/backpack/bag-help.png": {
+      "sha256": "bf10873f1e9e60d64630d3966837032419f03ee336370a03452b0716fba76b36",
+      "bytes": 1077680
+    },
+    "tests/fixtures/backpack/bag-open.png": {
+      "sha256": "6f3b9c13242f2975e353bf314c93e4dfe7893501ef00b11a5be5ecc9eae2ba77",
+      "bytes": 1205632
+    },
+    "tests/fixtures/backpack/before.png": {
+      "sha256": "0fa393b1cddacb50dd4a0d538cfd3817e692d443de2b95ac72aacfb141f63d13",
+      "bytes": 1120230
+    },
+    "tests/fixtures/backpack/cooking.png": {
+      "sha256": "fae10c6820958f21958d8e80ba5d6bc28e77d1d223a709066ca009166b10dc2e",
+      "bytes": 1070500
+    },
+    "tests/fixtures/backpack/corrupt-native-map.png": {
+      "sha256": "06cada0748d90830ae15a4069e4aa1439c62cd34771ff4a95ac78e857ef54545",
+      "bytes": 1828461
+    },
+    "tests/fixtures/backpack/food.png": {
+      "sha256": "b5974ae9ea3f3f1dd231601dbe0a03fbd58a27fb6baec9fff57a0d0a7a118f6f",
+      "bytes": 1062218
+    },
+    "tests/fixtures/backpack/origin-mumbai.png": {
+      "sha256": "c562bfa65ffb283e84d6128485f002ef24d658faca1ffb546b78d4137929fb0c",
+      "bytes": 5253
+    },
+    "tests/fixtures/backpack/port-bag.png": {
+      "sha256": "7735b55b3afc76b1ffd32cbf7e5cac02fddd530724753de9c2f2d93bc6b36b21",
+      "bytes": 1197354
+    },
+    "tests/fixtures/backpack/port-map.png": {
+      "sha256": "05cf9ba71aee31cda110d25bea822834f025f326fe8292e68417dec4963f05de",
+      "bytes": 947647
+    },
+    "tests/fixtures/backpack/port-offscreen-mumbai.png": {
+      "sha256": "403aec64e4afec0b945206025617e866ffb23b96ab6ce3375cdb070748b405d6",
+      "bytes": 826871
+    },
+    "tests/fixtures/backpack/port-selected.png": {
+      "sha256": "eacd7f6ac92501942eec88d9cd76e5b6fe7df8c64774edc5c5824cd854751238",
+      "bytes": 939859
+    },
+    "tests/fixtures/backpack/port-travel.png": {
+      "sha256": "e8773c097d490aa119ea5b39408ee8fa04da715f7ea47c84bf5e6422243be621",
+      "bytes": 1140277
+    },
+    "tests/fixtures/backpack/ports-busan-sydney.png": {
+      "sha256": "81e2b2e32cf8c1712f015b50b3cbcc2713f589dd989473d34ea104cb20601bb4",
+      "bytes": 757686
+    },
+    "tests/fixtures/backpack/rank39-rotating-trade-1.png": {
+      "sha256": "acc1d6ed26187e6d4a7ed7f26cda81e885082467e9e72ba018adfa27e923b8de",
+      "bytes": 1100032
+    },
+    "tests/fixtures/backpack/rank39-rotating-trade-2.png": {
+      "sha256": "49be11a59d2f5e5882229726cde0121cb066c0fca4140774526feff5e96aa273",
+      "bytes": 1099458
+    },
+    "tests/fixtures/backpack/rank39-rotating-trade-3.png": {
+      "sha256": "8426cf9d66f42237e0a93068b0c0b8ece5f1bf65dfd5fb0e64f8031e7d150a99",
+      "bytes": 1103649
+    },
+    "tests/fixtures/backpack/return-map.png": {
+      "sha256": "fd784303ec2cae9238fa51137a3c0667f27a492a474f9763d1160a5b07905cc6",
+      "bytes": 863691
+    },
+    "tests/fixtures/backpack/return-training-selected.png": {
+      "sha256": "21ed1d4d8dea9e7095e544b6e40d5eecd24561b6eb6582721531aae1e88dd017",
+      "bytes": 867650
+    },
+    "tests/fixtures/backpack/return-travel.png": {
+      "sha256": "347540267569aa32446d415028b5b90ff7ed3c817717662663a117af41f98df9",
+      "bytes": 870211
+    },
+    "tests/fixtures/backpack/returned-main.png": {
+      "sha256": "736805ab6b7321a5151daff56035fea41535df4e297ff056154d73cf0821950a",
+      "bytes": 1135094
+    },
+    "tests/fixtures/backpack/sailing-full-port.png": {
+      "sha256": "79f47e405f2af9f8f522c8424cbe2f72dbc12a6affd7c9332e93fcf621121d30",
+      "bytes": 1033894
+    },
+    "tests/fixtures/backpack/sailing-stopped-full-port.png": {
+      "sha256": "745e84f42d757c6d46cef7d3abf3c6ea92d0e49daeae1a872e0f9a813bcedd53",
+      "bytes": 1019688
+    },
+    "tests/fixtures/backpack/sale-entry.png": {
+      "sha256": "fa8288c30153fd687f1b82ac272ae166bc0aca7e9631b54e5d16d1718b43f6f0",
+      "bytes": 1212819
+    },
+    "tests/fixtures/backpack/sold-closed.png": {
+      "sha256": "2578c884b6d7181a2eebbc44f018e8d001258143f0369588758ea5ea9956d40a",
+      "bytes": 1125897
+    },
+    "tests/fixtures/backpack/sold-stable.png": {
+      "sha256": "842f8bd8576c7033c14eddf291f8f297e565e76466759e1a7eaf747f6399b0fd",
+      "bytes": 1151105
+    },
+    "tests/fixtures/boss-defense/attack-flash.png": {
+      "sha256": "f83cf67a4e9e62548c197f061b8efc62c1c9b3b9be5e7a89f381355808eca3c9",
+      "bytes": 974189
+    },
+    "tests/fixtures/boss-defense/equipment-occlusion.png": {
+      "sha256": "575e5c7297272baf249829bc5b49e11f613b0514c4a6b50c1f09acb8386606e2",
+      "bytes": 1056114
+    },
+    "tests/fixtures/boss-defense/guardian-battle-0.png": {
+      "sha256": "1433f088842694c8db8ace75efae28031f6f488162fa8f237d2f49daa7f20b67",
+      "bytes": 1016465
+    },
+    "tests/fixtures/boss-defense/guardian-battle-1.png": {
+      "sha256": "f704c2f132916c21489d3c9ff913f461c0a2f014786f39595440fef33b66b218",
+      "bytes": 1005077
+    },
+    "tests/fixtures/boss-defense/guardian-battle-2.png": {
+      "sha256": "b473923b7013d30a7ec895aee20f8c68da1cfcf81edecfee48aad6d1241ed9bf",
+      "bytes": 997286
+    },
+    "tests/fixtures/boss-defense/lowered-weapon.png": {
+      "sha256": "bc23772d95c9a025440248f3c113894d8477896a1112a78a80a2f21d0edcfd7b",
+      "bytes": 1003523
+    },
+    "tests/fixtures/boss-defense/native-footer-occluded.png": {
+      "sha256": "0965cdb88ae7a22fcec8c17ba37a43c4979f4e1941a76505b1cdf8e8741067fc",
+      "bytes": 1094758
+    },
+    "tests/fixtures/boss-defense/native-lamp-reflection-wide.png": {
+      "sha256": "29c48deecc367cd663f9fdc74f3ebab1c70cb8d90989ec15dee3d1ceca325e29",
+      "bytes": 1125373
+    },
+    "tests/fixtures/boss-defense/native-lamp-reflection.png": {
+      "sha256": "a635e5aee32feccc6a69585d73606153c266f6fe80a823b9ad2d3f273b8dfea1",
+      "bytes": 1136588
+    },
+    "tests/fixtures/boss-defense/native-pulse-left.png": {
+      "sha256": "6d9d6e857a25812ccabfff43c67a09813773c2c9b2886a450bf4557649e7b37e",
+      "bytes": 984705
+    },
+    "tests/fixtures/boss-defense/native-pulse-right.png": {
+      "sha256": "06717175fc1f08e1f46ab8e58c7ea26763ea6cd130d66ca15520b8dca186ea66",
+      "bytes": 991728
+    },
+    "tests/fixtures/boss-defense/native-reward-gears-chain-right.png": {
+      "sha256": "cb46b9056595ae38e9c9d5bf0fcaece37806dfd55e0a9b5813f0f2d31fb1b7d4",
+      "bytes": 995723
+    },
+    "tests/fixtures/boss-defense/native-reward-gears-right.png": {
+      "sha256": "94bbc4750a2d858b6a824086464f105c295157e8165a952122efa5f335774f54",
+      "bytes": 989057
+    },
+    "tests/fixtures/boss-defense/native-right-attack-arc.png": {
+      "sha256": "c081ce20407c0a899aa5dcdc21ae19e4068473bf394ea5112dc2ec55bdcfef05",
+      "bytes": 1121593
+    },
+    "tests/fixtures/boss-defense/native-right-bubbles.png": {
+      "sha256": "9619c30d7dd90d56d1e31b261fd41fe4dbd3301138d6d23982108cdd0e970975",
+      "bytes": 994662
+    },
+    "tests/fixtures/boss-defense/native-right-charge-ended.png": {
+      "sha256": "2f796c01f8bc0aa0e6e6d6f8f1e109744dc62f7e9dc6ec205238bab3991d436b",
+      "bytes": 1128674
+    },
+    "tests/fixtures/boss-defense/native-right-charge-low.png": {
+      "sha256": "abc73ca0e8fb6cfa7dda63247ba9374092c47b1b4b183c8265ff3ca52e9ad1c7",
+      "bytes": 992954
+    },
+    "tests/fixtures/boss-defense/native-right-charge-lowest.png": {
+      "sha256": "1def01104a84b363edc24f02fdb916b5d0d88e679caa6632f1f9547d2c547457",
+      "bytes": 979220
+    },
+    "tests/fixtures/boss-defense/native-right-charge-rising.png": {
+      "sha256": "f02cc8548775d09ad022bf7d8aab157060b61c5ff984cd3c5ca18953b33f0b3a",
+      "bytes": 989229
+    },
+    "tests/fixtures/boss-defense/native-right-early-charge.png": {
+      "sha256": "a68451ac24d1beaf79e10f70b38834a1f06e5e54a650038667cc920740703430",
+      "bytes": 1116427
+    },
+    "tests/fixtures/boss-defense/native-right-firing-elongated.png": {
+      "sha256": "0f7a6e565ddd8a59f1428095e99248b7799f8af708d30d83b0f74a67e073fce2",
+      "bytes": 1145402
+    },
+    "tests/fixtures/boss-defense/native-right-no-visible-arm.png": {
+      "sha256": "1b7a3a04fa5871658150da73f90db0484c2339550ec1454853c16c0f16b4b93c",
+      "bytes": 1134789
+    },
+    "tests/fixtures/boss-defense/native-right-touch-arc-joined.png": {
+      "sha256": "f51a3f19174fab4b2c23ce6bbf32ecfd84a50ea257495930a68973e67e60a403",
+      "bytes": 1126980
+    },
+    "tests/fixtures/boss-defense/native-right-touch-darkening.png": {
+      "sha256": "4768f111cc5d5f58b32950b90afa533b78f9f05d4c02f9dd3cb3d31967efaee5",
+      "bytes": 1129655
+    },
+    "tests/fixtures/boss-defense/native-right-touch-dropped.png": {
+      "sha256": "bd8813ea270ec2dc4983c48980e1c8232ee2ff83633ab28f600a55a120560d71",
+      "bytes": 1122367
+    },
+    "tests/fixtures/boss-defense/native-right-touch-insufficient-core.png": {
+      "sha256": "98b343c6a1fa963cd2c3fd7700a272b95426a50daec934c3ee85c0bc318b18f6",
+      "bytes": 1115349
+    },
+    "tests/fixtures/boss-defense/native-right-touch-leaning.png": {
+      "sha256": "05c6c5b8c77d0b9165756f288bdf1521611a0fb4355580aab0afa5c8f08dc877",
+      "bytes": 1134201
+    },
+    "tests/fixtures/boss-defense/native-right-touch-low-second.png": {
+      "sha256": "eacdd95291bd208ddb29ba7c884dc509b1b3aebea3c25b164124a702a3d6f893",
+      "bytes": 1126468
+    },
+    "tests/fixtures/boss-defense/native-right-touch-low.png": {
+      "sha256": "4e839202da1eeb6c9206683282a8dd743fcea5a7b69d6b6e1c3b684cbd26f1cc",
+      "bytes": 1121801
+    },
+    "tests/fixtures/boss-defense/native-right-touch-raised.png": {
+      "sha256": "7401793558cf0474a8280b4b4890c10ce13d98e3b626ee91b0b763d9592ca6d9",
+      "bytes": 1128702
+    },
+    "tests/fixtures/boss-defense/native-right-touch-rising.png": {
+      "sha256": "ae9cab04bb4acee7f98960c306fb69c457b08439cf42a387330c5eccf82ed352",
+      "bytes": 1120323
+    },
+    "tests/fixtures/boss-defense/native-right-touch-top.png": {
+      "sha256": "90782069ca18971a849fcfda8eaed4155275ab2edb0b40c264a0bf9596c980a0",
+      "bytes": 1118659
+    },
+    "tests/fixtures/boss-defense/native-right-whole-cap.png": {
+      "sha256": "122332bf8e62054f474cce35b0e815bd8c4b556b7b633721ef04937642db69a6",
+      "bytes": 996302
+    },
+    "tests/fixtures/boss-defense/native-white-left.png": {
+      "sha256": "6699a7b0b4f3b801d060496a47a5db78c68acc00ff0bc874cdb70883830438c8",
+      "bytes": 984206
+    },
+    "tests/fixtures/boss-defense/raised-left.png": {
+      "sha256": "6eb78a45da7e5b27b487b502b06327a369b2944ae19cbe1bd9259019e5a9408b",
+      "bytes": 1012089
+    },
+    "tests/fixtures/boss-defense/raised-right.png": {
+      "sha256": "9168bf6c10d435cce9390e01eb6cb1ff63678bd13b2332308c08223f4257fa51",
+      "bytes": 981664
+    },
+    "tests/fixtures/boss-defense/ship-fire.png": {
+      "sha256": "09d64b6dbf8347d343749703551565baf5e1d429c7594967adb2f5a7dd970834",
+      "bytes": 978004
+    },
+    "tests/fixtures/boss-defense/task-ordinary-fish.png": {
+      "sha256": "da8466b672f894720e83038a1dbae64646976131b932aa7f34cc8bd9c7f329b5",
+      "bytes": 927586
+    },
+    "tests/fixtures/crown-native-return/manifest.json": {
+      "sha256": "a03727269582bc7b3b9c7e589b1a33a37d887e85f1b5f5557adf88e1dc3e4c13",
+      "bytes": 691
+    },
+    "tests/fixtures/crown-native-return/rank22-battle.png": {
+      "sha256": "015f0512ece3c35683b69c03ebba1079fcb206cc1ed9507923ff66c22cd92757",
+      "bytes": 939336
+    },
+    "tests/fixtures/crown-native-return/rank22-filled-preparation.png": {
+      "sha256": "f60941ed27bb7a282aaebd8ca15ca7a8330dd095f0949b7783b1278091f8379f",
+      "bytes": 1051424
+    },
+    "tests/fixtures/crown-native-return/rank22-success.png": {
+      "sha256": "3caa25d5dd07ce86dde9a89a4b15457794c390afda9a05b02ea836018571caff",
+      "bytes": 1038512
+    },
+    "tests/fixtures/crown-native-return/rank5-occluded-result.png": {
+      "sha256": "816bca518b64c4bc319ee680572700b729e292f305bafe3473f8edc692cb37c6",
+      "bytes": 991088
+    },
+    "tests/fixtures/crown-shifted-timer/battle.png": {
+      "sha256": "053a2573824193cacaf2eb6826d8a0c0e5bfcc2f21ffb0dfdb943cc7ce531cd9",
+      "bytes": 1027635
+    },
+    "tests/fixtures/crown-shifted-timer/menu.png": {
+      "sha256": "263959efd2d6141860559d1d26ec1a6218baa60a4491ff3c577fdef6347d7842",
+      "bytes": 986473
+    },
+    "tests/fixtures/crown-shifted-timer/missing-timer.png": {
+      "sha256": "7a385453989d1d829fde2cdb544d14c00254ddcc3f07208d7724f843245f6d71",
+      "bytes": 952503
+    },
+    "tests/fixtures/cruise-menu-rank5/menu-0.png": {
+      "sha256": "9bb6b0d580945e236e0d6810e6c5a10edd2d0e894ae829da4059e3eae3b4368c",
+      "bytes": 953010
+    },
+    "tests/fixtures/cruise-menu-rank5/menu-1.png": {
+      "sha256": "e234167217bba7ee0c44a552874dd84f45e43e6ca212d24761733516f745c233",
+      "bytes": 951302
+    },
+    "tests/fixtures/cruise-menu-rank5/menu-2.png": {
+      "sha256": "3e7cf521f4c043239177f5a53e254626f82a8fca9d47bc597ab807f2a306a407",
+      "bytes": 947233
+    },
+    "tests/fixtures/cruise-menu-rank5/provenance.json": {
+      "sha256": "7a04881991691263c292570ddff3b4dce0c73bea0d2db3ef78e07dc33d5d7396",
+      "bytes": 678
+    },
+    "tests/fixtures/cruise-settings/original-boss-battle.png": {
+      "sha256": "0c9806ba7c3437868a19c9c13d320fb649e38834097c915347d26526170c389f",
+      "bytes": 1002275
+    },
+    "tests/fixtures/cruise-settings/original-boss-preparation.png": {
+      "sha256": "89a2c9b68dc866b7431f7cdb06c24ada8ebfe8a01affd895fe7d9f763d6367f8",
+      "bytes": 1079244
+    },
+    "tests/fixtures/cruise-settings/original-menu-tickets-13.png": {
+      "sha256": "ffe28800cd1277a967dd84183b97ce0881e182e90e9785e068129cabef8a3eb9",
+      "bytes": 989936
+    },
+    "tests/fixtures/cruise-settings/original-tickets-8.png": {
+      "sha256": "0db0830a2cd73a1b41d6336bbd1d8daec8e9a5f31c6ffd27e63398fb7c9c2236",
+      "bytes": 974205
+    },
+    "tests/fixtures/cruise-start/original-sleep-r51.png": {
+      "sha256": "5e66fb8ad5c24d0db3cc8ee932b229e4092d0057f200f5e5b0ef84f2b20d6513",
+      "bytes": 958941
+    },
+    "tests/fixtures/cruise-start/original-whale-battle.png": {
+      "sha256": "5400ad811e6b05ddad3b6552cd365a10f1d1f7e7608cc24a76a9f76f3aff87d0",
+      "bytes": 1011958
+    },
+    "tests/fixtures/cruise-start/parallel-no-destination-r5.png": {
+      "sha256": "b27f50db1cab4f7d057d575bdbb0ce4f36a178568022c8c3615be3698d6d21d6",
+      "bytes": 964533
+    },
+    "tests/fixtures/cruise-start/parallel-r5-hidden-range.png": {
+      "sha256": "cbf1d929cd5e6cfda18c2f894ba9e3fde1f0ef3902817ee8421dd10c93d1a332",
+      "bytes": 988617
+    },
+    "tests/fixtures/cruise-start/potion-3-0.png": {
+      "sha256": "0e0c9a06113134c1b17b6fc7a42573b9189201a1c8bd4e10a6b687103dc1d9d1",
+      "bytes": 3507
+    },
+    "tests/fixtures/cruise-start/potion-3-1.png": {
+      "sha256": "9d4b09abbfe232a6df031a8dd5c69dafe76445f1940217dd9ca5f9594e46f66c",
+      "bytes": 3502
+    },
+    "tests/fixtures/cruise-start/potion-3-2.png": {
+      "sha256": "f8c5847461446d6699753003067c48a9875980b94058a65fe78d05ad02316751",
+      "bytes": 3486
+    },
+    "tests/fixtures/cruise-start/provenance.json": {
+      "sha256": "f87c360d20532a44d6a4857c405d80d7950d0d67a80e0e351dde168ee328ecd7",
+      "bytes": 1444
+    },
+    "tests/fixtures/daily-cleanup/claimed-20261012.png": {
+      "sha256": "c4454be693b85158072cbb36ff60666c5b4ed1d04ee3415ff215aa82b8ed61aa",
+      "bytes": 990477
+    },
+    "tests/fixtures/equipment/bottom-upgraded.png": {
+      "sha256": "7e13c9a36f0ac3fab9cb39c41f022454ba59386b15f96f535c796d6b14306e0e",
+      "bytes": 1057709
+    },
+    "tests/fixtures/equipment/bottom-wide-header.png": {
+      "sha256": "3311381a2c78350bf64e116a4aa17129a0bf0f6e6d25749dc91a4fb3d4633350",
+      "bytes": 1101761
+    },
+    "tests/fixtures/equipment/bottom.png": {
+      "sha256": "c7d4a6bbb78a7b7534819168feb8ea5a5dff63df830b92f504dfcab223a4dada",
+      "bytes": 1042803
+    },
+    "tests/fixtures/equipment/main-glow.png": {
+      "sha256": "7134396b6f5ad0e0b352f0672aba4cdfc22532cc1ca1d09cebe070575f54eb7d",
+      "bytes": 1040145
+    },
+    "tests/fixtures/equipment/main.png": {
+      "sha256": "b875e298dbf09d54a011276e6b7e5ac7f797c0d064d31624c1f3af513db35c5d",
+      "bytes": 990848
+    },
+    "tests/fixtures/equipment/opening-interrupted-rank35.png": {
+      "sha256": "82404eb74cfd71ed13df797a3d9cec2161599eaac80b98ff14119427bd0ce7eb",
+      "bytes": 966328
+    },
+    "tests/fixtures/equipment/top-scrolling-rank34.png": {
+      "sha256": "32d44e1dd710801874aa085484c2ca8119efd4b087f60e6fa59fb8fe7630066c",
+      "bytes": 1036901
+    },
+    "tests/fixtures/equipment/top-settled-rank35.png": {
+      "sha256": "963af3fca59d491c53ec55163f270258da525162fc79a7bd5dc7178377288132",
+      "bytes": 1066744
+    },
+    "tests/fixtures/equipment/top-start-round.png": {
+      "sha256": "cc00cc919adc0eed3ffcf69ae66cc14d7ee76bbed57ef091b0c9850d4de69e58",
+      "bytes": 1051826
+    },
+    "tests/fixtures/equipment/top-upgraded.png": {
+      "sha256": "d2721726a917d882d44f62860f2cea06c4a4669abbd407f0c721112c2f789fcb",
+      "bytes": 1064572
+    },
+    "tests/fixtures/equipment/top-weather-header.png": {
+      "sha256": "e6c5cadcf97526c2e99fed1335476794bfa4b060bad05f214e72e8f70da21979",
+      "bytes": 1061732
+    },
+    "tests/fixtures/equipment/top-wide-prices.png": {
+      "sha256": "08295c44cb5e08f455a508f774ece92245fee2e8bdfebc74b235a14b69e8d7ec",
+      "bytes": 1068845
+    },
+    "tests/fixtures/equipment/top.png": {
+      "sha256": "ad368a32ab0a36b840d0525d9439a87a3b9fe9f44388a7f99d2f873de09eafb6",
+      "bytes": 1067259
+    },
+    "tests/fixtures/fishing-meter/active.png": {
+      "sha256": "cd71b345c7d3e32b9cb96d83a7344d22d7289921722a7a8cab77de5a761973e0",
+      "bytes": 1042687
+    },
+    "tests/fixtures/fishing-meter/cancel-rank35.png": {
+      "sha256": "512af8c017517258f69e82a67ff3857dbbc8e57e5e62fa88a8efd6e1f0bf4f4a",
+      "bytes": 1019422
+    },
+    "tests/fixtures/fishing-meter/cancel-window-closed-rank35.png": {
+      "sha256": "29197aa0be2b5d752cdc622cb508a9354b79713fb03f617647af96239fbd1fe7",
+      "bytes": 992771
+    },
+    "tests/fixtures/fishing-meter/casting.png": {
+      "sha256": "a26f3b882856d6f6d390fb5fe6da93c21026e22295e82b7f8bf7566bfd22b631",
+      "bytes": 1144277
+    },
+    "tests/fixtures/fishing-meter/fill-catch.png": {
+      "sha256": "1ace857911739b499f5f8554b9c73850e6026e881fb91a3ea09ffb671bed35ed",
+      "bytes": 1041082
+    },
+    "tests/fixtures/fishing-meter/fill-empty.png": {
+      "sha256": "7782d91f3eed2f46989c4029cd7550b6f2d260a8d2a6a3f692da979a11a2e4fa",
+      "bytes": 1030853
+    },
+    "tests/fixtures/fishing-meter/fill-hook.png": {
+      "sha256": "b39acec9b0e1a2d4dc92d0b877bbae3a11dd49152c98b0802f0c59c376cdafb6",
+      "bytes": 1142590
+    },
+    "tests/fixtures/fishing-meter/fill-result.png": {
+      "sha256": "40bebb4521e7d9d784d43de7235d765c7acc89b6209de35a098d15bce421df2e",
+      "bytes": 1059533
+    },
+    "tests/fixtures/fishing-meter/filled-combat.png": {
+      "sha256": "60a6abd25e78c06db3dd679c51d590bbca7c118a06d036dd8d43a67d46a850b6",
+      "bytes": 893691
+    },
+    "tests/fixtures/fishing-meter/filled-dots-rank35.png": {
+      "sha256": "3572af773939f731df0cfd0a115ae180556231cee3687c36010f17c86724e20a",
+      "bytes": 1018628
+    },
+    "tests/fixtures/fishing-meter/filled-line-warning-rank35.png": {
+      "sha256": "35495dd694353f225543e57dca9a8a904f0393e128c32c8c199ed8408ae622de",
+      "bytes": 1023472
+    },
+    "tests/fixtures/fishing-meter/filled-prebattle.png": {
+      "sha256": "53440b1bae872204160ce147624c42cf249207248b1605535fb9af03e2a0e3b0",
+      "bytes": 1011949
+    },
+    "tests/fixtures/fishing-meter/hook-middle-connector.png": {
+      "sha256": "2ef0901fde62b2c6b7555e7e4f5958a7f98c5f82336eb455698a68285a7a7fa7",
+      "bytes": 1010686
+    },
+    "tests/fixtures/fishing-meter/low-meter-bite.png": {
+      "sha256": "1d01f0d082238d18d2948e19cd82824729fe787a2e906145942e93935a300837",
+      "bytes": 1001928
+    },
+    "tests/fixtures/fishing-meter/low-meter-waiting.png": {
+      "sha256": "fa2fe9f738fdd709af1ed21d191c10a769e3076b5615c273a8484300eb3a3365",
+      "bytes": 1021510
+    },
+    "tests/fixtures/fishing-meter/moving-context-1.png": {
+      "sha256": "10ec2098c2d45c20d424c0cc7a4e1543925e1dbee18daa764029c96919550ea1",
+      "bytes": 1026098
+    },
+    "tests/fixtures/fishing-meter/moving-context-2.png": {
+      "sha256": "229556b1f34e06ea7b8965f74f8e60ca9cfb6f5e7d276e0e19f87ee86679e900",
+      "bytes": 1029501
+    },
+    "tests/fixtures/fishing-meter/moving-other-place.png": {
+      "sha256": "cfb6f427d7bbdb6d8f93a173fc55686a75647f84608ddfa0a25afcd223c6adfb",
+      "bytes": 1044256
+    },
+    "tests/fixtures/fishing-meter/near-upper-range.png": {
+      "sha256": "bec5fd4aec391c736b94e100118fe18ab26c91695e577d199566602366b47db0",
+      "bytes": 970526
+    },
+    "tests/fixtures/fishing-meter/near-upper-stop.png": {
+      "sha256": "01d2228a3815fe50a33843ab33a08ca17d00f0f6dd9cfd312754d9784bbfbec4",
+      "bytes": 954585
+    },
+    "tests/fixtures/fishing-meter/night-after-drag.png": {
+      "sha256": "0ada4ae2647b332a096e3beee291d65f34dd2a51f77c3a699f8b29c75275ea50",
+      "bytes": 1134557
+    },
+    "tests/fixtures/fishing-meter/night-filled-prebattle.png": {
+      "sha256": "0512f273347f2a77cadf39785eea6722c44681a8164389d2d1ed6c0d40959566",
+      "bytes": 1136543
+    },
+    "tests/fixtures/fishing-meter/night-full-range.png": {
+      "sha256": "c3bd1482fa732d2c9af8d1d68ed885de283326bcee673fa14b96c8a345559390",
+      "bytes": 1132468
+    },
+    "tests/fixtures/fishing-meter/night-hold-after.png": {
+      "sha256": "dba22f5d15d306d7741e4d02e1577e87fb6f431066d251e25efef480cb9a4d15",
+      "bytes": 1127527
+    },
+    "tests/fixtures/fishing-meter/night-hold-during.png": {
+      "sha256": "c6f2d633f0d7a7bf6ac409d349558c06cfcdf9feceadec6c2f5597676aaa0c42",
+      "bytes": 1120977
+    },
+    "tests/fixtures/fishing-meter/night-location-manifest.json": {
+      "sha256": "b4672fefab858d2f3987fafdac246566190cb88487459c79d132f3a272de0241",
+      "bytes": 375
+    },
+    "tests/fixtures/fishing-meter/night-meter-manifest.json": {
+      "sha256": "d996396fb4c6cafc9cbb2b02b1b4875567e1fd53423f7b56f26323be6c2a9885",
+      "bytes": 1409
+    },
+    "tests/fixtures/fishing-meter/night-moving-location.png": {
+      "sha256": "09c3fe8f200ac442581ec91e73ad2467a5d9ebda9af07060af1d2f1cf3080bc8",
+      "bytes": 1147174
+    },
+    "tests/fixtures/fishing-meter/night-ready.png": {
+      "sha256": "69178c7aad996899067d202ce1eb8e1d72afa7fc301c740ea654d4cc9fb76e68",
+      "bytes": 1126015
+    },
+    "tests/fixtures/fishing-meter/night-second-after.png": {
+      "sha256": "6ba8830389ccef17167fe3be21b9899b2ac002769107d950feab18b82cec551c",
+      "bytes": 1136233
+    },
+    "tests/fixtures/fishing-meter/night-second-during.png": {
+      "sha256": "f255f0ba86cb20fabbb156322ec874369ed3aded654ab28b5a40a8b1fdb2e35a",
+      "bytes": 1143473
+    },
+    "tests/fixtures/fishing-meter/night-stop-text.png": {
+      "sha256": "b31ad871a8c80f9b80e95ce5848130936b75f62b15b52fc2323e9aab78841873",
+      "bytes": 1003088
+    },
+    "tests/fixtures/fishing-meter/port-after-sale.png": {
+      "sha256": "1b8ec3a8dce659bf1bd99b8c8504d8a8f1af274fa5dbc686bc64c82e000f6a6f",
+      "bytes": 1044328
+    },
+    "tests/fixtures/fishing-meter/prebattle-stop.png": {
+      "sha256": "3c94adafbc5ba642b010a1be5f8c5a63c6e2af6c127eb9f2162f2ea0244159c6",
+      "bytes": 1011806
+    },
+    "tests/fixtures/fishing-meter/range-background.png": {
+      "sha256": "ab9911bc0cb2684b9480041e7af68aaac537beee1699316f41c5a7c02750dcb2",
+      "bytes": 1002531
+    },
+    "tests/fixtures/fishing-meter/ready-shifted.png": {
+      "sha256": "3bf7c15d1036bbc453ac9e5d5b23282d38c69f2467ae25b5d73dc6e55fd2e08b",
+      "bytes": 1008116
+    },
+    "tests/fixtures/fishing-meter/ready.png": {
+      "sha256": "fa025c43a19936ef71282676d23138b932bf24ffe2bb0d3551ed727e9ad73212",
+      "bytes": 1144223
+    },
+    "tests/fixtures/fishing-meter/sailing-sleep-bottom.png": {
+      "sha256": "7da8307b4a3d139d9dc8d05c295907f3fa2a06d295cd98e4d3fa643a2324b08b",
+      "bytes": 954676
+    },
+    "tests/fixtures/fishing-meter/same-place-rank39-1.png": {
+      "sha256": "3986719e7af75105a54d447b579e639cf50302d4a0ee49841cdce02ff17ed3c7",
+      "bytes": 1028650
+    },
+    "tests/fixtures/fishing-meter/same-place-rank39-2.png": {
+      "sha256": "304942e4058269208b2c9be56f4c9b79928e68b22ecdda74dec637643a64a1c7",
+      "bytes": 1009606
+    },
+    "tests/fixtures/fishing-meter/same-place-rank39-3.png": {
+      "sha256": "490092dba42b96efe87dbce54e01c8cb2022f20706d5d389ad19310c767977c3",
+      "bytes": 1020777
+    },
+    "tests/fixtures/fishing-meter/scan-combat.png": {
+      "sha256": "3f00b077664e12dba67232a041f9acde268cc98860c0a4e0784b7ecca0143837",
+      "bytes": 1018170
+    },
+    "tests/fixtures/fishing-meter/short-wait.png": {
+      "sha256": "5a65d2ba771f01990d0acbeaa6988c7220d675241dddae305c66bd7508e84736",
+      "bytes": 1027761
+    },
+    "tests/fixtures/fishing-meter/sleep-selected.png": {
+      "sha256": "e6ae2546f7c388f74fe6bfc07d31f35ff8392d4c60566a4ce7a549a0ed995519",
+      "bytes": 1003024
+    },
+    "tests/fixtures/fishing-meter/sleep-top-overlap.png": {
+      "sha256": "2c44fd540a507d58e508731b8224e5ffeeb6296e2b1634c9877bd516a1905e0d",
+      "bytes": 963602
+    },
+    "tests/fixtures/fishing-meter/sleep.png": {
+      "sha256": "35a45db19b43b6b47eb20e074e4801d09f66482f8756476d550f999310f008e1",
+      "bytes": 1003507
+    },
+    "tests/fixtures/fishing-meter/wrong-world.png": {
+      "sha256": "a5aa2b47fb05c38f9f041916c862de1d8f1988973ddf9237917b7f1142a6fd1a",
+      "bytes": 1039853
+    },
+    "tests/fixtures/guild-balance-780.png": {
+      "sha256": "7b665cfecd7d730d42b192ca0fc09320a2173199871ecde11725768d3e198eda",
+      "bytes": 4694
+    },
+    "tests/fixtures/guild-selection/close-balance-980-20261019.png": {
+      "sha256": "e5a1edc224cc8b06c958cfcbabc7892824738ddd816c485f861e4c441540fe6d",
+      "bytes": 939017
+    },
+    "tests/fixtures/guild-selection/main-sunrise-20261030.png": {
+      "sha256": "814856a362892ec1db799abcf3f580c85c36edfb49bbb4cac3777574d9ae4cc5",
+      "bytes": 1064580
+    },
+    "tests/fixtures/guild-selection/material-confirm-100-20261030.png": {
+      "sha256": "a5bad2b3952e1394269c1a12b225e3c2a612db350f7c09e6a23bcf5194a783ac",
+      "bytes": 712506
+    },
+    "tests/fixtures/guild-selection/material-missed-20261016.png": {
+      "sha256": "820abc9a3b702155889c4a0817b5639e0aa400a6f305b9295b71b737a74173d3",
+      "bytes": 938370
+    },
+    "tests/fixtures/guild-selection/return-battle-20261016.png": {
+      "sha256": "16f449e40fff879f02cec8cd535e80ac12deb2798c33bbd9775b188ccad4218f",
+      "bytes": 1098137
+    },
+    "tests/fixtures/guild-teleport-k/leftover-cruise.png": {
+      "sha256": "ecfad6a07215f6fdc00b88272d7d2a3edd617dbe751a1b886df59d98cc747138",
+      "bytes": 971404
+    },
+    "tests/fixtures/guild-teleport-k/leftover-map.png": {
+      "sha256": "179b6b99c7fb986fe74f6859e2cfd2c8bafdc78428a41ce1b0e09fa787660d95",
+      "bytes": 826935
+    },
+    "tests/fixtures/guild-teleport-k/quote-50.png": {
+      "sha256": "fc8e855bb3920331819b9aeb5c9d7c160b5c5bed4e3001a2162f8791ed0672fa",
+      "bytes": 1087596
+    },
+    "tests/fixtures/guild-teleport-k/quote.png": {
+      "sha256": "21f096bcc58449049c06a920f8f7fa65ccd17c482939a4738079e295e044b5cc",
+      "bytes": 949569
+    },
+    "tests/fixtures/guild-teleport-k/return-preparation.png": {
+      "sha256": "24632b6b1cfcf9357ad013783b22e35ac545865be6333a56ef908ff6e55f65b9",
+      "bytes": 1026229
+    },
+    "tests/fixtures/guild-teleport-k/return-success-heldout.png": {
+      "sha256": "8b7ad26ee257013d98a49a31e4fa19309aad285a585e2b4f22b07bb1dba4d012",
+      "bytes": 971367
+    },
+    "tests/fixtures/guild-teleport-k/return-success.png": {
+      "sha256": "870fdf7c0ccd3521a2fcfb4f36e71e2a10beaef10a7df84f65b66e018739b090",
+      "bytes": 951696
+    },
+    "tests/fixtures/legacy-captures/achievements-cycle-result.png": {
+      "sha256": "6c0844601a28bcbfddfeb7af9f90097591f847888d211132008ea436bc10d71e",
+      "bytes": 909389
+    },
+    "tests/fixtures/legacy-captures/mailbox-after-claim.png": {
+      "sha256": "4cc7bd05b0011100551373110a02b03885175f1ba4c757e938a22d5c25420a9b",
+      "bytes": 901894
+    },
+    "tests/fixtures/legacy-captures/mailbox-before-claim.png": {
+      "sha256": "be6432a0cb2dbc92f5b27750c7c3358bfcf0feebedae636f6a2d9a05920fb9b5",
+      "bytes": 897543
+    },
+    "tests/fixtures/legacy-captures/mailbox-return.png": {
+      "sha256": "4ea3dcae6cbe209abe63d660fc8ace8395934be24825cf026ce78fb71d5b8ea3",
+      "bytes": 1106747
+    },
+    "tests/fixtures/legacy-captures/mana-cycle-003-main.png": {
+      "sha256": "e6b59fc7391c6f1f534205c1bf3fbfec07c67e756bc4b5ade97a2ec2e0fe7ba2",
+      "bytes": 1081453
+    },
+    "tests/fixtures/legacy-captures/mana-cycle-008-mana_close.png": {
+      "sha256": "e1102c2826671376eda1e2cbc7b494402fc989f98d99f95881fc6cc14eac7606",
+      "bytes": 1117082
+    },
+    "tests/fixtures/legacy-captures/meter-check.png": {
+      "sha256": "0ceca03fd738a868f49bc5cf38b333639b938434fd01d24f5ba3c6fa1f84b603",
+      "bytes": 1070266
+    },
+    "tests/fixtures/legacy-captures/other-functions-start.png": {
+      "sha256": "1b37949b1c9d1241171eaf555df48d80659f8a89884db1a270b2119ebf3675ce",
+      "bytes": 1057196
+    },
+    "tests/fixtures/legacy-captures/potion-ad-after-continue.png": {
+      "sha256": "2d812e135858e5325420a3409e09296a35c5873eefd98e7c41d5ff30ffc9607c",
+      "bytes": 1104880
+    },
+    "tests/fixtures/legacy-captures/probe-1.png": {
+      "sha256": "be2bc70acde9f91cf8386e7377ebf0b4110b9521377932afd2af55d0d77cd964",
+      "bytes": 1020756
+    },
+    "tests/fixtures/legacy-captures/probe-2.png": {
+      "sha256": "ff26e7ebceef15b4b385eae1c25a973941fd8f144307a65dc6c9077f59a78131",
+      "bytes": 1026115
+    },
+    "tests/fixtures/legacy-captures/probe-3.png": {
+      "sha256": "0cbbbaa1d115d2c79c57de17ba5cff4c4f84a95e3efaa59b14fb655b2015c2b0",
+      "bytes": 1020776
+    },
+    "tests/fixtures/mailbox-close/close-missed.png": {
+      "sha256": "b61ccc38a531ccc9e9f4a6c675a44effe3f8215e1e0c8b3b9586877354ba0c2e",
+      "bytes": 882086
+    },
+    "tests/fixtures/mailbox-close/still-open-rank38.png": {
+      "sha256": "6c75d0cd9f384a2ce84f0327afaac5cb55e5a9ae2a21852302d792fa37a95e66",
+      "bytes": 829642
+    },
+    "tests/fixtures/mailbox-limit/current-date-two-items.png": {
+      "sha256": "b78d13efd89b35dea5cbb87c0641be3f1956f4e252dd085d5fd84383c88b4dc9",
+      "bytes": 881623
+    },
+    "tests/fixtures/meter-calibration/native-four-targets-menu.png": {
+      "sha256": "ecd48a4b85fbc457cfd39c5aaa4fae159ef9f3dd4e6e55cfb7c56040c9d3457e",
+      "bytes": 976447
+    },
+    "tests/fixtures/meter-calibration/native-gap169.png": {
+      "sha256": "5f0441a1338c9266dbc1757d33e5d8cae45ad79b382991d07a7dd258a9d84281",
+      "bytes": 1032562
+    },
+    "tests/fixtures/meter-calibration/native-restored-gap-negative.png": {
+      "sha256": "501cb511082f8771dfe23cb9797c599dfc9640b7175dd4cac67ce05311d077be",
+      "bytes": 911088
+    },
+    "tests/fixtures/meter-calibration/native-timeout-preparation.png": {
+      "sha256": "4dca131bd0e9f164ac31ae25b00696d2aa7b945e8c07719714f3115a770b6ddd",
+      "bytes": 987333
+    },
+    "tests/fixtures/meter-cancel-glow/waiting-dots-x.png": {
+      "sha256": "4e6041285caecd9ffd43ce5b6f151679711a7de0d7b2564a0e78951735525bc3",
+      "bytes": 1032629
+    },
+    "tests/fixtures/meter-cancel-glow/warning-no-x.png": {
+      "sha256": "5b3d437b2f552ce92d1fa1ef0b96b53b782e12aea6639c14c57266386b20b773",
+      "bytes": 1040296
+    },
+    "tests/fixtures/meter-cancel-glow/warning-x.png": {
+      "sha256": "2af32c84adf97d1a2af208a9e5bfe08a128917a4892daafb4c120bf5dcfb6771",
+      "bytes": 1048050
+    },
+    "tests/fixtures/meter-continuation/task-idle-after-cancel.png": {
+      "sha256": "71e9c9c84d33f79b79e61ca2b7d2bc40d301b786cd9316b7c46199325b171ee7",
+      "bytes": 991749
+    },
+    "tests/fixtures/meter-max-drag/completion-manifest.json": {
+      "sha256": "b74e10857a131e6bb44b2184ddb37720ebc8e75ed77a7b3aa49af68115bd91e2",
+      "bytes": 860
+    },
+    "tests/fixtures/meter-max-drag/manifest.json": {
+      "sha256": "6b95927e1696cb7b84c23e3686601695eccf7a20637c30310b28464cae7833fb",
+      "bytes": 432
+    },
+    "tests/fixtures/meter-max-drag/near-before.png": {
+      "sha256": "a057a9229ab09b945a772a211e8818aa2281b1ce5305b87d5129facfa1467c76",
+      "bytes": 1141010
+    },
+    "tests/fixtures/meter-max-drag/range-before.png": {
+      "sha256": "7f66c9b6650c48def420c04cf39987ce581107438ef802449a29aa546bfd633a",
+      "bytes": 1126075
+    },
+    "tests/fixtures/meter-max-drag/restored-boss-1.png": {
+      "sha256": "c40c19dd4dc790d3641b62a6920ae7a7e0282a9a19a8fc4d6a63b4ea51870fad",
+      "bytes": 1075295
+    },
+    "tests/fixtures/meter-max-drag/restored-boss-2.png": {
+      "sha256": "5e7a82e0c598370f1d81b994d3d60306f6b89cace2aa99005fe1cb2b33b1c31e",
+      "bytes": 1050309
+    },
+    "tests/fixtures/meter-max-drag/restored-boss-3.png": {
+      "sha256": "99772e7c1daa033bb56ad250764485b2e4e8d3e530fdb3a64e0e80924e6b5a52",
+      "bytes": 987055
+    },
+    "tests/fixtures/meter-max-drag/restored-menu.png": {
+      "sha256": "070156bbd64b00d5b0503b091ece154039f26d5770d29c5ff447dbf047c0800e",
+      "bytes": 891912
+    },
+    "tests/fixtures/meter-max-drag/restored-obscured.png": {
+      "sha256": "b8cd872b3d233f672c5b97832954b6048ab4a4b5d7005035d2400e23d5b2522b",
+      "bytes": 1022836
+    },
+    "tests/fixtures/meter-max-drag/stuck-after.png": {
+      "sha256": "a60988260e46d30183c7878077ddb7d74fbe736572203097ea77177040472fff",
+      "bytes": 1142660
+    },
+    "tests/fixtures/meter-max-drag/stuck-before.png": {
+      "sha256": "a7c0d0ed256c9f4dfd8d36e0f2f440e16943130413c9151cd648c2ec2fb8771f",
+      "bytes": 1136014
+    },
+    "tests/fixtures/meter-menu-shadow/1a5e576805bc4118b91df85aba599ed0.png": {
+      "sha256": "74782aefd2ab94e92a5f47738c239ee1dbe046b0f39156af1765390269b31db5",
+      "bytes": 903415
+    },
+    "tests/fixtures/meter-menu-shadow/2b3697a93a2c4800a7c73008783662e0.png": {
+      "sha256": "0069693ccf6d09cd41fe4bbf0a4f143934372c48602a49befbf566dfaa3a06d2",
+      "bytes": 903630
+    },
+    "tests/fixtures/meter-menu-shadow/724df1989c97478b9b30509cbf8ebb7d.png": {
+      "sha256": "3d0bd1259e60aa9ee45ba52fee46d8b4996cfc75c8688fd6d5bdae486723ba13",
+      "bytes": 974802
+    },
+    "tests/fixtures/meter-menu-shadow/c60bfafa478c4d49811355922d8bfadf.png": {
+      "sha256": "c8cb22e3e6e0f2cbee1b43598ef995827fc6b20497ba901aec58950f2ab6d12b",
+      "bytes": 965299
+    },
+    "tests/fixtures/meter-night-warning/adaptive-glow.png": {
+      "sha256": "0166b66f5fb0c185456493a5e9f8d394362e97cfd79243c18112175d990a27a7",
+      "bytes": 1087708
+    },
+    "tests/fixtures/meter-night-warning/current-boss.png": {
+      "sha256": "83ea9930bf9e8f4a1b43305ec326074f5546a7f6e10a85403d8a5cdea3c8eb39",
+      "bytes": 1079319
+    },
+    "tests/fixtures/meter-night-warning/ordinary-stopped.png": {
+      "sha256": "55e3c36e326f964ce3d53a8b1acea80f8894087613b41bc6f4ae9f88ad131d04",
+      "bytes": 1027472
+    },
+    "tests/fixtures/meter-night-warning/progressed-route.png": {
+      "sha256": "7adc80b6ac88a80cd49a37485a767d78f37b198b07843298b4e16298f261de76",
+      "bytes": 1072934
+    },
+    "tests/fixtures/meter-player-target/after.png": {
+      "sha256": "f86040f6d81d75f9d022267612a394a9a74bbd0428dd1e1a96612c28c3445dc9",
+      "bytes": 1169798
+    },
+    "tests/fixtures/meter-player-target/battle.png": {
+      "sha256": "a120b7aea6b58c69912c9b42a56cd53a76fd78de9d786ed06f2631e678e425aa",
+      "bytes": 923315
+    },
+    "tests/fixtures/meter-player-target/current.png": {
+      "sha256": "eda3a68d9b632f24807b81f9a43cb5b3a3043712e8192a742ee3a827639618e3",
+      "bytes": 1021833
+    },
+    "tests/fixtures/meter-player-target/during.png": {
+      "sha256": "e5f45c8d9264031c62024540293a2ce0ded450e74751cf2720483d2eb4998652",
+      "bytes": 1174148
+    },
+    "tests/fixtures/meter-preflight/raid-r50.png": {
+      "sha256": "d948035b161db6861622fef071bb200ed091e52ee3dc3ba02b3380aab4a39c1f",
+      "bytes": 1039542
+    },
+    "tests/fixtures/meter-preflight/sapphire-r51.png": {
+      "sha256": "bcf841f0ec6e6ee0e8947f0f379d25c13aa1cd71b119ded0d0eabcfac7b7c53f",
+      "bytes": 1026259
+    },
+    "tests/fixtures/meter-preflight/task-preparation.png": {
+      "sha256": "3a0c95fd7cbb287c96fa07c9854ae35433065ecbb102e8fb04bf5f6b087ec43b",
+      "bytes": 1018940
+    },
+    "tests/fixtures/meter-preflight/timeout-result.png": {
+      "sha256": "3095af7fc2a463bde1efdb48b4b13bc1c9cc27856d3512156d37bf7ee0079578",
+      "bytes": 1019557
+    },
+    "tests/fixtures/meter-preserve-route/running-fill.png": {
+      "sha256": "db5aa1dec124b1e646f56ef703272f80382451073b108b1dfb084ad71aa33d63",
+      "bytes": 1001574
+    },
+    "tests/fixtures/meter-reading-20261030/prepare-1.png": {
+      "sha256": "69424938adc78924e43ddf06f266692334903a016e5b904d5233be07ea41d3a4",
+      "bytes": 1073397
+    },
+    "tests/fixtures/meter-reading-20261030/prepare-2.png": {
+      "sha256": "5436f485e716ab04d5a573fe892672c21a177c9aa29cf1dc263811c210a239c4",
+      "bytes": 1079897
+    },
+    "tests/fixtures/meter-resume-deadline/stopped-battle.png": {
+      "sha256": "a1b61e0776dbc3d4d957b9e9bfc29a67fba41aa838e555521a6bc1f8d2f4c29d",
+      "bytes": 998554
+    },
+    "tests/fixtures/meter-resume-deadline/stopped-preparation.png": {
+      "sha256": "57599f207d360eec39bc5f908eb8cfa1c5d37adf2b3ea8e08910e0110ab85835",
+      "bytes": 1066359
+    },
+    "tests/fixtures/meter-route-finalization/catch-1.png": {
+      "sha256": "326ae5631bc51a5dd4339db9c08b9ab320c27dabbc2e9b2c9503aae3a973ead4",
+      "bytes": 1081347
+    },
+    "tests/fixtures/meter-route-finalization/catch-2.png": {
+      "sha256": "08cf0ffb047af8edb33bc0e880adc588282d9d777cb8ee40084e74211264060b",
+      "bytes": 1081432
+    },
+    "tests/fixtures/meter-route-finalization/catch-3.png": {
+      "sha256": "05387d08af84254fc5f58c022fcfbe93e2711bbee487282dc596971c3ad6d770",
+      "bytes": 1107966
+    },
+    "tests/fixtures/meter-route-finalization/preparation.png": {
+      "sha256": "2a722644c3af8aa8303a5f5c494b7f73f7e10f1fc88e752e3a16951ba8d86e69",
+      "bytes": 1077617
+    },
+    "tests/fixtures/meter-start-settle/manifest.json": {
+      "sha256": "75c87b77c7dbd66a2d5dd4004d2f4816a24e631a8fb9081579bb403e2417985d",
+      "bytes": 286
+    },
+    "tests/fixtures/meter-start-settle/ready1515.png": {
+      "sha256": "03c69889c68582032fbc2cdfe75a148ce4ae119faf0b200c8453df6e53f82f12",
+      "bytes": 1182812
+    },
+    "tests/fixtures/meter-start-settle/unreadable-upper1513.png": {
+      "sha256": "5effe8a132144939578b08990dd3ee4deb2365581e8760ae29dca29878604b1e",
+      "bytes": 1178871
+    },
+    "tests/fixtures/native-auto-sale/sale-off.png": {
+      "sha256": "c9fb2104985112b73ac8e7586b26221c6984b1af4e5decd4b31025fda4196fab",
+      "bytes": 1116840
+    },
+    "tests/fixtures/native-auto-sale/sale-on.png": {
+      "sha256": "9b00708bdf102561a3b9f7ee843d99a9e8bef47fc534ef59bdea692dcd7d0023",
+      "bytes": 1115521
+    },
+    "tests/fixtures/native-entry-recovery/manifest.json": {
+      "sha256": "35188d4155a4d2a1d4ae1f2e05903ba4ccd7e66532f3512b9d6faddfeb48fa8b",
+      "bytes": 1322
+    },
+    "tests/fixtures/native-entry-recovery/stage9-rank34-success.png": {
+      "sha256": "49bd8c4c78cb8431ebe2a99a38413752d7c998aa641b98b0f1627a32802cdb1e",
+      "bytes": 1073964
+    },
+    "tests/fixtures/native-entry-recovery/stage9-rank35-battle.png": {
+      "sha256": "98b1123fb685128d94af131257ae4d8282914d5bb84e3e5c33c7fe1813411b97",
+      "bytes": 1013513
+    },
+    "tests/fixtures/native-entry-recovery/stage9-rank36-battle.png": {
+      "sha256": "0747af7f21e09397eb17458cbb57cbf6b3f5285353c14b92df33d74b15318449",
+      "bytes": 942458
+    },
+    "tests/fixtures/native-entry-recovery/stage9-rank36-label-variant.png": {
+      "sha256": "8c795a6212e123180240a3aefa4087baddd77f514fd3143bd3b06b0d65c719b0",
+      "bytes": 952631
+    },
+    "tests/fixtures/navigation/achievements-entry-rank37.png": {
+      "sha256": "1959f548ce3317192ba978131070a54a8ad53741f025efa2ae0d794ab16760b8",
+      "bytes": 1071156
+    },
+    "tests/fixtures/navigation/crown-missed.png": {
+      "sha256": "05f213cf58286afaef4286768c313bc307dad32d05bf42f08505445ee604a744",
+      "bytes": 1072294
+    },
+    "tests/fixtures/navigation/mailbox-missed.png": {
+      "sha256": "33329f8009b33e72c780a67d51a45862d1713ae7ca2158d96b32ab43ddef0379",
+      "bytes": 1095547
+    },
+    "tests/fixtures/navigation/mailbox-parallel-boss-active.png": {
+      "sha256": "5c726144413eaadc304b86c96308598ea08a8f8c8855b6d2ea67555ed95ca5b0",
+      "bytes": 1005105
+    },
+    "tests/fixtures/navigation/mailbox-parallel-interruption.png": {
+      "sha256": "929d4e0afba071a403f780e8f7beabf5a601c52d26f00591f4a4bebfdd238949",
+      "bytes": 941217
+    },
+    "tests/fixtures/parallel/android-home.png": {
+      "sha256": "a7c09f28d93c5f75c4dd532ca4e85d8c45b9d1c5c79f78fdb0f4f5c0cb221afd",
+      "bytes": 821934
+    },
+    "tests/fixtures/parallel/bag-rank4-reference.png": {
+      "sha256": "17621594a249e16efbca025e91c01a4db77e8cca3385519f4319ac9375df6e63",
+      "bytes": 1019741
+    },
+    "tests/fixtures/parallel/bag-rank5-stopped-map.png": {
+      "sha256": "e8b880fcbc3c34ee332bd5c41d2ed85476563fd8a24ba181a43635a213187f94",
+      "bytes": 814213
+    },
+    "tests/fixtures/parallel/complete-tier8-equipment.png": {
+      "sha256": "685a205a34ffe8c260fb7c353d134bfac8293dc7e096468d419ebc04f89a0ef4",
+      "bytes": 990426
+    },
+    "tests/fixtures/parallel/gate-active-tier8.png": {
+      "sha256": "29b7abeb5bb1708529e12883caabbb5972d9e6db2491dc105c56f135b94f8657",
+      "bytes": 960911
+    },
+    "tests/fixtures/parallel/gate-inactive-tier9.png": {
+      "sha256": "32c1deb35f6cc83f68167dc806e7689014f87efe40edbecd647a2022f3adc545",
+      "bytes": 960770
+    },
+    "tests/fixtures/parallel/map-open-missed-rank3.png": {
+      "sha256": "5109706d3bf93a92aa520d4a3061684915dc456e807cee6227776af71004aac3",
+      "bytes": 1039667
+    },
+    "tests/fixtures/parallel/observatory-day-speech-second.png": {
+      "sha256": "1d3a290b5a7afc7da4f280068624130493987a3e331a7f00c5e2d5a3007de2d4",
+      "bytes": 1054370
+    },
+    "tests/fixtures/parallel/observatory-day-speech.png": {
+      "sha256": "76cebcb6b147663dd8fd0b7497f85ca983415bb4a1b234b4db8dcf8cfbbf69da",
+      "bytes": 1054846
+    },
+    "tests/fixtures/parallel/observatory-main.png": {
+      "sha256": "b0db68e6d8dd7039dbef0c2e3d5f81ee070b243aa26d29de74165e6cc3ea7067",
+      "bytes": 1031963
+    },
+    "tests/fixtures/parallel/parallel-enter.png": {
+      "sha256": "c79f778eb625cc46edad592b7d3b543ea779403a536f8ad20b5585ca90ebb89c",
+      "bytes": 937342
+    },
+    "tests/fixtures/parallel/parallel-error-map-rank38.png": {
+      "sha256": "ab94fbf05a86a56c6635ae4cee71551556803ab10d8e6c7acf7f807daf5bc69a",
+      "bytes": 558218
+    },
+    "tests/fixtures/parallel/parallel-main-rank38.png": {
+      "sha256": "957a17f0b507229cd35ec8606b35c4d2cfdb472b62bb15c6b0869cb02cb7c0a7",
+      "bytes": 1070108
+    },
+    "tests/fixtures/parallel/parallel-main.png": {
+      "sha256": "4c46b60ee20b355ba8d4381ad5fff7a3a3c28eabaf2b49de8c18a3b47ebef51a",
+      "bytes": 1005993
+    },
+    "tests/fixtures/parallel/parallel-map-rank2.png": {
+      "sha256": "9a6ddc5bf4686d1a9cf7236b5658ddcc94a3c5045f642d32db20bbcff42a4f5d",
+      "bytes": 827424
+    },
+    "tests/fixtures/parallel/parallel-missing-boss-rank38.png": {
+      "sha256": "e51421bf39882ede8eedba57e5751c7859aa5363cc7350688379188bbc0965bd",
+      "bytes": 852849
+    },
+    "tests/fixtures/parallel/parallel-next-task-rank38.png": {
+      "sha256": "ab05f3a0181aabaf45a599ced3373a28c7c5184d9ed7a141270f5e7c9d4d6dfd",
+      "bytes": 710965
+    },
+    "tests/fixtures/parallel/parallel-rank3-check.png": {
+      "sha256": "29e1fc8b3817bdf9b2e7d3fae2875a27238b994c5619cf262001916da3bd8180",
+      "bytes": 1013085
+    },
+    "tests/fixtures/parallel/parallel-rank5.png": {
+      "sha256": "db9af27d3504b173331bb6764c76ad9ae3e013e44008ddf918ff7b05feddce79",
+      "bytes": 992996
+    },
+    "tests/fixtures/parallel/parallel-return-entry.png": {
+      "sha256": "bee9587c2735151f91a812a7f1e453359fd05bb17dd5ecdef988a30478a9e188",
+      "bytes": 927376
+    },
+    "tests/fixtures/parallel/portal-active-main.png": {
+      "sha256": "bc31f2976cea243b39986d9f1d967b9e03718bffc6c93fd1733b773304a29e7e",
+      "bytes": 1074673
+    },
+    "tests/fixtures/parallel/portal-cat.png": {
+      "sha256": "67588f71a1a5d09fd6962539621bceeabca143eac09961736331004163c5ca76",
+      "bytes": 964921
+    },
+    "tests/fixtures/parallel/portal-open-confirmed.png": {
+      "sha256": "870d42e233c2b398519256dde6c4619077108f87474d598457d9219dd2365a63",
+      "bytes": 972326
+    },
+    "tests/fixtures/parallel/portal-tap.png": {
+      "sha256": "9f796a5128bc82348ad85d0a131979a478690b07b735452a787451a5f7b0d5ce",
+      "bytes": 943824
+    },
+    "tests/fixtures/parallel/quest-battle-rank3.png": {
+      "sha256": "7319b0b287177e9527bab3bb25b891a7b87d8d079937031ee2c7b69e5b10c3c2",
+      "bytes": 1039545
+    },
+    "tests/fixtures/parallel/quest-hook-rank3.png": {
+      "sha256": "6ada347511a182ca280fd365b91b9b23dea7561daaa548f094d62ac2d69d5b6c",
+      "bytes": 1006445
+    },
+    "tests/fixtures/parallel/quest-map-covered-rank3.png": {
+      "sha256": "424b771d9a107ba5617b60c4d13738e645e29161283842e5e2fe9a27a7a8b88e",
+      "bytes": 807169
+    },
+    "tests/fixtures/parallel/quest-sleep-rank3.png": {
+      "sha256": "e91a76a43a88a80aa63fca8afb25c066055c50d3a98eeed96be1d7816f1a49ba",
+      "bytes": 1005008
+    },
+    "tests/fixtures/parallel/quest-success-rank4.png": {
+      "sha256": "33d3869400d0e6f9b3ed4b8fb566b8c66c19837d6cfd595df2dfb63aa7aa644c",
+      "bytes": 1046163
+    },
+    "tests/fixtures/parallel/rank40-return-confirm.png": {
+      "sha256": "a99411db9d4df3cb512db909a37a28a343af47560157c38f73c1bf4d38b0c534",
+      "bytes": 922997
+    },
+    "tests/fixtures/parallel/rank40-return-main.png": {
+      "sha256": "39d66d0a87145f99065de9246a2b333c84a494258ebd8a96a56c79f7dcdd6ba7",
+      "bytes": 1023950
+    },
+    "tests/fixtures/parallel-skills/main.png": {
+      "sha256": "0b773875c718ceeb8801ecd1899106d9df47e761a9a1e911f542ba7a7b33b956",
+      "bytes": 1005147
+    },
+    "tests/fixtures/parallel-skills/opening-interrupted-main.png": {
+      "sha256": "3edcb4acb4ef050643f098063a5fa0d5a85ee70e650efeb85eb3a419ab18bbd5",
+      "bytes": 901944
+    },
+    "tests/fixtures/parallel-skills/parallel-fishing-auto.png": {
+      "sha256": "aaebd9bbccb629970e5ee73923bb0f4f7c976509e92ca8c2ee3d98d2d8035e04",
+      "bytes": 1195571
+    },
+    "tests/fixtures/parallel-skills/parallel-fishing-enhance.png": {
+      "sha256": "a2d8e9554d0d9684b255c34eb0f13694ffd8420e269ba747fb39a8e7d690af6a",
+      "bytes": 1187632
+    },
+    "tests/fixtures/parallel-skills/parallel-growth-confirm.png": {
+      "sha256": "bf3a9dccf5f5cc401387a3a346283f7f0db89d76347894b81acf5d0f3c66783d",
+      "bytes": 1193893
+    },
+    "tests/fixtures/parallel-skills/parallel-growth-occluded.png": {
+      "sha256": "5432a01fb2c5c9b779396133c66f484846e0010f662fe412457771d74280f375",
+      "bytes": 1012971
+    },
+    "tests/fixtures/parallel-skills/parallel-growth-points.png": {
+      "sha256": "609cc481b006e3d67fbc1d5f2b3adcdcafa6d6f9eae21dc5867297b46b41d517",
+      "bytes": 1096605
+    },
+    "tests/fixtures/parallel-skills/parallel-growth-transient-world.png": {
+      "sha256": "7aeba1358e412069ac3def30f747aacdcd2cc0b8868f0e2d59bbb781144b57f2",
+      "bytes": 967047
+    },
+    "tests/fixtures/parallel-skills/parallel-points-dark-outline.png": {
+      "sha256": "35cd3182508c0f38068793d5e688e2d149124db33b135fa3fed77e3e5f933d5a",
+      "bytes": 1062955
+    },
+    "tests/fixtures/parallel-skills/parallel-sailing-open-timeout.png": {
+      "sha256": "fcb4e04dc3ffd379fa807e20d75fec42a631c9408dc0f1201a8d2389d9054bd5",
+      "bytes": 1064614
+    },
+    "tests/fixtures/parallel-skills/parallel-skill-panel.png": {
+      "sha256": "452c715235437c7392011befce1d7bc1079173d039854c83ee24fa4bf61ab556",
+      "bytes": 1185219
+    },
+    "tests/fixtures/pass-17-20261030.png": {
+      "sha256": "92ff26e54a1ad43d0038cd74cf3465c1edfbe0daa28747217c4c0d8172891e0b",
+      "bytes": 909618
+    },
+    "tests/fixtures/pass-interrupted-main.png": {
+      "sha256": "44c8790453816dc6fb1d5be6467a80c3b75e65d372d52b934569196341765281",
+      "bytes": 927978
+    },
+    "tests/fixtures/popup-cruise/menu-heldout.png": {
+      "sha256": "798922c73b749dd2dab373fcaf555433df3b7e0200eb9e83c7f5f5b4118cc7df",
+      "bytes": 964809
+    },
+    "tests/fixtures/popup-cruise/menu.png": {
+      "sha256": "cd2ff93ff3a1d1dbf6812b01e2384ad7b974d604bcc83bd9b8390f3e95b288f5",
+      "bytes": 970418
+    },
+    "tests/fixtures/popup-cruise/notice-heldout.png": {
+      "sha256": "c240b02386d5a4cc35b579f0307f95c0ee24728e551fb5666254321b5817f6dd",
+      "bytes": 854331
+    },
+    "tests/fixtures/popup-cruise/notice.png": {
+      "sha256": "0ce1de1bf9bec2b8352b6a0d06de3b19161df5e8310b6d523331411c8d617554",
+      "bytes": 877474
+    },
+    "tests/fixtures/popup-raid/waiting-after-close.png": {
+      "sha256": "a3f644931491957a2013e5e3e20beebb783f6edb33f6f668a3b2afa338c2a554",
+      "bytes": 831370
+    },
+    "tests/fixtures/potion-counter/counter-1.png": {
+      "sha256": "199a33421908269bfed99be2f97b7a79cdc7f021e8e8fa4eb1772f3d483041ad",
+      "bytes": 4711
+    },
+    "tests/fixtures/potion-counter/counter-2-0.png": {
+      "sha256": "5ab219dd6f3fa28f361c92ed7be3d57c9f5451c02599c07ee258ae20fea97491",
+      "bytes": 4806
+    },
+    "tests/fixtures/potion-counter/counter-2-1.png": {
+      "sha256": "02227fa51183ad8dccc1f9c61bf36eee66dcb19ec07dd6bbc827604cb2ac1e15",
+      "bytes": 4848
+    },
+    "tests/fixtures/potion-counter/counter-2-2.png": {
+      "sha256": "e385f2cdbc6bf19bec2745eabbe212ddbeb860bf1fd645ebd7a8a880e2d03ed2",
+      "bytes": 4793
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-23.png": {
+      "sha256": "94d7564b16c2ce10fb8bd099ff20ccd08fec1d5cf6e22e1fdf0393bfd53f9681",
+      "bytes": 3541
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-24.png": {
+      "sha256": "5dc9b432fe809b54816c70adde4d4cdf5dce986c51680bc6d732bbdddc18d632",
+      "bytes": 3565
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-25.png": {
+      "sha256": "62f28c278cb95e91082aa2c3a7bc5912eff4359eb333ed95674fe7fd7e8dccc5",
+      "bytes": 3539
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-29.png": {
+      "sha256": "4b37f5bdabeeafbb22f845908de4a6e236ad19761144dc1ff2d1db73632fb9c4",
+      "bytes": 3541
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-30.png": {
+      "sha256": "56853df23a5b2413d923da99ff2d10c1bd3066e5c7291af3d6c7468f31201d6f",
+      "bytes": 3549
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-31.png": {
+      "sha256": "0ac66b3f2c54955f50516b6aab7a05583b06774b7f109f71e70870cb4644a084",
+      "bytes": 3546
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-32.png": {
+      "sha256": "f7ff9950dac9420ee0461b4e0330911d801aebedb8edf3ff4c297e6fb7bfdb97",
+      "bytes": 3514
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-33.png": {
+      "sha256": "dcefba97a49fd9337b14a8f62006c88180a00dd1c3ea84fa78aef2a0b0792066",
+      "bytes": 3490
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-34.png": {
+      "sha256": "f7ff9950dac9420ee0461b4e0330911d801aebedb8edf3ff4c297e6fb7bfdb97",
+      "bytes": 3514
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-35.png": {
+      "sha256": "2c0799f642aae590e8edbff81659898704e71c5f987def38f58fd61ae96c3c25",
+      "bytes": 3515
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-36.png": {
+      "sha256": "762db48fba5145eaa2646d441b0170b1fabb4169fc42a51cbf4d5921a544ca16",
+      "bytes": 3546
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-37.png": {
+      "sha256": "1432ddc2299ce1360d7878a64e6a52eb51e66f45e63cac24d0a0a5729724cc47",
+      "bytes": 3528
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-38.png": {
+      "sha256": "58a8f325980c8338edf115b765249e3a4714dd5aa276bbabfeb8e1620fb474b3",
+      "bytes": 3540
+    },
+    "tests/fixtures/potion-counter-consensus/counter-00-39.png": {
+      "sha256": "1facccbd59612de6728b7a19a07ac50c2fd9f5cd47f55a593caf6979f5011026",
+      "bytes": 3530
+    },
+    "tests/fixtures/potion-counter-consensus/counter-01-00.png": {
+      "sha256": "3d28a469b9ad0da877c32d515c953a3a6dc7b9e6dffbb52b4ef4aade226732f8",
+      "bytes": 3436
+    },
+    "tests/fixtures/potion-counter-consensus/counter-01-01.png": {
+      "sha256": "d42591b647323153a2761e7c9d74d1e74780bc64ea484cb9d4a25cd783274b4b",
+      "bytes": 3372
+    },
+    "tests/fixtures/potion-counter-consensus/counter-01-03.png": {
+      "sha256": "73997a7cc57b60f5e40268ae7329db8cb5ef6ede0861ad7e43da287cabd1defc",
+      "bytes": 3397
+    },
+    "tests/fixtures/potion-counter-consensus/counter-01-04.png": {
+      "sha256": "8862b8a8e33ac37f58232b5e6528e10641a258683882d3df8f0f07453a217c9b",
+      "bytes": 3387
+    },
+    "tests/fixtures/potion-counter-consensus/counter-01-05.png": {
+      "sha256": "5f46974dcdf642c0a6a0dca772b1f98ebc4a4f5787d8ea249e3cd9ee032c3036",
+      "bytes": 3384
+    },
+    "tests/fixtures/potion-counter-consensus/counter-02-08.png": {
+      "sha256": "0a262e9ed88e098d7b44f96a2ecd8fcda98c71820ce8e419fc9188f31c037f5b",
+      "bytes": 3523
+    },
+    "tests/fixtures/potion-counter-consensus/counter-02-09.png": {
+      "sha256": "8c5a13e4f96d8983624157990a94e153ce03d082b917621bec086b3debee7658",
+      "bytes": 3548
+    },
+    "tests/fixtures/potion-counter-consensus/counter-02-10.png": {
+      "sha256": "26ae22ea9536ce1d7c12e361082fbcbabb5c1d7fc7adfe7823f0e7c2950c1cf3",
+      "bytes": 3520
+    },
+    "tests/fixtures/potion-counter-consensus/counter-02-11.png": {
+      "sha256": "895c4c3b749592bfc0ae36f800fd7c098cb4ecfc59ac640ee4a510fc2abd688c",
+      "bytes": 3514
+    },
+    "tests/fixtures/potion-counter-consensus/counter-02-12.png": {
+      "sha256": "a58ed29c01d0dddc9c3164c5debf4d6cceabf959295bddc77efb04ad916af4cf",
+      "bytes": 3517
+    },
+    "tests/fixtures/potion-counter-consensus/counter-02-13.png": {
+      "sha256": "14991e7546d672f5f1702a30ebf3f5e07d6b6037ae98873671d76913e39f3abc",
+      "bytes": 3525
+    },
+    "tests/fixtures/potion-counter-consensus/counter-02-14.png": {
+      "sha256": "28a54b9690ba22ac69c488e4a7f8bd66bc2d34dc938502a1534ac7a1d8a86527",
+      "bytes": 3500
+    },
+    "tests/fixtures/potion-counter-consensus/counter-02-15.png": {
+      "sha256": "895c4c3b749592bfc0ae36f800fd7c098cb4ecfc59ac640ee4a510fc2abd688c",
+      "bytes": 3514
+    },
+    "tests/fixtures/potion-counter-consensus/counter-02-16.png": {
+      "sha256": "4f9e3f744a9b56999cd3d9e829acbbf042df83f5c11bc8340c9a61f7fde02162",
+      "bytes": 3521
+    },
+    "tests/fixtures/potion-counter-consensus/counter-03-07.png": {
+      "sha256": "d41ec0b670984f5034a0fbaac3a7fdd63e39bf50f695853f402e7a59b2c80de3",
+      "bytes": 3599
+    },
+    "tests/fixtures/potion-counter-consensus/counter-04-02.png": {
+      "sha256": "f35c981c12deaa392185f9eef4ad97633ba82feee8a651bf9b17e8f6a634a870",
+      "bytes": 3500
+    },
+    "tests/fixtures/potion-counter-consensus/counter-06-06.png": {
+      "sha256": "15c30f825648cc683d3e44cce939d59facb096879775cd8a731cfed582972c57",
+      "bytes": 3586
+    },
+    "tests/fixtures/potion-counter-consensus/counter-21-17.png": {
+      "sha256": "0784e3c2e5a42e2a99714b827c9772ece074fabaa035d87c433330187647d497",
+      "bytes": 3483
+    },
+    "tests/fixtures/potion-counter-consensus/counter-21-18.png": {
+      "sha256": "ba1c2f7c6541494dfaa20c9cf7993a4ad6384acd4ee43b43cfefcd630aaff162",
+      "bytes": 3456
+    },
+    "tests/fixtures/potion-counter-consensus/counter-21-19.png": {
+      "sha256": "a7d57500438fc33fdce404a7b422481b8015be1286f354980602eb0604b01f4c",
+      "bytes": 3489
+    },
+    "tests/fixtures/potion-counter-consensus/counter-21-20.png": {
+      "sha256": "816e69bcc66bed38f56753f528f7c25a8508f1c3ad970cf6c5c978bcc1447929",
+      "bytes": 3482
+    },
+    "tests/fixtures/potion-counter-consensus/counter-21-21.png": {
+      "sha256": "b74e7c150de4fa22fbf1e130d5fe8cf374e4f8d339e5964fe8821175bbbd2944",
+      "bytes": 3461
+    },
+    "tests/fixtures/potion-counter-consensus/counter-21-22.png": {
+      "sha256": "816e69bcc66bed38f56753f528f7c25a8508f1c3ad970cf6c5c978bcc1447929",
+      "bytes": 3482
+    },
+    "tests/fixtures/potion-counter-consensus/counter-28-26.png": {
+      "sha256": "fea5891627287bfc7ae08d48a117edb861417831f7f30ddaa4925bbd30541caa",
+      "bytes": 3680
+    },
+    "tests/fixtures/potion-counter-consensus/counter-28-27.png": {
+      "sha256": "7d08a121e08b28978bdbfc4c774bd0f275a91507ea79cb6b695fba92feb3e736",
+      "bytes": 3660
+    },
+    "tests/fixtures/potion-counter-consensus/counter-28-28.png": {
+      "sha256": "10d3cb3e47f09efb003e6688f49f0b81be829200f7f53349e96f9ce4bba73ec8",
+      "bytes": 3635
+    },
+    "tests/fixtures/potion-counter-consensus/manifest.json": {
+      "sha256": "04057e9d7056fa9304801e7f07b4b8198cfedb591771aa2541f3509c151c10ce",
+      "bytes": 9788
+    },
+    "tests/fixtures/recent-stops/before-rules.json": {
+      "sha256": "7a54e1bad93aafc13aa1bbe550a109393f297dd01298af859473e04e998472e4",
+      "bytes": 70224
+    },
+    "tests/fixtures/recent-stops/crown-late.png": {
+      "sha256": "00b25f0bb670801db71e55d71fee17f9442a72b87c713d28a624eb98d9827666",
+      "bytes": 1041794
+    },
+    "tests/fixtures/recent-stops/mailbox-return-rank30.png": {
+      "sha256": "15514d27c0dce07e294522253480b7bf7e77525b7bcf7f2619893897ebe0a6e0",
+      "bytes": 1021954
+    },
+    "tests/fixtures/recent-stops/mana-220.png": {
+      "sha256": "01218943b9bf92db887016cdf4f5c1efe5a717c08bdb38130e0f0682d4bc7d11",
+      "bytes": 1114466
+    },
+    "tests/fixtures/recent-stops/mana-226.png": {
+      "sha256": "a8d1ab405580553148c7a442e21b7e883ebf7d2c18ab8b4687a4dcb34e032a33",
+      "bytes": 1059843
+    },
+    "tests/fixtures/recent-stops/raid-missed.png": {
+      "sha256": "21bd57d88e42f9bdf06e5ef3ffc0b144fa43b0774ed6b84ccf3f6fae23c3ebf0",
+      "bytes": 1124868
+    },
+    "tests/fixtures/recovery/clash.png": {
+      "sha256": "80bcc189a135f3fa051cf740c0b373d1674b398a37170149bde2d3e64fb076e2",
+      "bytes": 108499
+    },
+    "tests/fixtures/recovery/exit-record.json": {
+      "sha256": "8c961a1fcf13c7b0364984d4b37e8aa79d3af86ed87692bf4bd3b069d1582053",
+      "bytes": 2129
+    },
+    "tests/fixtures/resource-crown/battle.png": {
+      "sha256": "7f948cabf69600cc10403910d5d6f1d59da9656fe17c57aa4b5acd41f0973205",
+      "bytes": 959597
+    },
+    "tests/fixtures/resource-crown/menu.png": {
+      "sha256": "eae8f809704db5291d523fce002f87514e1b39d8e4027c66c4c6e8c9f560ec7b",
+      "bytes": 1042140
+    },
+    "tests/fixtures/resource-guild/arrow-unknown.png": {
+      "sha256": "8d2944d4a098cb3873ea29a5ae5e1ade8af641cba245365d245bc0e8ec2cd9e6",
+      "bytes": 990025
+    },
+    "tests/fixtures/resource-guild/battle.png": {
+      "sha256": "a91ac19051fb8bd4e1cb90337eaf84a06eb8b4b6a37b461da15695c6f8bd703c",
+      "bytes": 979597
+    },
+    "tests/fixtures/resource-guild/event-battle.png": {
+      "sha256": "5cd93afecd9cee6cae14862b919cc6092d4e06d4046ea1569ac807a22beebb16",
+      "bytes": 974070
+    },
+    "tests/fixtures/resource-guild/evidence.json": {
+      "sha256": "f587f99df49a99b1251b87bcbd6a41f424a6339c1c66fc9a290109451276e016",
+      "bytes": 1194
+    },
+    "tests/fixtures/restaurant-map/manifest.json": {
+      "sha256": "2dd11e6cadcaeee43c82e4a577a6f41f650b68a3b145266cb033822f92826380",
+      "bytes": 1423
+    },
+    "tests/fixtures/restaurant-map/negative-03989.png": {
+      "sha256": "a61f205acabce97d5322ce16c3a4ce278d22fc745300580099d86cbb5d7c1852",
+      "bytes": 1009633
+    },
+    "tests/fixtures/restaurant-map/README.md": {
+      "sha256": "a30c09a07d7018930873d0306c3715a12b113b6a1d62f0d730843e6310d956fe",
+      "bytes": 1206
+    },
+    "tests/fixtures/restaurant-map/s02.png": {
+      "sha256": "016a5e4d403d532777c9e4aab2ea1be9c113ef4ab31a71bba502b47219de5814",
+      "bytes": 945208
+    },
+    "tests/fixtures/restaurant-map/s03.png": {
+      "sha256": "e75192ad3599f2f70ca0ddb23bcc0743fe23262d7bb2c11d8dc3f53c28e2b945",
+      "bytes": 940290
+    },
+    "tests/fixtures/restaurant-map/s04.png": {
+      "sha256": "c089ffd72a2c85b414e268731bfc28be1b6aea70fe7c2341bebd7e60321ec5e2",
+      "bytes": 941493
+    },
+    "tests/fixtures/sidebar-layout/event-absent.png": {
+      "sha256": "6ce12bb5b44580cc56e437040066dd971f4c78bccece6f93a9617c0581736a2c",
+      "bytes": 1030886
+    },
+    "tests/fixtures/sidebar-layout/guild-selection-missed.png": {
+      "sha256": "a04556da117f9cddf384ebe53d28dfc567a025af06f74b6eeffdf53bfe3d6cd6",
+      "bytes": 929261
+    },
+    "tests/fixtures/stone-farm/already-closed-stage9.png": {
+      "sha256": "381a65bb70218a27e0f98d315738974d8ee47c00e32402242cfaf5d9ac882e70",
+      "bytes": 950272
+    },
+    "tests/fixtures/stone-farm/lower-seagod-battle.png": {
+      "sha256": "ac15b94563b475278f7387a2a84691b84a5ad5c6dab0cc506d354cbd0303109a",
+      "bytes": 999118
+    },
+    "tests/fixtures/stone-farm/return-shifted-stopped-20261018.png": {
+      "sha256": "3599e5f0a5cd7cb625eeff60af33612fd2c0348cfdaf0884f1b2cd6db9dc17e8",
+      "bytes": 1006024
+    },
+    "tests/fixtures/stone-farm/stage8-gray-hook.png": {
+      "sha256": "2fa7ac34f8e9ccb84e0804d0c5f3b515d59de221a60b3a507ea86c7cbaaa923a",
+      "bytes": 1005281
+    },
+    "tests/fixtures/stone-farm/stage8-menu-0.png": {
+      "sha256": "d5db5f4538f0a1d1864c31f703b3159e38fd16ceb111c414889e8765a4ba8576",
+      "bytes": 955608
+    },
+    "tests/fixtures/stone-farm/stage8-menu-1.png": {
+      "sha256": "f9ed823bb143c7adff765826d1fe64cc77d32e66a92888f6ae71981750f6e0ea",
+      "bytes": 958932
+    },
+    "tests/fixtures/stone-farm/stage8-menu-2.png": {
+      "sha256": "701457a1b5ad23c6c49362a790d081b30ebf549341e0d5e697b1ad97100cd0be",
+      "bytes": 959920
+    },
+    "tests/fixtures/stone-farm/stage8-rank39-gray-boss.png": {
+      "sha256": "7c58612e75e5aa105855bf20b6038cd15fd7bfafb8589005598ccc6cd36a1c58",
+      "bytes": 997579
+    },
+    "tests/fixtures/stone-farm/stage8-rank39-restored-battle.png": {
+      "sha256": "35ab90698e147eb3fd585c854edbe75299f970f827b3cef908fbc97f520b52ff",
+      "bytes": 974673
+    },
+    "tests/fixtures/stone-farm/stage8-rank39-selected-map.png": {
+      "sha256": "44f17033e80afad342b12cddcc19dbda5398f1b0127fb5fe08e29869608521ad",
+      "bytes": 648635
+    },
+    "tests/fixtures/stone-farm/stage8-rank39-stopped-sleep.png": {
+      "sha256": "4eb94d7311a305246477f09dcacf2ef25f188f959d58ff621e902775efdfabf6",
+      "bytes": 987692
+    },
+    "tests/fixtures/stone-farm/stage8-rank39-wake-notice.png": {
+      "sha256": "07f595880615811bee8a6926b794846ba23eec58071ef2ec7c3621695af7a7c0",
+      "bytes": 1000849
+    },
+    "tests/fixtures/stone-farm/stage8-rank39-woken-hook.png": {
+      "sha256": "22c2dae4e5f00b9da3ded835e4e013c78f338e2b075c712a2c2f34c6e3483cdb",
+      "bytes": 1011388
+    },
+    "tests/fixtures/stone-farm/stage8-rank40-return-badge.png": {
+      "sha256": "39d1f691571492b54aa92292fd557ecf31bff709c9987c88d82bad947475f49d",
+      "bytes": 960543
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-gray-boss.png": {
+      "sha256": "8e201414acc63daa2b8ac7c5657c58a0b5de342ac3fa5e3bb6e01a1851771df8",
+      "bytes": 1005168
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-menu-0.png": {
+      "sha256": "5424ec254d7b00c4ab85ee3a9ec03d3bdd27ea5340cc1631dfc4e970cd14b6cb",
+      "bytes": 958111
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-menu-1.png": {
+      "sha256": "037d972d2424ac16dd1f3b949e1f815882502cd46980f3486fe36c5727d5fde3",
+      "bytes": 951490
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-menu-2.png": {
+      "sha256": "37a35877d8a86dbe6e093387896e7ddc54518a02f37c6d2c661a6a198ce20b26",
+      "bytes": 955658
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-menu.png": {
+      "sha256": "8e67359af21d02a30374a96b8cee48e7153ec7c00079f2df1896ab36e7588880",
+      "bytes": 953352
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-moving.png": {
+      "sha256": "ac62f3d6842330d59a712d204081c8b7414cb2d30b6d14a847a80f91dfa1d7d5",
+      "bytes": 1160549
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-no-destination.png": {
+      "sha256": "f4394b31e4eef73f22276da8b044c722a5f3b56c8eb86d0c70516f5d39d7fb8f",
+      "bytes": 985232
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-ordinary-stopped.png": {
+      "sha256": "7b2b59824d4aa0e654a6c598eea7538821cf67d6992a5e659b9a52fbbf6ed205",
+      "bytes": 967626
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-selected-map.png": {
+      "sha256": "c6861c2426c13457f060752628460d353b025be97bf28b64e422919796a04c88",
+      "bytes": 789161
+    },
+    "tests/fixtures/stone-farm/stage9-rank0-unselected-stopped.png": {
+      "sha256": "ee1b384cd8320b5f02bb505ed3a93795a2a531a5efef246caab78e9b9943d57a",
+      "bytes": 1002252
+    },
+    "tests/fixtures/stone-farm/stage9-rank1-menu.png": {
+      "sha256": "a3a42ef49b330e182e0747c1eabcbebf66e0b75cf9f05f997dc27e910970954a",
+      "bytes": 951806
+    },
+    "tests/fixtures/stone-farm/stage9-rank1-moving-filled.png": {
+      "sha256": "6ef39fc71264a7ce9732b7c69a41413372781a534948c96a846aec4964e16f80",
+      "bytes": 1011363
+    },
+    "tests/fixtures/stone-farm/stage9-rank1-port-manual.png": {
+      "sha256": "1bf628711e5af7d052651848188eb44eb29d0a683ee4b6c9f8939f84debe8d5a",
+      "bytes": 1023665
+    },
+    "tests/fixtures/stone-farm/stage9-rank39-0.png": {
+      "sha256": "7875238002c4d0144da4400f6a69b042c0ccc3dce1bc1ddc56c578da4ab95d78",
+      "bytes": 1020867
+    },
+    "tests/fixtures/stone-farm/stage9-rank39-1.png": {
+      "sha256": "cb688beffae72e3fc3281004bdb633d2554d9d0de2cdf634315d9163821c0e00",
+      "bytes": 1043876
+    },
+    "tests/fixtures/stone-farm/stage9-rank39-2.png": {
+      "sha256": "ed982d9777e65428a3ecaab1f1153a5bd8ccba400038d18a3841e128a865cd2d",
+      "bytes": 1012640
+    },
+    "tests/fixtures/stone-farm/task-cast-bite.png": {
+      "sha256": "6a810b36f483f6e7a321d920caf0d4bb317a0167951f2ba4bb1fe2b4bf408529",
+      "bytes": 1008970
+    },
+    "tests/fixtures/stone-farm/task-cast-dots.png": {
+      "sha256": "5675f6e73d1e21c4bc10fccb0565e9da1344bd3fea670ca5e7dbe1dfd6c00d40",
+      "bytes": 1011706
+    },
+    "tests/fixtures/stone-farm/task-cast-manifest.json": {
+      "sha256": "23ffdd2b24e32dbe20b3ac61e55fb7697247624e8248881b6041f6114291c96f",
+      "bytes": 345
+    },
+    "tests/fixtures/stone-first-budget/selected-map.png": {
+      "sha256": "67414d173f82f44240f01c964c070c61c18b5f1cc15b521a801566f2df6fdf3e",
+      "bytes": 646138
+    },
+    "tests/fixtures/stone-first-budget/selected-rank0-map.png": {
+      "sha256": "8575b32214de12e747983c5a83436a84a799bee0f00286d964a79d1fa53c0716",
+      "bytes": 951961
+    },
+    "tests/fixtures/stone-first-budget/stopped-rank0-hook.png": {
+      "sha256": "097583c7e2b6af1fb91b1ca449cea3509b8056a70acc418c1f10f9c336ee0e3d",
+      "bytes": 1023604
+    },
+    "tests/fixtures/stone-first-combat/lowered-battle.png": {
+      "sha256": "6275e2092bba5dd19a335b76d995025f6938fd4f766960f72348b0976382ce85",
+      "bytes": 1001734
+    },
+    "tests/fixtures/stone-first-result/popup-20261017.png": {
+      "sha256": "85952f31c0e766ae8db172d0ed4aa70441f015a96475a6c935fc863546fe25ea",
+      "bytes": 965566
+    },
+    "tests/fixtures/stone-first-result/rank1-20261017.png": {
+      "sha256": "2cf4560f680e0638b88cc38d06b9c222ce5b7657d1782c142057b833d228c4cb",
+      "bytes": 1008472
+    },
+    "tests/fixtures/stone-first-result/rank9-running-fill.png": {
+      "sha256": "b7171683aa5f96f412c5cbabc6e5030963e132889f3a4fbc2bb5af33c936ce7d",
+      "bytes": 935578
+    },
+    "tests/fixtures/stone-first-result/timeout-rank0-20261019.png": {
+      "sha256": "a92e39a2b16f3f4bb30078feb50394de9e640cced736d1401c47ce0c35cc1bc1",
+      "bytes": 1008332
+    },
+    "tests/fixtures/stone-first-result/timeout-rank1.png": {
+      "sha256": "641c1bfb53c3938c950a50ee25cb6009647fc442431e4e13b0977098498d3186",
+      "bytes": 1007318
+    },
+    "tests/fixtures/stone-lower-entry/observed-moving-battle.png": {
+      "sha256": "dddeeeb034625ad3639a0e74d920116fa511f4adee5a2a3f2ae403f935ba4a03",
+      "bytes": 940720
+    },
+    "tests/fixtures/stone-lower-entry/observed-moving-fill.png": {
+      "sha256": "831c3e7d30536528934b7bf1e2d3732f5f24bf06aadf48243caa01fecfb6a420",
+      "bytes": 998212
+    },
+    "tests/fixtures/stone-lower-entry/unselected-map-eye-covered.png": {
+      "sha256": "f556b8e7706bb52351313e30b2fdc0d02c54273910483c50b363c1b058711cc6",
+      "bytes": 558153
+    },
+    "tests/fixtures/stone-lower-entry/unselected-stopped.png": {
+      "sha256": "bde69ae6b7a2aa5111863fee6092fad0156a70edb50246c85f62f5318a149b83",
+      "bytes": 1064653
+    },
+    "tests/fixtures/stone-lower-timeout/after-cast.png": {
+      "sha256": "3283d9fee2e7d6853d0be1ae8d40e98d95da3ccf37e6f0d77803dc5656a572b0",
+      "bytes": 1158466
+    },
+    "tests/fixtures/stone-pale-stop/69f52dce23b0412e917ddcd5dace57f9.png": {
+      "sha256": "5756852d59686492fa7148de921a2b3db37f53f288b079da363f8f74031da5eb",
+      "bytes": 1005904
+    },
+    "tests/fixtures/stone-pale-stop/e4b02e249c194f89b4c815d47b7678f2.png": {
+      "sha256": "3029b400bf2855a0a2ca96f2775057cdc48d89dbbcdfc613b167cc7d2dbeb083",
+      "bytes": 1010784
+    },
+    "tests/fixtures/stone-pale-stop/ec964e945ee344c89c2c226809f4ec4c.png": {
+      "sha256": "0b4546f2acb61a89967a6373ab60efb64fac664ec2e84485c32d352874c0939f",
+      "bytes": 1009889
+    },
+    "tests/fixtures/stone-stage10/main-0.png": {
+      "sha256": "c35bea0efd3a9d23df87bdd5f3638fb51ce414d66a632801acd9d8c6820cb6be",
+      "bytes": 1029688
+    },
+    "tests/fixtures/stone-stage10/main-1.png": {
+      "sha256": "381578de75dee17580683ac5271f1ac452f686786f6691ed68e66ea5985234d6",
+      "bytes": 949851
+    },
+    "tests/fixtures/stone-stage10/main-2.png": {
+      "sha256": "91e0032ac37ab24ba2b2c7d74065983bbb4c778ccdc9d209b8393eb1e41f8107",
+      "bytes": 1037565
+    },
+    "tests/fixtures/stone-stage10/manager-0.png": {
+      "sha256": "c807ab1fcfad20aa985116b7d9e8410aaa5cb716a629d1a1896aa807e6baca71",
+      "bytes": 945515
+    },
+    "tests/fixtures/stone-stage10/manager-1.png": {
+      "sha256": "9b4bee6df2b053a9b412672deb99e85a595f7eaefe2cfc9585b8a38c487c2106",
+      "bytes": 940945
+    },
+    "tests/fixtures/stone-stage10/manager-2.png": {
+      "sha256": "ee200e3398c495af0d26e0d416e29b11c86ac33e79721a46d680dbc16fc577b0",
+      "bytes": 942834
+    },
+    "tests/fixtures/stone-stage10/manager-3.png": {
+      "sha256": "8ff20d8de32f21b6787506842b640f6da74fcefd90fcf379f4a3a07a0b3176ee",
+      "bytes": 943671
+    },
+    "tests/fixtures/stone-stage10/manager-provenance.json": {
+      "sha256": "188fb8e917e8a72f67382aed77d21ce652cb1cf16f099da5303ebad9a9be2b94",
+      "bytes": 1271
+    },
+    "tests/fixtures/stone-stage10/provenance.json": {
+      "sha256": "0ce18fec49216fd2a6a81f80cb82789aedb935c473771787ffa30f22090b988a",
+      "bytes": 270
+    },
+    "tests/fixtures/stone-stage10/resource-r51.png": {
+      "sha256": "4949ec13e42486ef9ba7834988d31dc846d7c6d2580691076d9e7cefe4ba5c58",
+      "bytes": 1026762
+    },
+    "tests/fixtures/task-popup/parallel-farming.png": {
+      "sha256": "b2acc1d3f6b4ef3933ac02a6578764dc7bc0b26f032ca15793780d2bbb8bcba8",
+      "bytes": 1018105
+    },
+    "tests/fixtures/task-popup/parallel-map.png": {
+      "sha256": "1c5c2654bdf2ef75c04c5748fdb57864735856968780d07b3cbb19ce3a4aec2c",
+      "bytes": 818025
+    },
+    "tests/fixtures/task-popup/parallel-notice.png": {
+      "sha256": "58063ce512f421f03159a664fae61a6833752f542803aa3b09e7661bc8fbf74b",
+      "bytes": 1049860
+    },
+    "tests/fixtures/task-popup-arrival/arrival-battle.png": {
+      "sha256": "fdd3910223c7f30b4c7d76ba99cf83912fc1a9b1832fdbaa75ef0f8a29f4c355",
+      "bytes": 973764
+    },
+    "tests/fixtures/task-popup-arrival/arrival-moving.png": {
+      "sha256": "ef4fd0e42dbcc78f977154badb0c8111489f34cd96562952b9586741702aa37c",
+      "bytes": 976936
+    },
+    "tests/fixtures/task-popup-idle/notice.png": {
+      "sha256": "832a357830ad0ccbed3281e8ae58959b92f851b943a4155fa82ac7473846f389",
+      "bytes": 1070374
+    },
+    "tests/fixtures/task-popup-idle/returned.png": {
+      "sha256": "53d66d6d3bf1e045ad0fe0b5ce9309271d6eb326632c8ad3e8db403e90693201",
+      "bytes": 975383
+    },
+    "tests/fixtures/training/battle-rank35.png": {
+      "sha256": "1602a20656f9e971772b7d8b9795ec931a086634e44077e97a70413818730398",
+      "bytes": 1013380
+    },
+    "tests/fixtures/training/battle.png": {
+      "sha256": "1677454b09bf6fd59a70cf1e01d42cb2d6eb4a7f66f5beff62a46c51d353f1a5",
+      "bytes": 975177
+    },
+    "tests/fixtures/training/boss-main.png": {
+      "sha256": "525d6baaec8c17d992d4001cd76d71b519dfcd47c670eccdcfdf64a9961b8688",
+      "bytes": 1008937
+    },
+    "tests/fixtures/training/boss-map.png": {
+      "sha256": "a530945a0f5b245ca8a1315c0cb3a499a95668b517e0bf4db6c5f574130be5d1",
+      "bytes": 688965
+    },
+    "tests/fixtures/training/failed-boss.png": {
+      "sha256": "8672fac1f1dbf47c1f077c58d241cf2e12b9242493edfeda3382bf90f8f210ac",
+      "bytes": 1028295
+    },
+    "tests/fixtures/training/failed-faded.png": {
+      "sha256": "83dc0e1f65a5a87bc13c7f1cf0191033546deb64a5ecf1c6b2cc516c03cf14a6",
+      "bytes": 1019503
+    },
+    "tests/fixtures/training/failed-rank35.png": {
+      "sha256": "2948d7e030e0f445a95dd43de5d3c54160e103b31672cadad31af8230a526fab",
+      "bytes": 1069556
+    },
+    "tests/fixtures/training/failed.png": {
+      "sha256": "9d17765749e52f4f8de0d67acaeb186d1c3b806f4c8d3645518e0f71a85ea304",
+      "bytes": 1022710
+    },
+    "tests/fixtures/training/fishing-691.png": {
+      "sha256": "caeefb026f7fee2de50eccf0b8701fc6ca34948f1cb585515d28d5a6c70b679d",
+      "bytes": 1052497
+    },
+    "tests/fixtures/training/fishing-main.png": {
+      "sha256": "40b835a60d45c20800d58790e922f24cf0e09d07141de9a9f2b0d94ff08c0c49",
+      "bytes": 1035062
+    },
+    "tests/fixtures/training/fishing-map.png": {
+      "sha256": "26748b7b1bcfbd3c4a01b150cb68858b5c6271b32657778a8273b223d0c2de82",
+      "bytes": 725554
+    },
+    "tests/fixtures/training/sea-god-meter-high-2.png": {
+      "sha256": "e691cecb4a3172d237aab9159e1dc6a59c55df6a562756e51bde83d6855f48de",
+      "bytes": 982842
+    },
+    "tests/fixtures/training/sea-god-meter-high.png": {
+      "sha256": "7302fcf24b7df7cd62ab2e01652f1c542ffdfe63ae552df4c1df57db423ebea8",
+      "bytes": 979403
+    },
+    "tests/fixtures/training/success-rank35.png": {
+      "sha256": "f2d2c0bbc8c231bdae1659489da0a9c4cb27d0299e5d8bec196b432290e505ba",
+      "bytes": 1089124
+    },
+    "tests/fixtures/training/success.png": {
+      "sha256": "1c7675e5bf9df7b7dce9db6d41e6e1f9e1cce8bd98b7bad01c16eb275a0db03d",
+      "bytes": 1006587
+    },
+    "tests/fixtures/training/training-map-rank38.png": {
+      "sha256": "efcfc7a16e59d58de8f5953e2b980c16f2e968efc4006f09d0fa5e19f95d9647",
+      "bytes": 552900
+    },
+    "tests/fixtures/training/waiting-boss.png": {
+      "sha256": "1865991b53550ce78cd36b0b9c7163e7039a73f8f1c277e048ef41b7bb1c5702",
+      "bytes": 1038085
+    },
+    "tests/fixtures/training/waiting-rank35.png": {
+      "sha256": "b372ebb4c254bdc0a1fd580e27aa25872b0fcff282750f996c0cefa76a7500a8",
+      "bytes": 1075087
+    },
+    "tests/fixtures/training/waiting.png": {
+      "sha256": "2b8c1235bbd7cd5e9400807e649bd9b88420ad603b16ea5d85c0851ff91fac4f",
+      "bytes": 1044627
+    },
+    "tests/fixtures/training-sailing/active-flying-cake.png": {
+      "sha256": "bba6c11d5ee31f9a798d98dd6c3297f5791a7d592986524bb4804da08ca7dfad",
+      "bytes": 1057189
+    },
+    "tests/fixtures/training-sailing/active-glow-0.png": {
+      "sha256": "2e5bb8fc5da814d27cd461c1a0ce9f1bee8b98cf6510c4371eea92d499fee7ee",
+      "bytes": 1033026
+    },
+    "tests/fixtures/training-sailing/active-glow-1.png": {
+      "sha256": "16ccb2a71dcb6baf65eb6b7fcea9881e7807833972ddb9ee5e270775cc057123",
+      "bytes": 1031598
+    },
+    "tests/fixtures/training-sailing/active-glow-2.png": {
+      "sha256": "5734d8fafd00f42329f1549e34c17721df9c15126d5fa2ba2412f5646f6e1333",
+      "bytes": 1032687
+    },
+    "tests/fixtures/training-sailing/active.png": {
+      "sha256": "af73f548d0c404a85cdb1764222298e98542bac6429d78539b025e2bc8f1ac8f",
+      "bytes": 1082759
+    },
+    "tests/fixtures/training-sailing/handoff-port-rank35.png": {
+      "sha256": "02f6377b69b7c8bc2bbd9e270728e63c15376189931a98deedcda182d91da6fd",
+      "bytes": 1019131
+    },
+    "tests/fixtures/training-sailing/inactive.png": {
+      "sha256": "cd99cccddb3a44bfc9f1731992bd78191ab22ab5471d3c8663d5228b9f503992",
+      "bytes": 1071874
+    },
+    "tests/fixtures/training-sailing/menu-no-pearl.png": {
+      "sha256": "733f6c714efc77c69b67fa2c995220e495ffe7aec78ef41c4a30c9a470f1e098",
+      "bytes": 966268
+    },
+    "tests/fixtures/training-sailing/menu-one.png": {
+      "sha256": "9227cee057dd5d2f2ab1d493b125b2791862756b08a4affeadf33e79495884d8",
+      "bytes": 980102
+    },
+    "tests/fixtures/training-sailing/menu-rank35-boss.png": {
+      "sha256": "7a6bdfe2bbfff8cdbe4aafae0ed8c46c5912bee7c26bf65717ae378cba504260",
+      "bytes": 919472
+    },
+    "tests/fixtures/training-sailing/menu-three.png": {
+      "sha256": "2f869bf8f99a134f666b1e409c0b6f22dc257361cd598cad4ea7637f91d70235",
+      "bytes": 968684
+    },
+    "tests/fixtures/training-sailing/menu-two.png": {
+      "sha256": "1f18aad4733ddc5d4233a34f9f408c147875d4f4f0efe79bcaae6055ccf32c64",
+      "bytes": 981461
+    },
+    "tests/fixtures/training-sailing/stopped.png": {
+      "sha256": "43c651205e0dc3375fb8705f736d30047b2a4a107d32e8fe1d73c7ce3dc274af",
+      "bytes": 1009938
+    },
+    "tests/test_achievement_return.py": {
+      "sha256": "6d9a6c3204369be2bbb50b3a7e460c28f4935a710d9e691ec507d2dc4dc97671",
+      "bytes": 11329
+    },
+    "tests/test_ad_position.py": {
+      "sha256": "f9346143b599c813176188f765426b6f0b1784a950bb8e6e064a5603cd9e8381",
+      "bytes": 4842
+    },
+    "tests/test_ad_recovery.py": {
+      "sha256": "c5f6973ed90c7861025f9979a02515362148a9056006fbb39b7fd3726d4ca7cb",
+      "bytes": 10404
+    },
+    "tests/test_backpack_sale.py": {
+      "sha256": "97d8e9440cf1de766d37834c06f103ce675245277c6ee6043b38823225d371dd",
+      "bytes": 44807
+    },
+    "tests/test_boss_defense.py": {
+      "sha256": "cd490973b4c1bd23b718c49c5533ae21fee57f9996f97b0f90bebb509af4a9ef",
+      "bytes": 42364
+    },
+    "tests/test_boss_sailing.py": {
+      "sha256": "b43532c6ec512e0ab941b6f0f681061938a2ed3846e3d14ca82ea514ee6fde1e",
+      "bytes": 25032
+    },
+    "tests/test_boss_training.py": {
+      "sha256": "18835a182c864a0f83caea55c2f9bfacafb56d4499fe228c0c21bc7894389511",
+      "bytes": 28890
+    },
+    "tests/test_clicker.py": {
+      "sha256": "21c481253b37194980f6a8668b100542e5b23de6905f5201897eed7764071d1f",
+      "bytes": 16676
+    },
+    "tests/test_completion_handoff.py": {
+      "sha256": "a2b7bdf7312d279f6090aaa542cf5ee3d78fff661d4948e7e5afc34786dd8ed7",
+      "bytes": 3750
+    },
+    "tests/test_counter_consensus.py": {
+      "sha256": "63bc4b78eef79e27239f0898fc56996b112417a312f5bdbe7e13f0e6e52f99e1",
+      "bytes": 9404
+    },
+    "tests/test_counter_regression.py": {
+      "sha256": "f056f366953fc59d3e3ecae2801f2be4902e28a05eae4c3d8bf926e0a27de333",
+      "bytes": 2845
+    },
+    "tests/test_crown_native_return.py": {
+      "sha256": "cdf129a5e8ecdbe8acc1fca7f80b794b0df9180f5633c78d0f3a8ae26a442b7c",
+      "bytes": 12100
+    },
+    "tests/test_crown_shifted_timer.py": {
+      "sha256": "c5b530fde40e4af8a6536bfc76f5397c49ca74038bb977a8c3a9ce9bcb024126",
+      "bytes": 4667
+    },
+    "tests/test_cruise_gate.py": {
+      "sha256": "d796ac224d595f72f0ac0b088b0087ebaa9aba1ba130434a56bdd42e1b449ec6",
+      "bytes": 3870
+    },
+    "tests/test_cruise_menu_rank.py": {
+      "sha256": "5e0c8e63179b8162b27c780238cf68fd765e14955c12558d7ad2a3749d44982c",
+      "bytes": 4282
+    },
+    "tests/test_cruise_preferences.py": {
+      "sha256": "8038094ce525231496e1ed695102437feb8e064b8724c474c383569583557d08",
+      "bytes": 10826
+    },
+    "tests/test_cruise_setup.py": {
+      "sha256": "4186d079034cf81bee87c79c90707fc29c8bc64374e540f952718473fb2cead5",
+      "bytes": 7957
+    },
+    "tests/test_cruise_start.py": {
+      "sha256": "2fb3a004d5f69ab6332bef129f9355df0d335f9b3589f0c1895755dbae660c02",
+      "bytes": 18412
+    },
+    "tests/test_cruise_watchdog.py": {
+      "sha256": "e9b2f34fe796de95f7f94f523f74ef4f012f0c4372d4d9c7f4413d17feb49c59",
+      "bytes": 15065
+    },
+    "tests/test_daily_bonus.py": {
+      "sha256": "d79890a8cd2a59782202dda7afb49d7d100c6a6b66e7039c298583b33275e4b4",
+      "bytes": 6643
+    },
+    "tests/test_daily_bonus_recheck.py": {
+      "sha256": "67199a6e2716cd92249097d5e198e13f1d7b8a3052736e627cc3e94ee2e8b97f",
+      "bytes": 4064
+    },
+    "tests/test_daily_cleanup.py": {
+      "sha256": "04de211a23e7ece8f746e610d5ea2f58ccf41f9e84523b6b8ae1b7e1a8a0a982",
+      "bytes": 8624
+    },
+    "tests/test_daily_reward.py": {
+      "sha256": "218bf53ba72d52471a4d75bdd6c4e985f93497c853e75965363a2b013ad8d4c0",
+      "bytes": 9083
+    },
+    "tests/test_daily_schedule.py": {
+      "sha256": "1a58bdf4f32e15b0bb3261f557ec9bd1bc1d8e56b9cf51368bbe74c3c8129f2a",
+      "bytes": 8788
+    },
+    "tests/test_digit_batch.py": {
+      "sha256": "2318346f95fa89f64c362dfb2283f0233eebcf3fb3852bb652b309b2e389953c",
+      "bytes": 4316
+    },
+    "tests/test_equipment_cadence.py": {
+      "sha256": "110e6bda448b47b842e9655d7f5c13d428812781b809195a61e53bad0d31a174",
+      "bytes": 5268
+    },
+    "tests/test_equipment_upgrade.py": {
+      "sha256": "ef997528feec04f04ef4ab14d92717ae2398f161c05d2cf06a38ce974fa2c200",
+      "bytes": 21510
+    },
+    "tests/test_event_potion.py": {
+      "sha256": "174267909ac4799df0d7b5fe99e5650e2974557580ef6e051a43ca04b9a92bdb",
+      "bytes": 11083
+    },
+    "tests/test_event_potion_rules.py": {
+      "sha256": "3ed8d1dec2d078a07e3a207932f5c3785a9323184c1da547ade7c93c760ef9e8",
+      "bytes": 5980
+    },
+    "tests/test_fault_recovery.py": {
+      "sha256": "6056d44138359a4a27a4510181f513d94031ef5910b8c2df67d045ce8f3e6cce",
+      "bytes": 13538
+    },
+    "tests/test_features.py": {
+      "sha256": "4d1beb86a35724523101a0669cc3cd29f21d8fc33041155144fabd4079d9f4db",
+      "bytes": 11942
+    },
+    "tests/test_final_boss_attack.py": {
+      "sha256": "e800b8d53b22e9c1cd2b964e3b4974fe1585d5ddcac6242c8526bdb3d6e33083",
+      "bytes": 13965
+    },
+    "tests/test_fishing_meter.py": {
+      "sha256": "fb4b3a896a567659c562821b47a4771126d5081d9d9c6ae0558f71798cc298db",
+      "bytes": 42282
+    },
+    "tests/test_fixture_privacy.py": {
+      "sha256": "b54ba31039b786d12af48d0eb63bdf4462b5876e746e87beec90b39a23d55cb3",
+      "bytes": 1427
+    },
+    "tests/test_frame_runtime.py": {
+      "sha256": "4c6f335305bd26571efa2d01c148fc14fc61fe73d630c56669d0cdc3cac7915a",
+      "bytes": 4106
+    },
+    "tests/test_game_recovery.py": {
+      "sha256": "ddf63711333fee95be95ceb049c0551a221380cddfe472f505951713365d6569",
+      "bytes": 25202
+    },
+    "tests/test_guild_badge_pulse.py": {
+      "sha256": "b3b988522b41bcbb38e434b7cd0395bf98d756c43cf0a1b5029cecc094262752",
+      "bytes": 3464
+    },
+    "tests/test_guild_balance_prefix.py": {
+      "sha256": "706a10675147a5b8a04543e507d407853479657fd74e68eb6096a231b013eed1",
+      "bytes": 1913
+    },
+    "tests/test_guild_daily.py": {
+      "sha256": "7a990177cf753661d43d76956a653ea55daa43c6c610233f806fcfc44df477aa",
+      "bytes": 14585
+    },
+    "tests/test_guild_menu_contact.py": {
+      "sha256": "4199bcab8ef12391f9a908534d20d17231974efe9f924f02cb54d5e7ff00770d",
+      "bytes": 1861
+    },
+    "tests/test_guild_menu_rank.py": {
+      "sha256": "4c9766d9e1fc55d58beba4f8eb0b98ec2a6f958a80d30e4a61a8686b30a7be93",
+      "bytes": 2117
+    },
+    "tests/test_guild_native_return.py": {
+      "sha256": "754022f94a692a6baaafd0bc6c475f825ac9d74ab3fd115dfd2c99f40662027a",
+      "bytes": 6870
+    },
+    "tests/test_guild_return_home.py": {
+      "sha256": "4485dbff6a6be20a8d232fdea91c59707d5c1f0e3a793fcb46549963a216ad6b",
+      "bytes": 48154
+    },
+    "tests/test_guild_selection_cleanup.py": {
+      "sha256": "db58935e33e9e4af275fcd3076f9c3e17ab537150367f0c031c8de84d78e9f65",
+      "bytes": 16112
+    },
+    "tests/test_guild_shop.py": {
+      "sha256": "70a6c0f0a76ff8f129c6016759d8c71dd65a65c00a3175bd64e8b46909c191c9",
+      "bytes": 21159
+    },
+    "tests/test_guild_teleport_k.py": {
+      "sha256": "a91042ebae0be9b7247ca46f2d5ca93f632e72d25116ad075763600d797fa283",
+      "bytes": 19554
+    },
+    "tests/test_guild_travel_fallback.py": {
+      "sha256": "720d686280f24b553e818145229e9869191918019019c1efad27c865088c8e33",
+      "bytes": 3471
+    },
+    "tests/test_maa_engine.py": {
+      "sha256": "d952c4c0c47785d1718efaaa6cf805fd7b8fec3d6be5c50c332c1e3bf0481d0f",
+      "bytes": 6551
+    },
+    "tests/test_mailbox_close.py": {
+      "sha256": "d799f5e14ac174bf7980f036f2fc6c4472ea7c0b41cc5f70b234e7b0481082c1",
+      "bytes": 11906
+    },
+    "tests/test_mailbox_daily.py": {
+      "sha256": "d2f4b8b1148c75877a6091b322603f9bc7712db2ff4486d5445a7b58ff603c1a",
+      "bytes": 5655
+    },
+    "tests/test_mailbox_limit_date.py": {
+      "sha256": "53cd29413de0818787bf166bfb8ca298a37845dc1be4762e567e3a72b3abb57f",
+      "bytes": 4384
+    },
+    "tests/test_manual_start_retirement.py": {
+      "sha256": "82caf08a64bdbe1ebd95bfcfcf35704a1b5175f2823179d2b6cee756025db6d2",
+      "bytes": 8787
+    },
+    "tests/test_meter_auto_glow.py": {
+      "sha256": "783fb406d554becb045c3372142049ce14d480ebc492f52b1b689b7d8d2e343f",
+      "bytes": 4855
+    },
+    "tests/test_meter_calibration.py": {
+      "sha256": "90a0aa5a1033b6922c0a695d1761ca28027e6d02a9cf9221ba585e2dda6878bd",
+      "bytes": 40051
+    },
+    "tests/test_meter_cancel_glow.py": {
+      "sha256": "08620068da2886e44c3bfb2f15301b119b13ef0dbee44e8a71e7e85bbff3e140",
+      "bytes": 5393
+    },
+    "tests/test_meter_cancel_timing.py": {
+      "sha256": "c491e291bfcdaf90ae11f1335d86f2337409fe85d97afa824da40c56b8660da2",
+      "bytes": 17859
+    },
+    "tests/test_meter_continuation.py": {
+      "sha256": "d2a64ae393babb67bcf23145cb02901f6fec36ecb4d007f454fd897bb3b6d02a",
+      "bytes": 14476
+    },
+    "tests/test_meter_deadline_restore.py": {
+      "sha256": "96c59fdd74bd398d186d58ba6475a37e7b700979ee896ab3f60dd1c281422c47",
+      "bytes": 11673
+    },
+    "tests/test_meter_frame_gates.py": {
+      "sha256": "e87ffe232e461931afba8144803aac148fb338eef11b05c4afd9acd102079e80",
+      "bytes": 9168
+    },
+    "tests/test_meter_max_drag.py": {
+      "sha256": "746d0267b6e746ef1c350ae852ce66eea394c971021ac6684c3c3b2697604054",
+      "bytes": 18997
+    },
+    "tests/test_meter_night_repair.py": {
+      "sha256": "953d9ee4580b2c9180dc8eea59c71ae3075cc1da7934cae13efbbb6e953a2280",
+      "bytes": 6507
+    },
+    "tests/test_meter_night_warning.py": {
+      "sha256": "a8c50a7e8c852cb4213084a92fb5553564033607684b3bbaa72b8b37d4cded38",
+      "bytes": 3347
+    },
+    "tests/test_meter_observe_reason.py": {
+      "sha256": "cbfd88d019b9968af79530a2257a8c6b075a694e1e81419ee529bce6b1507047",
+      "bytes": 2787
+    },
+    "tests/test_meter_player_target.py": {
+      "sha256": "6d29c21b2d92fbba8817e01efcea2d2d6da0d1edc8c3c298d2f0fbf04d5b8753",
+      "bytes": 9536
+    },
+    "tests/test_meter_preflight.py": {
+      "sha256": "5d2168612a4ea8087635409e28bba0d592a9b182f19aebc0bb625b6b96c7777c",
+      "bytes": 10072
+    },
+    "tests/test_meter_preserve_route.py": {
+      "sha256": "b00a44847204e24637bf81b55e4c1973ccbea4a3ec4c889dbaee1972eac1001a",
+      "bytes": 8926
+    },
+    "tests/test_meter_rank_progress.py": {
+      "sha256": "cc54d409cd0b617a3234e2eb7fe4272b37d3c7d035b3e44405abb3933e1cd5a1",
+      "bytes": 4995
+    },
+    "tests/test_meter_reading_batch.py": {
+      "sha256": "54270354e1e5a35c8179d48da7f169f200d43ddbf062c980b9b48eb259d43514",
+      "bytes": 3340
+    },
+    "tests/test_meter_reporting.py": {
+      "sha256": "6607d04499d8d9ea54abb7f2589046280ee117fedfc63b9ef253fb2b8e7d2f6b",
+      "bytes": 3163
+    },
+    "tests/test_meter_retirement.py": {
+      "sha256": "0634ec01a05b0d503729aba7abd6f0a6c8cffeb1778b84cecd0252b88f8fbff5",
+      "bytes": 12976
+    },
+    "tests/test_meter_route_completion.py": {
+      "sha256": "e619b26b532d07c04ee38b7bb9bc84ad77c2fa75c85a9418aff87806cec660d0",
+      "bytes": 6362
+    },
+    "tests/test_meter_route_finalization.py": {
+      "sha256": "0604862e0340037bf7b68e0ce11d2939751ff922ced6befdb7fa9745d802a43d",
+      "bytes": 8966
+    },
+    "tests/test_meter_selected_vote.py": {
+      "sha256": "3cb0fb64409910352060184926bb225151f7d4c5c3ac787678e5cd55dc004cf2",
+      "bytes": 4950
+    },
+    "tests/test_meter_start_settle.py": {
+      "sha256": "98205b090e1d8c35b8cc533d651ac116eb8584afbab908af393c32aeca4f61fe",
+      "bytes": 5759
+    },
+    "tests/test_meter_stop_budget.py": {
+      "sha256": "d8016a3a88b78d7f292c39ce2d1d4ff49060d046f86ebd2098345335ea5f6e56",
+      "bytes": 4438
+    },
+    "tests/test_meter_wait_reason.py": {
+      "sha256": "b05f59b1fe518e12079e8243c8f2a074d93b8d9d45d0e864608d1985bbcfb2df",
+      "bytes": 4114
+    },
+    "tests/test_native_auto_sale.py": {
+      "sha256": "8fde785dee449ab2486b3bac996b83f49f1bfada2a42b37a4e5470759ec07c26",
+      "bytes": 8388
+    },
+    "tests/test_native_capture.py": {
+      "sha256": "e1386c978252d9eaea675219c4a7421bc35257fcc060db11ba3ac76cd2ba9f2a",
+      "bytes": 10722
+    },
+    "tests/test_native_entry_recovery.py": {
+      "sha256": "6ed3cb401eea329f2242d86b1429f5edc4c983890d49c0640c46be215ff628fd",
+      "bytes": 17059
+    },
+    "tests/test_navigation_recovery.py": {
+      "sha256": "2b38de59ce2a687cc66cbbd22ac1feec416c27f9c979d084ede2e757f1bf046c",
+      "bytes": 13011
+    },
+    "tests/test_navigation_retry.py": {
+      "sha256": "78b3a87d58a8e14c6582ad1f7f0781aca2185be59237c0c6d58396bb87979330",
+      "bytes": 5447
+    },
+    "tests/test_optional_timeout.py": {
+      "sha256": "0a77671832b171125201624f15fab91224cc98fe2888e646ca960bacf9e3136a",
+      "bytes": 8113
+    },
+    "tests/test_optional_timeout_event_potion.py": {
+      "sha256": "157ef8a138f65fef1ec3d740f71928eaba7266b6b07db0ed55de0b10eae33097",
+      "bytes": 14798
+    },
+    "tests/test_package_release.py": {
+      "sha256": "8231502a7b1662cd4926defdbd331da0ded631e11809a99ddff41afef416cfd7",
+      "bytes": 8374
+    },
+    "tests/test_panel_reload.py": {
+      "sha256": "f00de1e4476e5d516e7b8ddfa9964883dfdc0a16d37e8c845a5cf308fd75a3fe",
+      "bytes": 1435
+    },
+    "tests/test_parallel_achievement_recovery.py": {
+      "sha256": "91f34032d3646333433e09b1fd318f4093843b3e2835756063dfcd28a9961297",
+      "bytes": 12632
+    },
+    "tests/test_parallel_mailbox_recovery.py": {
+      "sha256": "c18e4ea375af6bec035bdcef5f020f6b7c7ff2b99fdc4f4e15c74cc0ba8356f4",
+      "bytes": 8996
+    },
+    "tests/test_parallel_skills.py": {
+      "sha256": "a044f57779eef98e10d6438c686eb25871f6a85750c0e7da4bfeb31361ad66c0",
+      "bytes": 29365
+    },
+    "tests/test_parallel_world.py": {
+      "sha256": "cd0fd50e08b5dc170c8d89b2036c5f73075ac54139a7fe5ee10078ae9d5b9e2e",
+      "bytes": 21351
+    },
+    "tests/test_pass_daily.py": {
+      "sha256": "b6a0b95dd19bca33b9fae302f43e34fe385e4fd0d628f2aa1d7d12996e6971b1",
+      "bytes": 12062
+    },
+    "tests/test_popup_dimmed_settings.py": {
+      "sha256": "6605224621dce20e67f81e77f720407ed866834083a50d84d4c94633d8c5382e",
+      "bytes": 7046
+    },
+    "tests/test_popup_raid_return.py": {
+      "sha256": "6c879c265311fd32808bbbab03b5e6f7f44e45cb918457c0f5aaaeec78a56be7",
+      "bytes": 10529
+    },
+    "tests/test_popup_reclick.py": {
+      "sha256": "b398d2c812aff5408b2f735f3ad5c7dc2e621d5e6db8ef351c65031d48abd45a",
+      "bytes": 1669
+    },
+    "tests/test_portal_difficulty.py": {
+      "sha256": "79711be3638e66b172b56103bc45c092e38eaf55eb54c1ad49e820190a5cd769",
+      "bytes": 11996
+    },
+    "tests/test_potion_ad_position.py": {
+      "sha256": "fd8e116bf5ab7abb28494260ed6a8446a41f2468e87ad3dbc0efe80c2d24bfa3",
+      "bytes": 6058
+    },
+    "tests/test_potion_ad_return_home.py": {
+      "sha256": "1282bcda62e1dafbb38f653559af59a69bd6ca6285414bf7cbab9902ac27fc0e",
+      "bytes": 7479
+    },
+    "tests/test_progress_guard.py": {
+      "sha256": "e86f7d7ceec0b9768ef4b0ef5e8880fe17de2175a70f35898477de6fe7fd9858",
+      "bytes": 3125
+    },
+    "tests/test_public_distribution.py": {
+      "sha256": "b46219021871febfb3474fbb04ada18e57eb209c314c46f784447f71e556b872",
+      "bytes": 1890
+    },
+    "tests/test_quest_recovery.py": {
+      "sha256": "c1f6cb11e3234a3fa4c5f95156c0ed2e75b94831268b0255e8afa5b69cda6f47",
+      "bytes": 12979
+    },
+    "tests/test_raid.py": {
+      "sha256": "aca8b68fb574b54f9bead2403e1a36faf1b9bf5d227ac7fa5ccdb6fdebacfb1e",
+      "bytes": 6605
+    },
+    "tests/test_raid_cast.py": {
+      "sha256": "48f39241f1f5e07accb224e122a0d0eba54a7f665eeeb212490335ebf021b523",
+      "bytes": 2934
+    },
+    "tests/test_rank40_return.py": {
+      "sha256": "414285c47e7b569cf68de760e03f6fefd49c1c339b5c06a31823924457a3f769",
+      "bytes": 9129
+    },
+    "tests/test_recent_stops.py": {
+      "sha256": "4480b9f8cd317bab17661700583638729ee103624b71a09f2ec8711ac4eb2ca1",
+      "bytes": 13644
+    },
+    "tests/test_recovery_self_exit.py": {
+      "sha256": "4873378a86f5a8e4fc1546acd735c9f6ee0e6f1b41df19255350cb620ad9a837",
+      "bytes": 8231
+    },
+    "tests/test_resource_crown_recovery.py": {
+      "sha256": "1f7d523db0e30da1ac15479c5805ea47d9833a4cf2cb93755265c23a45a5412a",
+      "bytes": 11384
+    },
+    "tests/test_resource_event_recovery.py": {
+      "sha256": "136f21704828095ffb2e7046777dd828a6b0916f022acefdf0bc9b65321dfb86",
+      "bytes": 863
+    },
+    "tests/test_resource_guild_recovery.py": {
+      "sha256": "24c53938d62f1ddee2f2b7dd964c2f933922f77d46a5a514d82aca9fe7612c6f",
+      "bytes": 13378
+    },
+    "tests/test_restaurant_continuous.py": {
+      "sha256": "20b0f53bf0c365d32ffe8f8ccc32c2ea20b51dcc8e557216cacfe07486ada9ec",
+      "bytes": 20330
+    },
+    "tests/test_restaurant_map.py": {
+      "sha256": "b5cfe8f6478dfedc89b876598fe0e268bf117bb995a7946b4bb81bab856fd4a2",
+      "bytes": 6622
+    },
+    "tests/test_restaurant_map_scan.py": {
+      "sha256": "88929c82be295ae6a745203197dd67780a9ad375c234cfaf28e61d7a5ebfe7b9",
+      "bytes": 15162
+    },
+    "tests/test_restaurant_max_level.py": {
+      "sha256": "e3662c761bcbe7fd1c401d7284260e5c3722d92f09078a0b2ba936b76803deb6",
+      "bytes": 5360
+    },
+    "tests/test_restaurant_preferences.py": {
+      "sha256": "7b55f0a69463c4e3cdeec68fddac3ffb0cca7669540101a80d244e6e235997b8",
+      "bytes": 36347
+    },
+    "tests/test_restaurant_resilience.py": {
+      "sha256": "bcd35f140403edaebb8a723adacefe1428d91892d268564358a8722546db0eb6",
+      "bytes": 22036
+    },
+    "tests/test_restaurant_upgrade.py": {
+      "sha256": "3bdb182105205a7b906f62e547cc3e4ed284f8af4b1abe0a4008aa2858ed39d1",
+      "bytes": 63004
+    },
+    "tests/test_retryable_continue.py": {
+      "sha256": "d2edf344e2cb824dbb4e3a1c84900f696cbfc4437b1eaf79ea1c597ec06841bd",
+      "bytes": 15754
+    },
+    "tests/test_return_parallel.py": {
+      "sha256": "acc34888e296aaaff222d05a34f1fe24042a67d8cfc6fc80c59e58c174caeb50",
+      "bytes": 19056
+    },
+    "tests/test_run_watchdog.py": {
+      "sha256": "07d92bd435960bd72de566b7e414ec02b054310f0a622c45202ddc24fe1a5047",
+      "bytes": 9929
+    },
+    "tests/test_runtime_observability.py": {
+      "sha256": "74b2ae362525329e49205add1b84827e8c7b139433db0a122a64287ac962c3e4",
+      "bytes": 11119
+    },
+    "tests/test_sailing_menu_recovery.py": {
+      "sha256": "e810f224ce52641b4f29d025d157f6ee7c88ef4ceca99785cb781477f24b8eff",
+      "bytes": 5458
+    },
+    "tests/test_search_slack.py": {
+      "sha256": "fac356e5ebf24203c0243d3db8ff58ab4970cdb4bb4c5820f10acd5ec413bd29",
+      "bytes": 3487
+    },
+    "tests/test_sidebar_layout.py": {
+      "sha256": "7fc50b041bfc6fd8256eeb00d7463a723eb1a7cd80b8937ec4e044556cf0a306",
+      "bytes": 8825
+    },
+    "tests/test_skip_on_timeout.py": {
+      "sha256": "bfc4d086a2e1a0fd89ad2d08fd6f733792f4c0b1be2fa26009573a17c4beec79",
+      "bytes": 3617
+    },
+    "tests/test_stone_adaptive_stage.py": {
+      "sha256": "d8dda92799a1e7cb95ba4ae48fb6403435ca174f01d77bed933e41289690ec3e",
+      "bytes": 11957
+    },
+    "tests/test_stone_boss_abandon.py": {
+      "sha256": "8b6ec908b85ca0ba0eaa242d1c4d2b5cb8d697fb1e6b456d31d2ca4a6110a961",
+      "bytes": 9031
+    },
+    "tests/test_stone_boss_defense.py": {
+      "sha256": "57ace68a51358449318665d421d70a6c84f206b8112924c6933592878dff5836",
+      "bytes": 8379
+    },
+    "tests/test_stone_boss_menu.py": {
+      "sha256": "4391f3f94c123c5841bdac82abb38d499b86a5edaf13e528dcb6f2aa13eca481",
+      "bytes": 8968
+    },
+    "tests/test_stone_continuous_stop.py": {
+      "sha256": "083288c89f8d46f0b3c6a871b7c908eb188d5fca3074dc043d559e43295861f5",
+      "bytes": 13550
+    },
+    "tests/test_stone_farm.py": {
+      "sha256": "76748aeb7dde51eef2ea6895ba3b3e511732daee8c8d1e69fb7a7b1f3b196709",
+      "bytes": 77780
+    },
+    "tests/test_stone_first_budget.py": {
+      "sha256": "efdbc87ee239fe7b8ed0bc3c6220bfb0ceb6243c10ca595e9e4422c0ba2c208f",
+      "bytes": 6018
+    },
+    "tests/test_stone_first_combat.py": {
+      "sha256": "8be77eae92967e205eb614b59fca1b4fdd43fead186a80a8399f8d6d22b8979e",
+      "bytes": 13223
+    },
+    "tests/test_stone_first_entry.py": {
+      "sha256": "ad3d55c27026f7a908658ebd5c50267eb90471c90f2b2fe396a17293ab259362",
+      "bytes": 20525
+    },
+    "tests/test_stone_first_result_continuity.py": {
+      "sha256": "1982b84634cac09c5e7b55ec014f310eafae2def9b41c5bbbb59276c68384a9f",
+      "bytes": 8104
+    },
+    "tests/test_stone_lower_entry.py": {
+      "sha256": "7c786af91a7754a470aa9f33c8ddee1ebbdc1fe399791ed5fa4688258205d827",
+      "bytes": 14683
+    },
+    "tests/test_stone_lower_timeout.py": {
+      "sha256": "20beaff314d82819a37e87e4758f410661f856e63fc72422405fcf0f664df660",
+      "bytes": 7332
+    },
+    "tests/test_stone_manual_progress.py": {
+      "sha256": "87fc944116ab78fe46b12522f35eb825ae6d7083f0e9a994c9548271176cf37c",
+      "bytes": 6463
+    },
+    "tests/test_stone_observed_cycle.py": {
+      "sha256": "362cc900e1ca18e51e6033f043508992f3a911ab41d9959c64a278df90069e99",
+      "bytes": 8604
+    },
+    "tests/test_stone_observed_restore.py": {
+      "sha256": "b6c56b9733141f18ea35770dcd7ac297245538d4050a8d061884ab2324c730a8",
+      "bytes": 8506
+    },
+    "tests/test_stone_popup_map_restore.py": {
+      "sha256": "e74783f17ac52118e07145d220a8afe062295ded13039b1822f6f853f742fe0a",
+      "bytes": 3554
+    },
+    "tests/test_stone_popup_priority.py": {
+      "sha256": "93701b5b61f35c118b6b8e10abbf5220a8bf7da2a56dee77969d7bfbe7ca9c8d",
+      "bytes": 5686
+    },
+    "tests/test_stone_return_entry.py": {
+      "sha256": "e3bc9c55ff6582bbbadac4afb4b88c262636eb4a3e997c6b63afa08c4f0fc37b",
+      "bytes": 9022
+    },
+    "tests/test_stone_selected_first_map.py": {
+      "sha256": "41bd0bda3dfcd15803bacc9dbe60763cbcf645b8c942eb89bb6733d46319646f",
+      "bytes": 13301
+    },
+    "tests/test_stone_task_restore.py": {
+      "sha256": "6da5eeebbc6da1ce72cefa7597f28c1f7ee83bc627899ea9093f33df27f9f059",
+      "bytes": 26627
+    },
+    "tests/test_storage_warning.py": {
+      "sha256": "10ebe5477dc3388fb8986bfd963ced1b931b4ffb61d153de1e612b9a0a30f002",
+      "bytes": 4820
+    },
+    "tests/test_task_groups.py": {
+      "sha256": "2da6f7716f6e0adf198bec608f64374c5fa1acf7285470f9235d17729f259c83",
+      "bytes": 5712
+    },
+    "tests/test_task_popup.py": {
+      "sha256": "e5c0077965e8f0ba1d41196dc8162d2f97c1b189cab6e16f0a23012fa223b322",
+      "bytes": 16908
+    },
+    "tests/test_task_popup_arrival.py": {
+      "sha256": "92fac04a69465ef1a91cd631ff45d24dcc2233542dc86dfe34304ade964f5534",
+      "bytes": 7084
+    },
+    "tests/test_task_popup_idle.py": {
+      "sha256": "4daceea5689e8c427ba36fac3e8d4c25a3d77a7e0b735e4a466c533a7b1fe657",
+      "bytes": 4508
+    },
+    "tests/test_task_popup_panel.py": {
+      "sha256": "125cf4c963492d8754a14e3e4f03dbcdf77023f9a96e0d8720c97548ce6d78f5",
+      "bytes": 5058
+    },
+    "tests/test_task_registry.py": {
+      "sha256": "9ce09cd32955573074a9cd2d1a72afc15b5e07c449a57954401b0e746e5ec254",
+      "bytes": 4843
+    },
+    "tests/test_task_schedule.py": {
+      "sha256": "70e8c6d0c37660a008d26d49b5a25d6c64dc43c57e3de1488cf5daaec012bcab",
+      "bytes": 13385
+    },
+    "tests/test_training_sailing.py": {
+      "sha256": "9da523bc7f1ea54a81254cc5994c6ef0f21fffadf0501e8e4da95fd5f7d572fe",
+      "bytes": 39444
+    },
+    "tests/test_ui_nav_retreat.py": {
+      "sha256": "c343ee9d6b112934656e664344aabe3341ba3af969c52acd576ec19d10e9f5ef",
+      "bytes": 5902
+    },
+    "tests/test_ui_pages.py": {
+      "sha256": "12da1373ef6b590259640e5f30fa136b5983769808443f78743edf0ab4d76908",
+      "bytes": 10203
+    },
+    "tests/test_version.py": {
+      "sha256": "ecd3c4848f00c5dbac6188bb89658d9e15fd67f4112d7c2f23b5a5ef4bfea9ae",
+      "bytes": 8529
+    },
+    "tests/test_watchdog_entry.py": {
+      "sha256": "cd1beccbd521f15877fcc71ef7314a07bb8cb20f63f9c6672d6309d08e7e56e8",
+      "bytes": 3685
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "6403ad1b1528a3674e5dd844450a0a3c1cee7073da50da32770d374bbc42902c",
+      "bytes": 5755
+    },
+    "tools/build.ps1": {
+      "sha256": "feda8bc06f0e33a195e4447bf383d7784d4e854c98e809fc775e347fec083aa5",
+      "bytes": 559
+    },
+    "tools/build_release.py": {
+      "sha256": "6d7ae8a0b613d9c881d595794ccb898c02aa64ebbf15cc2a25c48a3d330ed383",
+      "bytes": 3626
+    },
+    "tools/configure_achievement_return.py": {
+      "sha256": "4cabe7663c6d7b977d94a98e93ebbcc48462306fbeb35de509a31e47e8a703e8",
+      "bytes": 2331
+    },
+    "tools/configure_ad_position.py": {
+      "sha256": "8f39053a4cfcedd6e27ea2cf5422ce1a670e3651b7ca5ffb8a5700b7d8e8e613",
+      "bytes": 1207
+    },
+    "tools/configure_ad_recovery.py": {
+      "sha256": "a9baf74bddba08494532af27aa149c4533b1383c23c6de57c61a55425f51c42d",
+      "bytes": 2224
+    },
+    "tools/configure_backpack_sale.py": {
+      "sha256": "1a1de2efa321ce54f689063c4c86fe0b8636687847ae98b361a81fffbb4881d6",
+      "bytes": 1328
+    },
+    "tools/configure_daily_bonus.py": {
+      "sha256": "9df7892444ff6bb7fe366bdf0eae08c3b7a6ac2cc073a76b0b24c6d10ccd5654",
+      "bytes": 3072
+    },
+    "tools/configure_daily_reset.py": {
+      "sha256": "49f9d6701c172bfcff97b9d1f29ee0455e4aa536ae2b38ac4e55dce996db1a61",
+      "bytes": 1030
+    },
+    "tools/configure_equipment_upgrade.py": {
+      "sha256": "495cbe947080adb55d6a88434c783458fe611d4f9c6662bef4d3e882b231aa54",
+      "bytes": 1251
+    },
+    "tools/configure_event_candy.py": {
+      "sha256": "829469156e579d879dea568ad5e606d0c15dfd2711c63c98c658ca89bea7fdfc",
+      "bytes": 2293
+    },
+    "tools/configure_fault_recovery.py": {
+      "sha256": "384afd85d287efd94de124435ae1f7000355fdc9a5d1090e84781e29f483ba8a",
+      "bytes": 2269
+    },
+    "tools/configure_guild_daily.py": {
+      "sha256": "dc4bd28c884d161a83d1f630fd552d7cb985b4541cc58f73b9ece3a2cefcad96",
+      "bytes": 790
+    },
+    "tools/configure_guild_shop.py": {
+      "sha256": "ac0f6a9866b40c790860cedb68c5d7053a2a9ad26df54fe0df0f431575ceccc5",
+      "bytes": 5736
+    },
+    "tools/configure_mailbox_limit.py": {
+      "sha256": "5dfa84aa61e943e31fc4a1a4b5ebf7f74bd95297d1ae374e0caca71ccd4a390d",
+      "bytes": 1382
+    },
+    "tools/configure_meter_calibration.py": {
+      "sha256": "03e7cb329d7f5e6722a459e1828291a63d3b7a6e2dfb63b22324859bf6746816",
+      "bytes": 996
+    },
+    "tools/configure_navigation_recovery.py": {
+      "sha256": "6954b94095f758147f12bfb80b1f1f5f68e356b2c10de792e0b54b9fcd8004d2",
+      "bytes": 4896
+    },
+    "tools/configure_parallel_achievement_recovery.py": {
+      "sha256": "6f07eae0555a1904302323793efd1abe5c45d9cda879a324dacdebb71cec72ad",
+      "bytes": 4446
+    },
+    "tools/configure_parallel_mailbox_recovery.py": {
+      "sha256": "87059df8499c40bf3703641689ca312ab7ecf63a3c145de08d2507d5b70015ae",
+      "bytes": 2264
+    },
+    "tools/configure_parallel_skills.py": {
+      "sha256": "355757964b21292b77ff4b97899ac9b78c2a8e9280d0d2fafece4cd0ef1b15f1",
+      "bytes": 1282
+    },
+    "tools/configure_parallel_world.py": {
+      "sha256": "7be939d3e96c1defbf17d4c9c549219ff39c6a9c417d4f24a1d3dcdad8ebd9f5",
+      "bytes": 1575
+    },
+    "tools/configure_pass_daily.py": {
+      "sha256": "d418df8450506197b72b31a16e939c7ffeec2fc66f013750bccc5c1b17da4493",
+      "bytes": 1064
+    },
+    "tools/configure_potion_ad_position.py": {
+      "sha256": "112ea560688a9c30776773d52a0f552e698a99d5844bd35f90e57d1ee560b1ed",
+      "bytes": 1588
+    },
+    "tools/configure_potion_counter_consensus.py": {
+      "sha256": "3b74e7f93543a89fc896f9269346587103db3c563c4994da284c46df36d67cb5",
+      "bytes": 1209
+    },
+    "tools/configure_recent_stops.py": {
+      "sha256": "8b9def6a13d8b1ea4e08edb43bef28db094b4b80bffb8fedffa06c5bf16f9760",
+      "bytes": 2898
+    },
+    "tools/configure_restaurant_upgrade.py": {
+      "sha256": "5aeea75df8dca05ecc631f1487919bb2e8a1da2f92cc6dacce941f1811cb1ca5",
+      "bytes": 799
+    },
+    "tools/configure_stone_farm.py": {
+      "sha256": "89d3359a87604df22b889cdaa787c8ec30f58a41b57b09289338b63988cada2d",
+      "bytes": 890
+    },
+    "tools/configure_task_popup.py": {
+      "sha256": "8ec2ba647437f2b701ddd46896a85639dd7de5635f3d58baa94b4a143f187147",
+      "bytes": 2761
+    },
+    "tools/create_backpack_assets.py": {
+      "sha256": "d8a88bf2f08c7b8d7035e059fc02b36e6315353bddda17daa4577f95fd17a0f7",
+      "bytes": 1569
+    },
+    "tools/create_equipment_assets.py": {
+      "sha256": "e353a125e9df034184f9b4348cc91ee761a0fc2c2d89886f45c3767783d40833",
+      "bytes": 1555
+    },
+    "tools/create_fishing_meter_assets.py": {
+      "sha256": "628a9703561d4ed7db493fdd78c22e6c567f2f221d44c18919f9ddfdc322c553",
+      "bytes": 1997
+    },
+    "tools/create_parallel_assets.py": {
+      "sha256": "f688fbb66172da33d08f037763707234f3c36631720151b15b7e0d55bc17d1b4",
+      "bytes": 1308
+    },
+    "tools/create_parallel_skill_assets.py": {
+      "sha256": "b7030af9af3d78bcf47438d6167792a93964f9c3b88a8862c89c07ab3c28162c",
+      "bytes": 1227
+    },
+    "tools/create_training_assets.py": {
+      "sha256": "7e05d5074f08e2f818d011f504a3dc19672692eb5a7b6fb24afa5e61f529b7f8",
+      "bytes": 2223
+    },
+    "tools/create_training_sailing_assets.py": {
+      "sha256": "8a423aa6bb8af8dabcebf64fde72a2294f3b560dc145b6deb2c994695f9256c8",
+      "bytes": 1963
+    },
+    "tools/fetch_digit_model.py": {
+      "sha256": "041f14aa3d03449c4581ca769d13441481a9f7009aa9c3c1b1db6dd6e67e73c7",
+      "bytes": 2072
+    },
+    "tools/inspect_match.py": {
+      "sha256": "8765ea2a92f144cec0672514be2acec116aae385c894edbe1f7ad3ae93e76b1c",
+      "bytes": 1635
+    },
+    "tools/native.ps1": {
+      "sha256": "27dbb6e93c629f96abe2a70ab248d43591719874c7ec43dac1e1042279d991df",
+      "bytes": 2447
+    },
+    "tools/package_release.py": {
+      "sha256": "f6f65f507e12c09c765729060c14909fe8c9a89555b058450276538a94d14dac",
+      "bytes": 9486
+    },
+    "tools/preview_ui.py": {
+      "sha256": "34d6ca2f9a43c7484eaa285dc47b869c7389033b7923f671a03c9bed6cff205c",
+      "bytes": 2045
+    },
+    "tools/run_watchdog.py": {
+      "sha256": "471b9d6a4d1f8171f7294930de22c4df2230a309ff5b7488db86694435be708d",
+      "bytes": 737
+    },
+    "tools/test_gate.py": {
+      "sha256": "b92766544a27c5326f9d0ba8deabe30033b77af887fae23111abbc42f4ec4183",
+      "bytes": 5820
+    },
+    "tools/vendor_alas.py": {
+      "sha256": "fa2d4c59ad05d047ddcf97a41f18c44331b1466aabc5c2c16da2019e7e09cf4e",
+      "bytes": 4117
+    },
+    "tools/verify_event_potion.py": {
+      "sha256": "60caa6651972646d878ea8965633598ef2a5e83a0784a6f323b4a9845f581101",
+      "bytes": 8295
+    },
+    "tools/verify_release.py": {
+      "sha256": "3590bae2ea9a402b13db349cc71cb92c4c547419ebd7add3c84799e46ea97b81",
+      "bytes": 4525
+    },
+    "training_sailing.py": {
+      "sha256": "128319d3b3cfc2140e5d1877286d6d7b8f96e0751d6613d0154c45c6eefdffb2",
+      "bytes": 372
+    },
+    "USER-GUIDE.md": {
+      "sha256": "c0da5b9bfef7639a6833968c0d4b3f3b7286acac466f61ee9c911bb4e1dd54a5",
+      "bytes": 4804
+    },
+    "VERSION": {
+      "sha256": "e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67",
+      "bytes": 6
+    },
+    "web/app.js": {
+      "sha256": "ae88b192fa4848f5fb368f8813be696434a23097db8cefc305265939f99f5e0c",
+      "bytes": 59682
+    },
+    "web/index.html": {
+      "sha256": "7db82852db17de63ceda3e4a2256b36310be0008e11575358924bd146a7b5684",
+      "bytes": 9664
+    },
+    "web/style.css": {
+      "sha256": "1ed67a7b78c9c9f1f1be04aceff23b1a41bfbfb1e23a049d7b5f79ac9c61d437",
+      "bytes": 19364
+    },
+    "启动.cmd": {
+      "sha256": "6adee5be4a0de91eda0237013f5bfc6de71cd52fe5507b00ce6daebc87887945",
+      "bytes": 109
+    }
+  }
+}

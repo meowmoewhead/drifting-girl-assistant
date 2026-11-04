@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">
+<title>漂流助手 · 任务控制台</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="#overview" aria-label="漂流助手首页"><span class="brand-mark" data-icon="sail"></span><span><strong>漂流助手</strong><small>DRIFTING GIRL ASSISTANT</small></span></a>
+  <div class="instance-box" aria-label="运行实例">
+    <span class="instance-icon" id="instance-icon" data-state="off"></span>
+    <div><strong>漂流少女</strong><small>MuMu 模拟器 · 本机运行</small></div>
+    <span id="connection" class="connection" data-state="unknown"><i></i>连接中</span>
+  </div>
+  <nav aria-label="主导航">
+    <a href="#overview" class="nav-item" data-page="overview"><span data-icon="grid"></span>任务总览</a>
+    <div id="task-menu"></div>
+    <div class="hr-task-group-box"><span class="hr-task-group-line"></span><span class="hr-task-group-text">工具与设置</span><span class="hr-task-group-line"></span></div>
+    <a href="#screen" class="nav-item" data-page="screen"><span data-icon="screen"></span>画面与识别</a>
+    <a href="#logs" class="nav-item" data-page="logs"><span data-icon="log"></span>运行日志</a>
+    <a href="#settings" class="nav-item" data-page="settings"><span data-icon="settings"></span>运行设置</a>
+  </nav>
+  <div class="sidebar-footer"><span data-icon="code"></span><span>MaaFramework · ALAS NextRun<br><a href="https://github.com/MaaXYZ/MaaFramework" target="_blank" rel="noreferrer">开源执行框架</a></span></div>
+</aside>
+<div class="workspace">
+  <header class="topbar"><div class="breadcrumb">漂流少女 <span>/</span> <b id="crumb">任务总览</b></div><span id="header-mode" class="header-mode" data-state="idle">未运行</span></header>
+  <main>
+    <div id="notice" role="alert" hidden></div>
+    <section id="page-overview" class="page">
+      <section class="scheduler-bar panel" aria-label="调度器">
+        <div class="scheduler-head"><h1>调度器</h1><span id="saved" class="saved">开关自动保存 · 参数需保存</span></div>
+        <div class="scheduler-body">
+          <div class="scheduler-state">
+            <span id="status-light" class="status-light" data-state="idle"></span>
+            <div class="scheduler-state-text"><strong id="mode">未运行</strong><small id="stage-text">尚未开始</small></div>
+          </div>
+          <dl class="scheduler-metrics">
+            <div><dt>正在执行</dt><dd id="running-task">—</dd></div>
+            <div><dt>下一项定时任务</dt><dd id="pending-task">—</dd></div>
+            <div><dt>已读画面</dt><dd id="frames">0</dd></div>
+            <div><dt>实际点击</dt><dd id="clicks">0</dd></div>
+            <div><dt>成功匹配</dt><dd id="matches">0</dd></div>
+          </dl>
+          <div class="scheduler-controls" id="scheduler_btn">
+            <button id="preview" class="button secondary"><span data-icon="scan"></span>识别预览</button>
+            <button id="run" class="button on"><span data-icon="play"></span>开始</button>
+            <button id="stop" class="button off" disabled><span data-icon="stop"></span>停止</button>
+          </div>
+        </div>
+        <p id="pending" class="pending" role="status" hidden>开关已保存，当前流程结束、返回主画面后生效。</p>
+      </section>
+
+      <div class="log-bar"><h2>日志</h2><label class="scroll-toggle"><input type="checkbox" id="log-scroll" checked>自动滚动</label><a href="#logs" class="log-more">完整日志 ↗</a></div>
+      <div id="recent-events" class="log-pane" role="log" aria-label="运行日志"></div>
+
+      <section class="groups" aria-label="任务组">
+        <div class="groups-head"><h2>任务</h2><span id="enabled-count" class="count-label"></span><span class="muted">组内独立开关 · 各自调度</span></div>
+        <div id="task-groups"></div>
+        <div class="info-line"><span data-icon="info"></span><p>实时任务按画面条件触发；定时任务使用各自下次开启时间；每日任务按各自刷新与领取时间执行。进行中的流程先收尾；弹窗和战斗等即时处理按优先级接管。</p></div>
+      </section>
+
+      <section class="panel monitor">
+        <div class="section-heading"><h2>模拟器画面</h2><button id="refresh-mini" class="icon-button" title="刷新模拟器截图" aria-label="刷新模拟器截图"><span data-icon="refresh"></span></button></div>
+        <div class="monitor-body">
+          <a href="#screen" class="mini-screen"><img id="mini-image" alt="MuMu 模拟器最近截图" hidden><span id="mini-empty">点击右上角刷新画面</span></a>
+          <div class="monitor-side">
+            <div class="current-task"><span>当前识别</span><p id="match">等待开始运行</p></div>
+            <div id="numbers" class="number-readings"></div>
+            <div class="screen-caption"><span id="device">等待设备信息</span><span id="capture-time">尚未截图</span></div>
+          </div>
+        </div>
+      </section>
+    </section>
+    <section id="page-group" class="page" hidden><div id="group-detail"></div></section>
+    <section id="page-feature" class="page" hidden><div id="feature-detail"></div></section>
+    <section id="page-screen" class="page" hidden>
+      <div class="page-heading"><div><div class="eyebrow">画面与识别</div><h1>画面与识别</h1><p>刷新模拟器画面，框选要识别的稳定图案。</p></div></div>
+      <div class="screen-layout">
+        <section class="panel"><div class="section-heading"><h2>画面预览</h2><button id="refresh" class="button"><span data-icon="refresh"></span>刷新截图</button></div><div class="screen"><span id="empty">刷新截图后查看模拟器画面</span><canvas id="canvas" aria-label="模拟器画面及模板框选区域"></canvas></div><p id="selection" class="muted">停止运行后，可在画面上拖动框选新的识别目标。</p></section>
+        <div><section class="panel"><div class="section-heading"><h2>新增自定义目标</h2><span class="tag">高级</span></div><p class="muted">在左侧框选稳定的图案，避开会变化的数字。</p><form id="target-form"><label for="name">目标名称</label><input id="name" required maxlength="80" placeholder="例如：关闭提示"><div class="field-grid"><div><label for="threshold">匹配阈值</label><input id="threshold" type="number" required value="0.92" step="0.01" min="0.5" max="1"></div><div><label for="interval">点击间隔 / 秒</label><input id="interval" type="number" required value="1" step="0.1" min="0.2" max="3600"></div></div><label for="stable">连续确认帧数</label><input id="stable" type="number" required value="2" min="1" max="10"><button id="save-target" class="button primary form-submit" type="submit">保存框选目标</button></form><p class="muted">自定义目标也会随“开始运行”执行。</p></section><section class="panel"><h2>自定义目标</h2><div id="custom-rules"></div></section></div>
+      </div>
+    </section>
+    <section id="page-logs" class="page" hidden>
+      <div class="page-heading"><div><div class="eyebrow">运行日志</div><h1>运行日志</h1><p>最近 80 条，自动更新。</p></div></div>
+      <section class="panel"><div class="section-heading"><h2>日志</h2><label class="scroll-toggle"><input type="checkbox" id="log-scroll-full" checked>自动滚动</label></div><div id="logs" class="log-pane tall" role="log"></div><p class="muted">完整日志同时保存在程序目录的 logs/clicker.log。</p></section>
+    </section>
+    <section id="page-settings" class="page" hidden>
+      <div class="page-heading"><div><div class="eyebrow">运行设置</div><h1>运行设置</h1><p>停止运行后修改，保存后用于下一次运行。</p></div></div>
+      <div class="settings-layout"><section class="panel"><h2>运行参数</h2><form id="settings-form"><label for="poll-interval">识别间隔 / 秒</label><input id="poll-interval" type="number" required min="0.1" max="60" step="0.1"><p class="field-help">每轮截图与识别的最小周期，已用处理时间会扣除；处理较慢时实际周期相应增加。</p><label for="max-clicks">同一目标重复点击上限</label><input id="max-clicks" type="number" required min="1" max="10000"><p class="field-help">画面始终不变化时，到达此次数自动停止。</p><button id="save-settings" class="button primary form-submit" type="submit">保存运行设置</button></form></section><section class="panel"><h2>设备连接</h2><dl class="device-info"><dt>运行主机</dt><dd>本机</dd><dt>安卓实例</dt><dd id="device-serial">—</dd><dt>画面尺寸</dt><dd id="device-size">—</dd><dt>ADB 路径</dt><dd id="device-adb" class="mono">—</dd></dl><div class="info-line"><span data-icon="info"></span><p>打开助手后保持停止。点击“开始”才会操作模拟器；“识别预览”仅检查画面。</p></div></section></div>
+    </section>
+    <footer class="main-footer"><span>漂流助手 <span id="app-version" class="app-version" hidden></span></span><span>让日常收取，简单一点。</span></footer>
+  </main>
+</div>
+<div id="toast" role="status" hidden></div>
+<script>const TOKEN='__TOKEN__';</script><script src="/static/app.js"></script>
+</body>
+</html>

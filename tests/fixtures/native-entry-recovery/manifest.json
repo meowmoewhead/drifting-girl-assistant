@@ -1,0 +1,22 @@
+{
+  "stage9-rank34-success.png": {
+    "source": "logs/error-20261011-191628.png",
+    "sha256": "49BD8C4C78CB8431EBE2A99A38413752D7C998AA641B98B0F1627A32802CDB1E",
+    "review": "Actual failed event-shop entry: stage 9 RANK34 success result. Flying materials obscure the footer; this frame alone must not authorise recovery."
+  },
+  "stage9-rank35-battle.png": {
+    "source": "fault-20261011-live/3ca6908caebd4c43b438159a8823a3f2.png",
+    "sha256": "98B1123FB685128D94AF131257AE4D8282914D5BB84E3E5C33C7FE1813411B97",
+    "review": "New live stage 9 RANK35 ordinary lobster battle, timer, crossed weapons, complete footer, native AUTO and inner fill."
+  },
+  "stage9-rank36-label-variant.png": {
+    "source": "formal-restored",
+    "sha256": "8C795A6212E123180240A3AEFA4087BADDD77F514FD3143BD3B06B0D65C719B0",
+    "review": "Actual stage 9 RANK36 running native AUTO, readable world and RANK, full footer and existing fill; label animation is not proof of stopping."
+  },
+  "stage9-rank36-battle.png": {
+    "source": "logs/error-20261011-202004.png",
+    "sha256": "0747AF7F21E09397EB17458CBB57CBF6B3F5285353C14B92DF33D74B15318449",
+    "review": "Actual stage 9 RANK36 running native AUTO, readable world and RANK, full footer and existing fill; label animation is not proof of stopping."
+  }
+}

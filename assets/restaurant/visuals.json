@@ -1,0 +1,398 @@
+{
+ "location": {
+  "file": "location.png",
+  "area": [
+   325,
+   10,
+   391,
+   43
+  ],
+  "threshold": 0.94
+ },
+ "entry": {
+  "file": "entry.png",
+  "area": [
+   632,
+   895,
+   716,
+   1124
+  ],
+  "threshold": 0.94,
+  "scales": [
+   0.95,
+   1,
+   1.05,
+   1.1
+  ]
+ },
+ "map-restaurant": {
+  "file": "map-restaurant.png",
+  "area": [
+   0,
+   170,
+   700,
+   1115
+  ],
+  "threshold": 0.85
+ },
+ "atlas-title": {
+  "file": "atlas-title.png",
+  "area": [
+   93,
+   205,
+   377,
+   236
+  ],
+  "threshold": 0.94
+ },
+ "atlas-tab": {
+  "file": "atlas-tab.png",
+  "area": [
+   318,
+   81,
+   397,
+   161
+  ],
+  "threshold": 0.94
+ },
+ "next": {
+  "file": "next.png",
+  "area": [
+   477,
+   267,
+   506,
+   300
+  ],
+  "threshold": 0.94
+ },
+ "prev": {
+  "file": "prev.png",
+  "area": [
+   214,
+   267,
+   244,
+   300
+  ],
+  "threshold": 0.94
+ },
+ "panel-close": {
+  "file": "panel-close.png",
+  "area": [
+   592,
+   145,
+   683,
+   220
+  ],
+  "threshold": 0.94
+ },
+ "level-label": {
+  "file": "level-label.png",
+  "area": [
+   106,
+   447,
+   623,
+   486
+  ],
+  "threshold": 0.94
+ },
+ "craft-label": {
+  "file": "craft-label.png",
+  "area": [
+   210,
+   548,
+   275,
+   576
+  ],
+  "threshold": 0.94
+ },
+ "level-label-half": {
+  "file": "level-label-half.png",
+  "area": [
+   106,
+   447,
+   623,
+   486
+  ],
+  "threshold": 0.94
+ },
+ "ingredients-title": {
+  "file": "ingredients-title.png",
+  "area": [
+   35,
+   911,
+   165,
+   947
+  ],
+  "threshold": 0.94
+ },
+ "detail-book": {
+  "file": "detail-book.png",
+  "area": [
+   39,
+   410,
+   103,
+   483
+  ],
+  "threshold": 0.94
+ },
+ "detail-level": {
+  "file": "detail-level.png",
+  "area": [
+   70,
+   715,
+   230,
+   790
+  ],
+  "threshold": 0.94
+ },
+ "detail-close": {
+  "file": "detail-close.png",
+  "area": [
+   611,
+   410,
+   706,
+   491
+  ],
+  "threshold": 0.94
+ },
+ "ingredient-0": {
+  "file": "ingredient-0.png",
+  "area": [
+   94,
+   613,
+   191,
+   678
+  ],
+  "threshold": 0.94
+ },
+ "ingredient-available-0": {
+  "file": "ingredient-available-0.png",
+  "area": [
+   122,
+   596,
+   162,
+   619
+  ],
+  "threshold": 0.94
+ },
+ "ingredient-1": {
+  "file": "ingredient-1.png",
+  "area": [
+   207,
+   613,
+   304,
+   678
+  ],
+  "threshold": 0.94
+ },
+ "ingredient-available-1": {
+  "file": "ingredient-available-1.png",
+  "area": [
+   235,
+   596,
+   275,
+   619
+  ],
+  "threshold": 0.94
+ },
+ "ingredient-2": {
+  "file": "ingredient-2.png",
+  "area": [
+   320,
+   613,
+   417,
+   678
+  ],
+  "threshold": 0.94
+ },
+ "ingredient-available-2": {
+  "file": "ingredient-available-2.png",
+  "area": [
+   348,
+   596,
+   388,
+   619
+  ],
+  "threshold": 0.94
+ },
+ "ingredient-3": {
+  "file": "ingredient-3.png",
+  "area": [
+   432,
+   613,
+   529,
+   678
+  ],
+  "threshold": 0.94
+ },
+ "ingredient-available-3": {
+  "file": "ingredient-available-3.png",
+  "area": [
+   460,
+   596,
+   500,
+   619
+  ],
+  "threshold": 0.94
+ },
+ "upgrade-ready": {
+  "file": "upgrade-ready.png",
+  "area": [
+   586,
+   740,
+   624,
+   768
+  ],
+  "threshold": 0.94
+ },
+ "ingredient-available": {
+  "file": "ingredient-available.png",
+  "area": [
+   97,
+   596,
+   521,
+   619
+  ],
+  "threshold": 0.94
+ },
+ "delivered": {
+  "file": "delivered.png",
+  "area": [
+   96,
+   626,
+   521,
+   686
+  ],
+  "threshold": 0.94
+ },
+ "category-0": {
+  "file": "category-0.png",
+  "area": [
+   322,
+   267,
+   397,
+   302
+  ],
+  "threshold": 0.94
+ },
+ "category-1": {
+  "file": "category-1.png",
+  "area": [
+   322,
+   267,
+   397,
+   302
+  ],
+  "threshold": 0.94
+ },
+ "category-2": {
+  "file": "category-2.png",
+  "area": [
+   322,
+   267,
+   397,
+   302
+  ],
+  "threshold": 0.94
+ },
+ "category-3": {
+  "file": "category-3.png",
+  "area": [
+   322,
+   267,
+   397,
+   302
+  ],
+  "threshold": 0.94
+ },
+ "category-4": {
+  "file": "category-4.png",
+  "area": [
+   322,
+   267,
+   397,
+   302
+  ],
+  "threshold": 0.94
+ },
+ "category-5": {
+  "file": "category-5.png",
+  "area": [
+   322,
+   267,
+   397,
+   302
+  ],
+  "threshold": 0.94
+ },
+ "category-6": {
+  "file": "category-6.png",
+  "area": [
+   322,
+   267,
+   397,
+   302
+  ],
+  "threshold": 0.94
+ },
+ "category-7": {
+  "file": "category-7.png",
+  "area": [
+   322,
+   267,
+   397,
+   302
+  ],
+  "threshold": 0.94
+ },
+ "category-8": {
+  "file": "category-8.png",
+  "area": [
+   322,
+   267,
+   397,
+   302
+  ],
+  "threshold": 0.94
+ },
+ "max-detail-book": {
+  "file": "max-detail-book.png",
+  "area": [
+   37,
+   475,
+   109,
+   561
+  ],
+  "threshold": 0.94
+ },
+ "max-detail-full": {
+  "file": "max-detail-full.png",
+  "area": [
+   330,
+   668,
+   405,
+   702
+  ],
+  "threshold": 0.94
+ },
+ "max-detail-level": {
+  "file": "detail-level.png",
+  "area": [
+   70,
+   647,
+   230,
+   715
+  ],
+  "threshold": 0.94
+ },
+ "max-detail-close": {
+  "file": "detail-close.png",
+  "area": [
+   600,
+   470,
+   715,
+   565
+  ],
+  "threshold": 0.94
+ }
+}

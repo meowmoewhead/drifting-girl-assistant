@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/LmeSzinc/AzurLaneAutoScript",
+  "commit": "77f4d01fcd2b0acab05a4d89260e8a0a9cd03d21",
+  "original_sha256": {
+    "module/base/button.py": "389385ca48d8a63c18003c7cdc0afbe33f3a0b658a24f12b1eb2b796538875bc",
+    "module/base/utils.py": "54a8096f8a91d9c8b5ed1ec5993c78e956bb64076de7c08df1f0fed71367260b",
+    "module/base/timer.py": "a8820dea9b76b8b5f20455a5bee6bdf9919ca10c2d0d562c33c9989db637aa0d"
+  }
+}

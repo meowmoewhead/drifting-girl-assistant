@@ -1,0 +1,522 @@
+[
+  {
+    "file": "counter-01-00.png",
+    "current": 1,
+    "total": 40,
+    "source": "captures\\ad-validation-after-continue.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-01-01.png",
+    "current": 1,
+    "total": 40,
+    "source": "captures\\ad-validation-result.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-04-02.png",
+    "current": 4,
+    "total": 40,
+    "source": "captures\\guild-shop-resume.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-01-03.png",
+    "current": 1,
+    "total": 40,
+    "source": "captures\\potion-ad-before.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-01-04.png",
+    "current": 1,
+    "total": 40,
+    "source": "captures\\potion-ad-match-1.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-01-05.png",
+    "current": 1,
+    "total": 40,
+    "source": "captures\\potion-ad-match-2.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-06-06.png",
+    "current": 6,
+    "total": 40,
+    "source": "diagnostics\\2026-10-03\\error-20261001-002922.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-03-07.png",
+    "current": 3,
+    "total": 40,
+    "source": "diagnostics\\daily-reward\\main.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-02-08.png",
+    "current": 2,
+    "total": 40,
+    "source": "diagnostics\\potion-counter\\before-update.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-02-09.png",
+    "current": 2,
+    "total": 40,
+    "source": "diagnostics\\potion-counter\\cycle-before.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-02-10.png",
+    "current": 2,
+    "total": 40,
+    "source": "diagnostics\\potion-counter\\growth-011-main.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-02-11.png",
+    "current": 2,
+    "total": 40,
+    "source": "diagnostics\\potion-counter\\growth-after.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-02-12.png",
+    "current": 2,
+    "total": 40,
+    "source": "diagnostics\\potion-counter\\live-0.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-02-13.png",
+    "current": 2,
+    "total": 40,
+    "source": "diagnostics\\potion-counter\\live-1.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-02-14.png",
+    "current": 2,
+    "total": 40,
+    "source": "diagnostics\\potion-counter\\live-2.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-02-15.png",
+    "current": 2,
+    "total": 40,
+    "source": "diagnostics\\potion-counter\\verified-000-main.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-02-16.png",
+    "current": 2,
+    "total": 40,
+    "source": "diagnostics\\potion-counter\\verified-005-potion_ad_confirm.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-21-17.png",
+    "current": 21,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\ad-stop\\before-deploy.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-21-18.png",
+    "current": 21,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\ad-stop\\growth_ad-02-main.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-21-19.png",
+    "current": 21,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\ad-stop\\growth_ad-after.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-21-20.png",
+    "current": 21,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\ad-stop\\potion_ad-00-main.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-21-21.png",
+    "current": 21,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\ad-stop\\potion_ad-01-potion_ad_confirm.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-21-22.png",
+    "current": 21,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\ad-stop\\potion_ad-before.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-23.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-ad\\current.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-24.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-ad\\growth-02-main.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-25.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-ad\\live-after.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-28-26.png",
+    "current": 28,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-counter-28\\visible-0.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": true
+  },
+  {
+    "file": "counter-28-27.png",
+    "current": 28,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-counter-28\\visible-1.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": true
+  },
+  {
+    "file": "counter-28-28.png",
+    "current": 28,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-counter-28\\visible-2.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": true
+  },
+  {
+    "file": "counter-00-29.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-position\\counter-live-0.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-30.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-position\\counter-live-1.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-31.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-position\\counter-live-2.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-32.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-position\\live-before.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-33.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-position\\paused.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-34.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-position\\potion-00-main.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-35.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-04\\potion-position\\potion-01-potion_ad_confirm.png",
+    "box": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-36.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-03\\current-event\\after-inspection.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-37.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-03\\current-event\\current.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-38.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-03\\current-event\\main.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  },
+  {
+    "file": "counter-00-39.png",
+    "current": 0,
+    "total": 40,
+    "source": "diagnostics\\2026-10-03\\map\\closed.png",
+    "box": [
+      650,
+      904,
+      718,
+      924
+    ],
+    "regression": false
+  }
+]

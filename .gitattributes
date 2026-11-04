@@ -1,0 +1,5 @@
+# Preserve the exact validated bytes in source archives and Git checkouts.
+# Disabling EOL conversion does not disable ordinary text diffs.
+* -text
+*.png binary
+*.onnx binary

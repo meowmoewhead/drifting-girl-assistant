@@ -1,0 +1,10 @@
+{
+  "source": "diagnostics\\2026-10-11\\review-fixes\\stone-stage-before\\9e387ae6d23a4c5cb39106fb9bf52a4d.png",
+  "crop": [
+    643,
+    817,
+    711,
+    880
+  ],
+  "excludes": "Animated swirl masked during matching"
+}

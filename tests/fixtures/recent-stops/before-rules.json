@@ -1,0 +1,3616 @@
+[
+  {
+    "id": "driftinggirl_achievements_resume",
+    "name": "皇冠奖励：接续已经展开的菜单",
+    "enabled": true,
+    "asset": "assets/achievements-menu-native.png",
+    "source_crop": [
+      555,
+      625,
+      592,
+      646
+    ],
+    "search_area": [
+      510,
+      565,
+      635,
+      700
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.91,
+    "interval": 60,
+    "stable_frames": 2,
+    "stage": "main",
+    "next_stage": "achievements_tab",
+    "stage_timeout": 30,
+    "next_delay": 0.8,
+    "note": "只观察已展开且明亮的皇冠菜单，不再次点入口把它收起。",
+    "action": "observe",
+    "required_source_areas": [
+      [
+        211,
+        1140,
+        266,
+        1189
+      ],
+      [
+        542,
+        1140,
+        597,
+        1183
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        558,
+        1147,
+        585,
+        1168
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    }
+  },
+  {
+    "enabled": true,
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "stable_frames": 3,
+    "interval": 1,
+    "action": "observe",
+    "stage": "achievements_tab",
+    "next_stage": "main",
+    "min_stage_seconds": 6,
+    "recovery_entry": "driftinggirl_achievements_open",
+    "id": "driftinggirl_achievements_recover",
+    "name": "皇冠奖励：入口未打开时恢复重试",
+    "asset": "assets/navigation/main.png",
+    "source_crop": [
+      211,
+      1140,
+      266,
+      1189
+    ],
+    "search_area": [
+      200,
+      1130,
+      276,
+      1200
+    ],
+    "required_source_areas": [
+      [
+        542,
+        1140,
+        597,
+        1183
+      ],
+      [
+        650,
+        550,
+        690,
+        587
+      ],
+      [
+        659,
+        479,
+        701,
+        505
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        558,
+        1147,
+        585,
+        1168
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    },
+    "note": "入口和两个稳定底栏图标连续三帧清晰可见才放弃旧步骤；保留入口间隔，五分钟最多恢复三次，恢复不算领奖完成。",
+    "absent_rule": "driftinggirl_achievements_fold"
+  },
+  {
+    "enabled": true,
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "stable_frames": 3,
+    "interval": 1,
+    "action": "observe",
+    "stage": "achievements_tab",
+    "next_stage": "main",
+    "min_stage_seconds": 6,
+    "recovery_entry": "driftinggirl_achievements_open",
+    "id": "driftinggirl_achievements_battle_recover",
+    "name": "皇冠奖励：巨鱼战斗打断后等待入口恢复",
+    "asset": "assets/navigation/world-battle.png",
+    "source_crop": [
+      334,
+      133,
+      355,
+      157
+    ],
+    "search_area": [
+      324,
+      123,
+      365,
+      167
+    ],
+    "required_source_areas": [
+      [
+        211,
+        1140,
+        266,
+        1189
+      ],
+      [
+        542,
+        1140,
+        597,
+        1183
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        558,
+        1147,
+        585,
+        1168
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    },
+    "note": "同时识别巨鱼战斗沙漏与两个清晰底栏图标，仅撤销被打断的入口步骤；不点击战斗或提前宣布领奖完成。"
+  },
+  {
+    "enabled": true,
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "stable_frames": 3,
+    "interval": 1,
+    "action": "observe",
+    "stage": "mailbox",
+    "next_stage": "main",
+    "min_stage_seconds": 6,
+    "recovery_entry": "driftinggirl_mailbox_open",
+    "id": "driftinggirl_mailbox_recover",
+    "name": "邮箱：入口未打开时恢复重试",
+    "asset": "assets/navigation/main.png",
+    "source_crop": [
+      211,
+      1140,
+      266,
+      1189
+    ],
+    "search_area": [
+      200,
+      1130,
+      276,
+      1200
+    ],
+    "required_source_areas": [
+      [
+        542,
+        1140,
+        597,
+        1183
+      ],
+      [
+        650,
+        550,
+        690,
+        587
+      ],
+      [
+        659,
+        479,
+        701,
+        505
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        558,
+        1147,
+        585,
+        1168
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    },
+    "note": "入口和两个稳定底栏图标连续三帧清晰可见才放弃旧步骤；保留入口间隔，五分钟最多恢复三次，恢复不算领奖完成。"
+  },
+  {
+    "enabled": true,
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "stable_frames": 3,
+    "interval": 1,
+    "action": "observe",
+    "stage": "mailbox",
+    "next_stage": "main",
+    "min_stage_seconds": 6,
+    "recovery_entry": "driftinggirl_mailbox_open",
+    "id": "driftinggirl_mailbox_battle_recover",
+    "name": "邮箱：巨鱼战斗打断后等待入口恢复",
+    "asset": "assets/navigation/world-battle.png",
+    "source_crop": [
+      334,
+      133,
+      355,
+      157
+    ],
+    "search_area": [
+      324,
+      123,
+      365,
+      167
+    ],
+    "required_source_areas": [
+      [
+        211,
+        1140,
+        266,
+        1189
+      ],
+      [
+        542,
+        1140,
+        597,
+        1183
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        558,
+        1147,
+        585,
+        1168
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    },
+    "note": "同时识别巨鱼战斗沙漏与两个清晰底栏图标，仅撤销被打断的入口步骤；不点击战斗或提前宣布领奖完成。"
+  },
+  {
+    "id": "driftinggirl_task_popup_close",
+    "name": "任务弹窗：关闭右上红叉",
+    "enabled": true,
+    "asset": "assets/task-popup/notice.png",
+    "source_crop": [
+      618,
+      406,
+      674,
+      453
+    ],
+    "search_area": [
+      565,
+      365,
+      710,
+      500
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "required_source_areas": [
+      [
+        315,
+        465,
+        350,
+        492
+      ],
+      [
+        271,
+        548,
+        302,
+        597
+      ],
+      [
+        106,
+        785,
+        162,
+        810
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        637,
+        418,
+        657,
+        438
+      ],
+      "hsv": [
+        [
+          0,
+          90,
+          130
+        ],
+        [
+          12,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.7
+    },
+    "click_source_area": [
+      627,
+      412,
+      665,
+      449
+    ],
+    "stable_frames": 3,
+    "interval": 2,
+    "stage": "*",
+    "interrupt": true,
+    "next_stage": "task_popup_return",
+    "stage_timeout": 15,
+    "next_delay": 0.8,
+    "note": "同时确认红叉、任务对话框轮廓和奖励文字，连续三帧后只关闭红叉；不点击结束或奖励。"
+  },
+  {
+    "id": "driftinggirl_task_popup_return",
+    "name": "任务弹窗：确认关闭并恢复任务",
+    "enabled": true,
+    "asset": "assets/task-popup/main.png",
+    "source_crop": [
+      15,
+      1145,
+      79,
+      1198
+    ],
+    "search_area": [
+      0,
+      1120,
+      100,
+      1210
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.93,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "task_popup_return",
+    "next_stage": "main",
+    "next_delay": 0.8,
+    "stage_timeout": 30,
+    "action": "observe",
+    "absent_rule": "driftinggirl_task_popup_close",
+    "required_source_areas": [
+      [
+        211,
+        1140,
+        266,
+        1189
+      ],
+      [
+        542,
+        1140,
+        597,
+        1183
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        43,
+        1170,
+        64,
+        1190
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    },
+    "note": "弹窗消失且主界面三个底栏图标清晰可见后，重新识别已开启任务。"
+  },
+  {
+    "id": "driftinggirl_achievements_fold",
+    "name": "皇冠奖励：收起入口菜单",
+    "enabled": true,
+    "asset": "assets/achievements-menu-native.png",
+    "source_crop": [
+      555,
+      625,
+      592,
+      646
+    ],
+    "search_area": [
+      510,
+      590,
+      635,
+      690
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.91,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "achievements_return",
+    "absent_rule": "driftinggirl_achievements_ready",
+    "click_source_area": [
+      650,
+      550,
+      690,
+      587
+    ],
+    "next_stage": "achievements_return",
+    "next_delay": 0.8,
+    "stage_timeout": 15,
+    "note": "关闭奖励列表后，仅菜单中的皇冠仍可见时点击收起；若已直接返回主界面或巨鱼战斗，由返回观察规则确认。"
+  },
+  {
+    "id": "driftinggirl_mailbox_return",
+    "name": "邮箱：确认返回主画面",
+    "enabled": true,
+    "asset": "assets/main-ui-native.png",
+    "source_crop": [
+      659,
+      479,
+      701,
+      505
+    ],
+    "search_area": [
+      600,
+      445,
+      720,
+      560
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.92,
+    "interval": 1,
+    "stable_frames": 2,
+    "stage": "mailbox_return",
+    "absent_rule": "driftinggirl_mailbox_close",
+    "action": "observe",
+    "next_stage": "main"
+  },
+  {
+    "id": "driftinggirl_mailbox_close",
+    "name": "邮箱：确认领空后关闭",
+    "enabled": true,
+    "asset": "assets/mailbox-empty-native.png",
+    "source_crop": [
+      298,
+      570,
+      408,
+      596
+    ],
+    "search_area": [
+      240,
+      530,
+      470,
+      650
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "mailbox_done",
+    "click_source_area": [
+      612,
+      170,
+      690,
+      230
+    ],
+    "next_stage": "mailbox_return",
+    "next_delay": 0.8,
+    "stage_timeout": 15
+  },
+  {
+    "id": "driftinggirl_potion_ad_confirm",
+    "name": "药水广告：点击继续",
+    "enabled": true,
+    "asset": "assets/potion-ad-confirm-source.png",
+    "source_crop": [
+      179,
+      575,
+      388,
+      607
+    ],
+    "required_source_areas": [
+      [
+        163,
+        768,
+        260,
+        817
+      ]
+    ],
+    "click_source_area": [
+      90,
+      748,
+      332,
+      828
+    ],
+    "search_area": [
+      50,
+      350,
+      670,
+      900
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "potion_ad_confirm",
+    "next_stage": "potion_ad_return",
+    "next_delay": 1,
+    "stage_timeout": 60,
+    "note": "识别观看广告后获得固定文字及继续按钮，排除药水数量。2026-09-30 实机点击后直接返回游戏，未出现独立广告页。"
+  },
+  {
+    "id": "driftinggirl_potion_ad_return",
+    "name": "药水广告：确认返回游戏",
+    "enabled": true,
+    "asset": "assets/potion-ad-source.png",
+    "source_crop": [
+      326,
+      1146,
+      379,
+      1186
+    ],
+    "search_area": [
+      300,
+      1115,
+      419,
+      1205
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "potion_ad_return",
+    "action": "observe",
+    "absent_rule": "driftinggirl_potion_ad_open",
+    "next_stage": "main",
+    "note": "底部主界面齿轮图案可见，且药水广告瓶身消失，才恢复主流程；不使用已有的 50% 加速标志作为药水领取依据。"
+  },
+  {
+    "id": "driftinggirl_ad_confirm",
+    "name": "广告奖励：点击继续",
+    "enabled": true,
+    "asset": "assets/ad-confirm-source.png",
+    "source_crop": [
+      280,
+      539,
+      440,
+      571
+    ],
+    "required_source_areas": [
+      [
+        163,
+        768,
+        260,
+        817
+      ]
+    ],
+    "click_source_area": [
+      90,
+      748,
+      332,
+      828
+    ],
+    "search_area": [
+      50,
+      350,
+      670,
+      900
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.92,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "ad_confirm",
+    "next_stage": "ad_reward",
+    "next_delay": 1,
+    "stage_timeout": 60,
+    "note": "同时确认观看广告后获取标题和继续文字；药水数量、加速时长不参与匹配。实机点击继续后直接返回游戏。"
+  },
+  {
+    "id": "driftinggirl_ad_reward_active",
+    "name": "广告奖励：确认成长加速已生效",
+    "enabled": true,
+    "asset": "assets/ad-reward-active-source.png",
+    "source_crop": [
+      495,
+      1038,
+      538,
+      1068
+    ],
+    "match_hsv": [
+      [
+        35,
+        80,
+        70
+      ],
+      [
+        85,
+        255,
+        255
+      ]
+    ],
+    "search_area": [
+      420,
+      860,
+      620,
+      1120
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 2,
+    "stage": "ad_reward",
+    "action": "observe",
+    "absent_rule": "driftinggirl_bottom_right_arrow",
+    "next_stage": "main",
+    "note": "角色旁成长加速标志出现且原广告入口消失后返回主流程；若出现未适配的广告页面，等待超时后停止。"
+  },
+  {
+    "id": "driftinggirl_achievements_ready",
+    "name": "皇冠奖励：确认奖励列表已经打开",
+    "enabled": true,
+    "asset": "assets/achievements-list-native.png",
+    "source_crop": [
+      283,
+      934,
+      518,
+      955
+    ],
+    "search_area": [
+      220,
+      880,
+      570,
+      1000
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "interval": 1,
+    "stable_frames": 2,
+    "stage": "achievements_tab",
+    "action": "observe",
+    "next_stage": "achievements_claim",
+    "stage_timeout": 30,
+    "note": "若任务面板直接显示第三张奖励列表，依据底部固定说明进入领取步骤，不重复点皇冠。"
+  },
+  {
+    "id": "driftinggirl_achievements_crown",
+    "name": "皇冠奖励：点击展开菜单中的皇冠",
+    "enabled": true,
+    "asset": "assets/achievements-menu-native.png",
+    "source_crop": [
+      555,
+      625,
+      592,
+      646
+    ],
+    "search_area": [
+      510,
+      565,
+      635,
+      700
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.91,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "achievements_tab",
+    "next_stage": "achievements_claim",
+    "stage_timeout": 30,
+    "next_delay": 0.8,
+    "note": "点击展开菜单中的皇冠；入口 N 也可能来自其他任务，皇冠自身无 N 时仍检查列表并正常退出。"
+  },
+  {
+    "id": "driftinggirl_achievements_claim",
+    "name": "皇冠奖励：逐个领取所有绿色按钮",
+    "enabled": true,
+    "kind": "green_reward_list",
+    "asset": "assets/achievements-list-native.png",
+    "source_crop": [
+      283,
+      934,
+      518,
+      955
+    ],
+    "search_area": [
+      220,
+      880,
+      570,
+      1000
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "interval": 1,
+    "stable_frames": 2,
+    "stage": "achievements_claim",
+    "next_stage": "achievements_claim",
+    "stage_timeout": 30,
+    "next_delay": 1,
+    "reward_list": {
+      "rows": 10,
+      "row_step": 60,
+      "button_area": [
+        521,
+        318,
+        650,
+        366
+      ],
+      "color_area": [
+        629,
+        328,
+        641,
+        354
+      ],
+      "progress_area": [
+        171,
+        328,
+        500,
+        355
+      ],
+      "hsv_min": [
+        28,
+        110,
+        65
+      ],
+      "hsv_max": [
+        65,
+        255,
+        255
+      ],
+      "minimum_green_fraction": 0.65
+    },
+    "note": "以列表底部固定说明定位用户第三张图的十行奖励，按绿色背景从上到下选择，排除灰色按钮。每次点击后重新截图；奖励数量、等级及进度不参与固定模板匹配。同一行仍绿则继续领取。"
+  },
+  {
+    "id": "driftinggirl_achievements_close",
+    "name": "皇冠奖励：没有绿色按钮后关闭页面",
+    "enabled": true,
+    "asset": "assets/achievements-list-native.png",
+    "source_crop": [
+      283,
+      934,
+      518,
+      955
+    ],
+    "search_area": [
+      220,
+      880,
+      570,
+      1000
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "interval": 2,
+    "stable_frames": 3,
+    "stage": "achievements_claim",
+    "absent_rule": "driftinggirl_achievements_claim",
+    "click_source_area": [
+      630,
+      225,
+      710,
+      294
+    ],
+    "next_stage": "achievements_return",
+    "stage_timeout": 15,
+    "next_delay": 0.8,
+    "note": "奖励页保持可见且连续三帧没有绿色领取按钮后，按页面位置点击用户第三张图右上红叉。"
+  },
+  {
+    "id": "driftinggirl_achievements_return",
+    "name": "皇冠奖励：返回主画面后继续挂机任务",
+    "enabled": true,
+    "asset": "assets/navigation/main.png",
+    "source_crop": [
+      211,
+      1140,
+      266,
+      1189
+    ],
+    "search_area": [
+      200,
+      1130,
+      276,
+      1200
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "achievements_return",
+    "absent_rule": "driftinggirl_achievements_fold",
+    "action": "observe",
+    "next_stage": "main",
+    "note": "关闭列表或收起菜单后，三个稳定底栏图标连续三帧清晰可见且皇冠菜单消失才恢复主流程；兼容巨鱼战斗隐藏右侧任务入口，不依赖 N、怪物或动态技能图标。",
+    "required_source_areas": [
+      [
+        542,
+        1140,
+        597,
+        1183
+      ],
+      [
+        437,
+        1144,
+        486,
+        1193
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        558,
+        1147,
+        585,
+        1168
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    }
+  },
+  {
+    "id": "driftinggirl_mana_potion",
+    "name": "法力：点击技能面板右上药水",
+    "enabled": true,
+    "asset": "assets/mana-panel-native.png",
+    "source_crop": [
+      603,
+      798,
+      628,
+      830
+    ],
+    "search_area": [
+      575,
+      770,
+      705,
+      850
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.91,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "mana_potion",
+    "next_stage": "mana_confirm",
+    "stage_timeout": 20,
+    "next_delay": 0.8,
+    "number_condition": {
+      "label": "剩余药水",
+      "source_area": [
+        635,
+        798,
+        690,
+        833
+      ],
+      "operator": "gt",
+      "value": 0,
+      "confidence": 0.93
+    },
+    "note": "只匹配药水图标，排除变化的库存数字和用户标注的红框；库存另读数字，大于 0 才继续。"
+  },
+  {
+    "id": "driftinggirl_mana_confirm",
+    "name": "法力：确认使用一瓶药水",
+    "enabled": true,
+    "asset": "assets/mana-confirm-native.png",
+    "source_crop": [
+      165,
+      770,
+      254,
+      812
+    ],
+    "search_area": [
+      120,
+      740,
+      300,
+      840
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "mana_confirm",
+    "next_stage": "mana_close",
+    "stage_timeout": 20,
+    "next_delay": 1,
+    "note": "仅在补充法力流程中，同时匹配绿色继续文字和使用药水的固定提示；恢复量数字变化不影响识别。已实机使用一瓶并确认库存减一。",
+    "required_source_areas": [
+      [
+        232,
+        537,
+        489,
+        570
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_mana_close",
+    "name": "法力：点击面板上方空白处关闭技能",
+    "enabled": true,
+    "asset": "assets/mana-panel-native.png",
+    "source_crop": [
+      30,
+      800,
+      90,
+      830
+    ],
+    "search_area": [
+      10,
+      770,
+      125,
+      855
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "mana_close",
+    "absent_rule": "driftinggirl_mana_confirm",
+    "click_source_area": [
+      310,
+      710,
+      410,
+      740
+    ],
+    "next_stage": "mana_return",
+    "stage_timeout": 15,
+    "next_delay": 0.8,
+    "note": "确认弹窗消失后，依据“技能”标题的位置和缩放，点击第二张图面板上沿外的中央空白处。落点越界则不点击；"
+  },
+  {
+    "id": "driftinggirl_mana_return",
+    "name": "法力：等待技能面板关闭并恢复挂机",
+    "enabled": true,
+    "asset": "assets/main-ui-native.png",
+    "source_crop": [
+      17,
+      1147,
+      71,
+      1195
+    ],
+    "search_area": [
+      0,
+      1060,
+      110,
+      1250
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.92,
+    "interval": 1,
+    "stable_frames": 2,
+    "stage": "mana_return",
+    "absent_rule": "driftinggirl_mana_close",
+    "action": "observe",
+    "next_stage": "main",
+    "note": "仅观察，不点击。左下图标可见且“技能”面板标题已消失后，恢复主画面其他任务。"
+  },
+  {
+    "id": "driftinggirl_mailbox_claim_all",
+    "name": "邮箱：全部领取",
+    "enabled": true,
+    "asset": "assets/mailbox-native.png",
+    "source_crop": [
+      494,
+      991,
+      592,
+      1017
+    ],
+    "search_area": [
+      440,
+      950,
+      645,
+      1050
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "interval": 2,
+    "stable_frames": 2,
+    "stage": "mailbox",
+    "next_stage": "mailbox_done",
+    "note": "全部领取只点击一次；给慢响应最多 120 秒，识别邮箱已空才关闭，超时仍停止。",
+    "next_delay": 1,
+    "stage_timeout": 120
+  },
+  {
+    "id": "driftinggirl_relief_parachute",
+    "name": "救济品：黄色水滴降落伞",
+    "enabled": true,
+    "asset": "assets/relief-water-native.png",
+    "source_crop": [
+      438,
+      361,
+      480,
+      390
+    ],
+    "required_source_areas": [
+      [
+        446,
+        425,
+        469,
+        451
+      ]
+    ],
+    "search_area": [
+      0,
+      0,
+      720,
+      640
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.9,
+    "interval": 1,
+    "stable_frames": 2,
+    "note": "救济品仅两种之一：先匹配伞面，再在相对位置确认黄色水滴。两部分均匹配才点击伞面，排除顶部获得提示和周围天空。"
+  },
+  {
+    "id": "driftinggirl_relief_parachute_star",
+    "name": "救济品：浅色星形降落伞",
+    "enabled": true,
+    "asset": "assets/relief-star-native.png",
+    "source_crop": [
+      288,
+      357,
+      330,
+      386
+    ],
+    "required_source_areas": [
+      [
+        296,
+        417,
+        323,
+        446
+      ]
+    ],
+    "search_area": [
+      0,
+      0,
+      720,
+      640
+    ],
+    "scales": [
+      0.95,
+      1,
+      1.05
+    ],
+    "threshold": 0.9,
+    "interval": 1,
+    "stable_frames": 2,
+    "note": "救济品仅两种之二：先匹配伞面，再在相对位置确认浅色星形挂坠。两部分均匹配才点击伞面；在上半屏按当前位置处理。"
+  },
+  {
+    "id": "driftinggirl_mana_open",
+    "name": "法力：左下数值低于 25 时打开技能",
+    "enabled": true,
+    "asset": "assets/main-ui-native.png",
+    "source_crop": [
+      17,
+      1147,
+      71,
+      1195
+    ],
+    "search_area": [
+      0,
+      1060,
+      110,
+      1250
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.92,
+    "interval": 30,
+    "stable_frames": 3,
+    "stage": "main",
+    "next_stage": "mana_potion",
+    "stage_timeout": 20,
+    "next_delay": 0.8,
+    "number_condition": {
+      "label": "当前法力",
+      "source_area": [
+        32,
+        1208,
+        79,
+        1231
+      ],
+      "operator": "lt",
+      "value": 25,
+      "confidence": 0.93
+    },
+    "note": "先找左下稳定图标，再读取其下方完整数字。连续 3 帧读到同一可信数值且严格小于 25 才打开；25 不触发，读不清不点击。"
+  },
+  {
+    "id": "driftinggirl_achievements_open",
+    "name": "皇冠奖励：出现绿色 N 时打开任务图标",
+    "enabled": true,
+    "asset": "assets/main-ui-native.png",
+    "source_crop": [
+      650,
+      550,
+      690,
+      587
+    ],
+    "required_source_areas": [
+      [
+        693,
+        594,
+        714,
+        613
+      ]
+    ],
+    "search_area": [
+      600,
+      510,
+      720,
+      670
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.92,
+    "interval": 60,
+    "stable_frames": 2,
+    "stage": "main",
+    "next_stage": "achievements_tab",
+    "stage_timeout": 20,
+    "next_delay": 0.8,
+    "note": "明亮的任务入口与绿色 N 同时出现且菜单尚未展开才点击；菜单已展开时接续皇冠步骤。",
+    "color_condition": {
+      "source_area": [
+        660,
+        555,
+        678,
+        576
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          180
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.35
+    },
+    "absent_rule": "driftinggirl_achievements_fold"
+  },
+  {
+    "id": "driftinggirl_mailbox_open",
+    "name": "邮箱：打开带 N 标记的邮箱",
+    "enabled": true,
+    "asset": "assets/main-ui-native.png",
+    "source_crop": [
+      659,
+      479,
+      701,
+      505
+    ],
+    "search_area": [
+      600,
+      445,
+      720,
+      560
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.92,
+    "interval": 60,
+    "stable_frames": 2,
+    "stage": "main",
+    "next_stage": "mailbox",
+    "stage_timeout": 20,
+    "note": "匹配明亮信封和绿色 N；若点击后仍在主界面或被巨鱼战斗打断，确认画面后有限重试。",
+    "required_source_areas": [
+      [
+        691,
+        505,
+        715,
+        525
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        675,
+        480,
+        696,
+        493
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          180
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.45
+    }
+  },
+  {
+    "id": "driftinggirl_bottom_right_arrow",
+    "name": "右下角成长广告（每日限额）",
+    "enabled": true,
+    "asset": "assets/ad-entry-source.png",
+    "source_crop": [
+      639,
+      921,
+      660,
+      945
+    ],
+    "match_hsv": [
+      [
+        35,
+        80,
+        70
+      ],
+      [
+        85,
+        255,
+        255
+      ]
+    ],
+    "search_area": [
+      600,
+      650,
+      720,
+      1115
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 1.5,
+    "stable_frames": 3,
+    "counter_condition": {
+      "label": "成长广告每日计数",
+      "source_area": [
+        654,
+        904,
+        718,
+        925
+      ],
+      "mode": "used",
+      "expected_total": 10,
+      "confidence": 0.93
+    },
+    "next_stage": "ad_confirm",
+    "next_delay": 0.5,
+    "stage_timeout": 20,
+    "note": "在右侧图标栏定位成长箭头，兼容其他入口隐藏后的上下移动；每日计数区域随箭头位置换算，连续三帧 n/10 相同且 n<10 才点击。同时要求箭头正常亮度；满额、读不清或分母不为 10 时跳过，按游戏画面判断刷新。",
+    "color_condition": {
+      "source_area": [
+        639,
+        921,
+        660,
+        945
+      ],
+      "hsv": [
+        [
+          35,
+          80,
+          170
+        ],
+        [
+          85,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    },
+    "recheck_before_click": true
+  },
+  {
+    "id": "driftinggirl_potion_ad_open",
+    "name": "右下角药水广告（每日限额）",
+    "enabled": true,
+    "asset": "assets/potion-ad-source.png",
+    "source_crop": [
+      659,
+      930,
+      688,
+      954
+    ],
+    "click_source_area": [
+      650,
+      928,
+      706,
+      960
+    ],
+    "search_area": [
+      600,
+      650,
+      720,
+      1115
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 2,
+    "stable_frames": 3,
+    "counter_condition": {
+      "label": "药水广告每日计数",
+      "source_area": [
+        650,
+        904,
+        718,
+        924
+      ],
+      "mode": "used",
+      "expected_total": 40,
+      "preprocess": "white_text_consensus",
+      "confidence": 0.93
+    },
+    "next_stage": "potion_ad_confirm",
+    "next_delay": 0.5,
+    "stage_timeout": 20,
+    "note": "在右侧图标栏定位明亮药水瓶，计数和点击随位置移动。对完整 n/40 使用原图和白字图交叉识别，至少两路高置信度结果一致才接受；任一高置信度结果冲突则跳过。不降低 0.93 门槛，连续三帧读数一致且 n<40 才点击，点击前再次截图复核位置与次数。每日重置以游戏画面为准。",
+    "color_condition": {
+      "source_area": [
+        659,
+        930,
+        688,
+        954
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          170
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.4
+    },
+    "recheck_before_click": true
+  },
+  {
+    "id": "driftinggirl_daily_open",
+    "name": "每日奖励：本周期未完成时打开商店",
+    "enabled": true,
+    "asset": "assets/daily-reward/main.png",
+    "source_crop": [
+      651,
+      370,
+      696,
+      414
+    ],
+    "search_area": [
+      590,
+      280,
+      720,
+      540
+    ],
+    "click_source_area": [
+      648,
+      367,
+      709,
+      423
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 3600,
+    "stable_frames": 3,
+    "stage": "main",
+    "next_stage": "daily_tab",
+    "next_delay": 0.7,
+    "stage_timeout": 20,
+    "note": "每天北京时间 08:00 刷新；本周期未完成时检查，无需绿色 N。成功或确认已领取后等待下次刷新；未完成保留原间隔重试。",
+    "color_condition": {
+      "source_area": [
+        659,
+        378,
+        691,
+        406
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          140
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.4
+    }
+  },
+  {
+    "id": "driftinggirl_daily_premium",
+    "name": "每日奖励：切换 PREMIUM 页",
+    "enabled": true,
+    "asset": "assets/daily-reward/shop-open.png",
+    "source_crop": [
+      171,
+      250,
+      263,
+      280
+    ],
+    "search_area": [
+      140,
+      210,
+      290,
+      308
+    ],
+    "click_source_area": [
+      168,
+      228,
+      270,
+      297
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 2,
+    "stable_frames": 3,
+    "stage": "daily_tab",
+    "next_stage": "daily_reward",
+    "next_delay": 0.7,
+    "stage_timeout": 20,
+    "required_source_areas": [
+      [
+        637,
+        251,
+        688,
+        294
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_daily_claim",
+    "name": "每日奖励：领取免费奖励",
+    "enabled": true,
+    "asset": "assets/daily-reward/premium-ready.png",
+    "source_crop": [
+      242,
+      399,
+      341,
+      428
+    ],
+    "search_area": [
+      174,
+      370,
+      400,
+      535
+    ],
+    "click_source_area": [
+      210,
+      433,
+      377,
+      510
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 2,
+    "stable_frames": 3,
+    "stage": "daily_reward",
+    "next_stage": "daily_after_claim",
+    "next_delay": 0.7,
+    "stage_timeout": 20,
+    "required_source_areas": [
+      [
+        177,
+        336,
+        310,
+        366
+      ],
+      [
+        266,
+        442,
+        316,
+        483
+      ]
+    ],
+    "note": "同时匹配每日奖励标题、白色免费奖励文字和彩色钻石；点击位置限定在左侧免费卡片内。"
+  },
+  {
+    "id": "driftinggirl_daily_unavailable",
+    "name": "每日奖励：已领取时关闭商店",
+    "enabled": true,
+    "asset": "assets/daily-reward/premium-claimed.png",
+    "source_crop": [
+      177,
+      336,
+      310,
+      366
+    ],
+    "search_area": [
+      160,
+      315,
+      345,
+      385
+    ],
+    "click_source_area": [
+      634,
+      247,
+      695,
+      296
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 2,
+    "stable_frames": 3,
+    "stage": "daily_reward",
+    "next_stage": "daily_return",
+    "next_delay": 0.7,
+    "stage_timeout": 20,
+    "required_source_areas": [
+      [
+        171,
+        250,
+        263,
+        280
+      ],
+      [
+        637,
+        251,
+        688,
+        294
+      ],
+      [
+        255,
+        434,
+        330,
+        480
+      ]
+    ],
+    "absent_rule": "driftinggirl_daily_claim",
+    "note": "每日奖励页与免费卡片绿色对勾同时可见，且可领取模板消失后关闭；不点击附赠奖励或商品。"
+  },
+  {
+    "id": "driftinggirl_daily_close",
+    "name": "每日奖励：领取后关闭商店",
+    "enabled": true,
+    "asset": "assets/daily-reward/premium-claimed.png",
+    "source_crop": [
+      177,
+      336,
+      310,
+      366
+    ],
+    "search_area": [
+      160,
+      315,
+      345,
+      385
+    ],
+    "click_source_area": [
+      634,
+      247,
+      695,
+      296
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 2,
+    "stable_frames": 3,
+    "stage": "daily_after_claim",
+    "next_stage": "daily_return",
+    "next_delay": 0.7,
+    "stage_timeout": 20,
+    "required_source_areas": [
+      [
+        171,
+        250,
+        263,
+        280
+      ],
+      [
+        637,
+        251,
+        688,
+        294
+      ],
+      [
+        255,
+        434,
+        330,
+        480
+      ]
+    ],
+    "absent_rule": "driftinggirl_daily_claim"
+  },
+  {
+    "id": "driftinggirl_daily_return",
+    "name": "每日奖励：确认返回游戏",
+    "enabled": true,
+    "asset": "assets/daily-reward/main.png",
+    "source_crop": [
+      326,
+      1146,
+      379,
+      1186
+    ],
+    "search_area": [
+      300,
+      1115,
+      419,
+      1205
+    ],
+    "click_source_area": [
+      326,
+      1146,
+      379,
+      1186
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.94,
+    "interval": 2,
+    "stable_frames": 3,
+    "stage": "daily_return",
+    "next_stage": "main",
+    "next_delay": 0.7,
+    "stage_timeout": 20,
+    "action": "observe",
+    "absent_rule": "driftinggirl_daily_premium"
+  },
+  {
+    "id": "driftinggirl_raid_open",
+    "name": "RAID：发现可参加的合作突袭",
+    "enabled": true,
+    "asset": "assets/raid/main.png",
+    "source_crop": [
+      650,
+      824,
+      689,
+      858
+    ],
+    "search_area": [
+      610,
+      610,
+      720,
+      1000
+    ],
+    "click_source_area": [
+      648,
+      813,
+      708,
+      875
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.93,
+    "interval": 60,
+    "stable_frames": 3,
+    "stage": "main",
+    "next_stage": "raid_prepare",
+    "next_delay": 0.8,
+    "stage_timeout": 30,
+    "required_source_areas": [
+      [
+        690,
+        817,
+        710,
+        839
+      ]
+    ],
+    "asset_variants": [
+      "assets/raid/main-octopus.png"
+    ],
+    "color_condition": {
+      "source_area": [
+        692,
+        819,
+        707,
+        838
+      ],
+      "hsv": [
+        [
+          15,
+          80,
+          160
+        ],
+        [
+          45,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.4
+    }
+  },
+  {
+    "id": "driftinggirl_raid_prepare",
+    "name": "RAID：点击准备",
+    "enabled": true,
+    "asset": "assets/raid/prepare.png",
+    "source_crop": [
+      287,
+      335,
+      410,
+      365
+    ],
+    "search_area": [
+      240,
+      300,
+      470,
+      400
+    ],
+    "click_source_area": [
+      278,
+      889,
+      445,
+      930
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.93,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "raid_prepare",
+    "next_stage": "raid_wait",
+    "next_delay": 0.8,
+    "stage_timeout": 180,
+    "required_source_areas": [
+      [
+        337,
+        897,
+        382,
+        925
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_raid_start",
+    "name": "RAID：等待开始文字出现且按钮变蓝后开始",
+    "enabled": true,
+    "asset": "assets/raid/ready.png",
+    "source_crop": [
+      310,
+      254,
+      410,
+      280
+    ],
+    "search_area": [
+      270,
+      215,
+      460,
+      320
+    ],
+    "click_source_area": [
+      213,
+      575,
+      342,
+      615
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.93,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "raid_wait",
+    "next_stage": "raid_battle",
+    "next_delay": 0.8,
+    "stage_timeout": 900,
+    "required_source_areas": [
+      [
+        254,
+        584,
+        302,
+        611
+      ],
+      [
+        325,
+        637,
+        396,
+        655
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        215,
+        580,
+        239,
+        610
+      ],
+      "hsv": [
+        [
+          90,
+          125,
+          60
+        ],
+        [
+          120,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.95
+    }
+  },
+  {
+    "id": "driftinggirl_raid_confirm",
+    "name": "RAID：战斗结束后确认结算",
+    "enabled": true,
+    "asset": "assets/raid/result.png",
+    "source_crop": [
+      321,
+      962,
+      400,
+      1004
+    ],
+    "search_area": [
+      110,
+      900,
+      610,
+      1060
+    ],
+    "click_source_area": [
+      170,
+      947,
+      550,
+      1018
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "raid_battle",
+    "next_stage": "raid_return",
+    "next_delay": 0.8,
+    "stage_timeout": 30,
+    "required_source_areas": [
+      [
+        320,
+        338,
+        402,
+        360
+      ],
+      [
+        337,
+        782,
+        383,
+        807
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_raid_return",
+    "name": "RAID：确认返回主界面",
+    "enabled": true,
+    "asset": "assets/raid/main.png",
+    "source_crop": [
+      326,
+      1146,
+      379,
+      1186
+    ],
+    "search_area": [
+      300,
+      1115,
+      419,
+      1205
+    ],
+    "click_source_area": [
+      326,
+      1146,
+      379,
+      1186
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.93,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "raid_return",
+    "next_stage": "main",
+    "next_delay": 0.8,
+    "stage_timeout": 30,
+    "action": "observe",
+    "absent_rule": "driftinggirl_raid_confirm"
+  },
+  {
+    "id": "driftinggirl_raid_recover",
+    "name": "RAID：已回主界面时恢复挂机",
+    "enabled": true,
+    "asset": "assets/raid/main.png",
+    "source_crop": [
+      326,
+      1146,
+      379,
+      1186
+    ],
+    "search_area": [
+      300,
+      1115,
+      419,
+      1205
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.93,
+    "interval": 2.0,
+    "stable_frames": 5,
+    "stage": "raid_battle",
+    "next_stage": "main",
+    "next_delay": 0.8,
+    "stage_timeout": 30,
+    "action": "observe",
+    "absent_rule": "driftinggirl_raid_confirm",
+    "min_stage_seconds": 15,
+    "required_source_areas": [
+      [
+        227,
+        1146,
+        271,
+        1183
+      ],
+      [
+        528,
+        1148,
+        577,
+        1184
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        333,
+        1150,
+        376,
+        1184
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          160
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.45
+    },
+    "note": "开始后至少 15 秒且主界面三个底栏图标连续五帧清晰可见，才接受结算已自动关闭。仅观察，不发送点击。"
+  },
+  {
+    "id": "driftinggirl_event_potion_open",
+    "name": "活动药水：材料超过 500 时进入商店",
+    "enabled": true,
+    "asset": "assets/event-potion/main.png",
+    "source_crop": [
+      650,
+      280,
+      701,
+      320
+    ],
+    "search_area": [
+      610,
+      230,
+      720,
+      380
+    ],
+    "click_source_area": [
+      648,
+      277,
+      705,
+      320
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 60.0,
+    "stable_frames": 3,
+    "stage": "main",
+    "next_stage": "event_potion_shop",
+    "next_delay": 0.7,
+    "stage_timeout": 20,
+    "number_condition": {
+      "label": "活动材料",
+      "source_area": [
+        645,
+        324,
+        708,
+        347
+      ],
+      "operator": "gt",
+      "value": 500,
+      "confidence": 0.93
+    },
+    "color_condition": {
+      "source_area": [
+        652,
+        282,
+        700,
+        318
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          180
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.65
+    },
+    "note": "兼容已核对的月亮币与糖果活动；数字区域独立 OCR，连续三帧读数一致且严格大于 500。拒绝弹窗后的暗色入口；每轮只购买一瓶。",
+    "asset_variants": [
+      "assets/event-potion/main-candy.png"
+    ]
+  },
+  {
+    "id": "driftinggirl_event_potion_select",
+    "name": "活动药水：选择第一个 500 材料药水",
+    "enabled": true,
+    "asset": "assets/event-potion/shop.png",
+    "source_crop": [
+      143,
+      621,
+      206,
+      694
+    ],
+    "required_source_areas": [
+      [
+        140,
+        715,
+        214,
+        741
+      ],
+      [
+        557,
+        521,
+        597,
+        564
+      ]
+    ],
+    "search_area": [
+      112,
+      580,
+      235,
+      716
+    ],
+    "click_source_area": [
+      135,
+      614,
+      212,
+      699
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "event_potion_shop",
+    "next_stage": "event_potion_confirm",
+    "next_delay": 0.7,
+    "stage_timeout": 20,
+    "asset_variants": [
+      "assets/event-potion/shop-candy.png"
+    ]
+  },
+  {
+    "id": "driftinggirl_event_potion_confirm",
+    "name": "活动药水：确认花费 500 材料购买",
+    "enabled": true,
+    "asset": "assets/event-potion/confirm.png",
+    "source_crop": [
+      198,
+      574,
+      513,
+      608
+    ],
+    "required_source_areas": [
+      [
+        228,
+        575,
+        259,
+        606
+      ],
+      [
+        265,
+        577,
+        315,
+        603
+      ],
+      [
+        165,
+        769,
+        256,
+        816
+      ]
+    ],
+    "search_area": [
+      162,
+      531,
+      552,
+      650
+    ],
+    "click_source_area": [
+      95,
+      761,
+      321,
+      821
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.95,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "event_potion_confirm",
+    "next_stage": "event_potion_close",
+    "color_condition": {
+      "source_area": [
+        90,
+        772,
+        143,
+        817
+      ],
+      "hsv": [
+        [
+          35,
+          80,
+          70
+        ],
+        [
+          85,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.8
+    },
+    "next_delay": 0.8,
+    "stage_timeout": 20,
+    "note": "确认整句购买提示含活动币图案和蓝色 500，且绿色购买按钮可见；不复用其他购买或继续弹窗。",
+    "asset_variants": [
+      "assets/event-potion/confirm-candy.png"
+    ]
+  },
+  {
+    "id": "driftinggirl_event_potion_close",
+    "name": "活动药水：购买后关闭活动商店",
+    "enabled": true,
+    "asset": "assets/event-potion/shop.png",
+    "source_crop": [
+      557,
+      521,
+      597,
+      564
+    ],
+    "required_source_areas": [
+      [
+        580,
+        389,
+        653,
+        451
+      ],
+      [
+        118,
+        526,
+        153,
+        560
+      ]
+    ],
+    "search_area": [
+      517,
+      485,
+      627,
+      591
+    ],
+    "click_source_area": [
+      583,
+      390,
+      650,
+      446
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "event_potion_close",
+    "next_stage": "event_potion_return",
+    "next_delay": 0.7,
+    "stage_timeout": 20,
+    "absent_rule": "driftinggirl_event_potion_confirm",
+    "asset_variants": [
+      "assets/event-potion/shop-candy.png"
+    ]
+  },
+  {
+    "id": "driftinggirl_event_potion_return",
+    "name": "活动药水：确认返回主界面",
+    "enabled": true,
+    "asset": "assets/event-potion/main-candy.png",
+    "source_crop": [
+      211,
+      1140,
+      266,
+      1189
+    ],
+    "search_area": [
+      190,
+      1115,
+      291,
+      1210
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 2.0,
+    "stable_frames": 3,
+    "stage": "event_potion_return",
+    "next_stage": "main",
+    "action": "observe",
+    "color_condition": {
+      "source_area": [
+        558,
+        1147,
+        585,
+        1168
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    },
+    "absent_rule": "driftinggirl_event_potion_close",
+    "asset_variants": [
+      "assets/event-potion/main.png"
+    ],
+    "required_source_areas": [
+      [
+        542,
+        1140,
+        597,
+        1183
+      ]
+    ],
+    "note": "商店消失且底栏天赋、钻石图标清晰可见后返回主界面；不依赖动画或材料数字。"
+  },
+  {
+    "id": "driftinggirl_guild_open",
+    "name": "公会商品：打开商店",
+    "enabled": true,
+    "asset": "assets/guild-shop/main.png",
+    "source_crop": [
+      649,
+      371,
+      698,
+      415
+    ],
+    "search_area": [
+      610,
+      340,
+      720,
+      450
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 3600,
+    "stable_frames": 3,
+    "stage": "main",
+    "next_stage": "guild_special",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      648,
+      370,
+      707,
+      425
+    ],
+    "color_condition": {
+      "source_area": [
+        659,
+        378,
+        691,
+        406
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          140
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.4
+    }
+  },
+  {
+    "id": "driftinggirl_guild_special",
+    "name": "公会商品：进入 SPECIAL 页",
+    "enabled": true,
+    "asset": "assets/guild-shop/open.png",
+    "source_crop": [
+      457,
+      255,
+      552,
+      283
+    ],
+    "search_area": [
+      420,
+      220,
+      590,
+      310
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_special",
+    "next_stage": "guild_tab",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      450,
+      232,
+      562,
+      296
+    ],
+    "required_source_areas": [
+      [
+        637,
+        251,
+        688,
+        294
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_guild_tab",
+    "name": "公会商品：切换公会点数页",
+    "enabled": true,
+    "asset": "assets/guild-shop/special.png",
+    "source_crop": [
+      89,
+      466,
+      136,
+      514
+    ],
+    "search_area": [
+      64,
+      433,
+      157,
+      546
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_tab",
+    "next_stage": "guild_potion",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      77,
+      448,
+      146,
+      533
+    ],
+    "required_source_areas": [
+      [
+        457,
+        255,
+        552,
+        283
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_guild_potion_select",
+    "name": "公会商品：选择药水",
+    "enabled": true,
+    "asset": "assets/guild-shop/guild.png",
+    "source_crop": [
+      175,
+      337,
+      328,
+      374
+    ],
+    "search_area": [
+      150,
+      312,
+      355,
+      404
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_potion",
+    "next_stage": "guild_potion_quantity",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      522,
+      406,
+      594,
+      465
+    ],
+    "purchase_condition": {
+      "label": "药水已购份数",
+      "counter_area": [
+        522,
+        502,
+        593,
+        530
+      ],
+      "balance_area": [
+        560,
+        350,
+        641,
+        377
+      ],
+      "expected_total": 10,
+      "unit_price": 10,
+      "confidence": 0.93,
+      "mode": "available"
+    },
+    "required_source_areas": [
+      [
+        91,
+        469,
+        132,
+        511
+      ],
+      [
+        526,
+        350,
+        553,
+        376
+      ],
+      [
+        505,
+        545,
+        535,
+        575
+      ],
+      [
+        568,
+        548,
+        598,
+        574
+      ],
+      [
+        522,
+        406,
+        594,
+        465
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_guild_potion_skip",
+    "name": "公会商品：药水已买满或点数不足时跳过",
+    "enabled": true,
+    "asset": "assets/guild-shop/guild.png",
+    "source_crop": [
+      175,
+      337,
+      328,
+      374
+    ],
+    "search_area": [
+      150,
+      312,
+      355,
+      404
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_potion",
+    "next_stage": "guild_material",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "action": "observe",
+    "purchase_condition": {
+      "label": "药水已购份数",
+      "counter_area": [
+        522,
+        502,
+        593,
+        530
+      ],
+      "balance_area": [
+        560,
+        350,
+        641,
+        377
+      ],
+      "expected_total": 10,
+      "unit_price": 10,
+      "confidence": 0.93,
+      "mode": "unavailable"
+    },
+    "required_source_areas": [
+      [
+        91,
+        469,
+        132,
+        511
+      ],
+      [
+        526,
+        350,
+        553,
+        376
+      ],
+      [
+        505,
+        545,
+        535,
+        575
+      ],
+      [
+        568,
+        548,
+        598,
+        574
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_guild_potion_plus",
+    "name": "公会商品：药水逐次加一",
+    "enabled": true,
+    "asset": "assets/guild-shop/potion-min.png",
+    "source_crop": [
+      309,
+      410,
+      410,
+      455
+    ],
+    "search_area": [
+      250,
+      384,
+      475,
+      480
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 0.4,
+    "stable_frames": 2,
+    "stage": "guild_potion_quantity",
+    "next_stage": "guild_potion_quantity",
+    "next_delay": 0.3,
+    "stage_timeout": 30,
+    "click_source_area": [
+      487,
+      739,
+      549,
+      768
+    ],
+    "required_source_areas": [
+      [
+        305,
+        490,
+        424,
+        641
+      ],
+      [
+        323,
+        852,
+        359,
+        894
+      ],
+      [
+        500,
+        741,
+        536,
+        767
+      ]
+    ],
+    "required_tolerance": 30,
+    "quantity_condition": {
+      "label": "药水本次购买数量",
+      "stock_rule": "driftinggirl_guild_potion_select",
+      "maximum": 10,
+      "unit_price": 10,
+      "bundle_size": 1,
+      "quantity_area": [
+        272,
+        655,
+        450,
+        724
+      ],
+      "price_area": [
+        275,
+        846,
+        529,
+        905
+      ],
+      "preprocess": "tight",
+      "template_prefix": "potion",
+      "confidence": 0.93,
+      "mode": "increment"
+    }
+  },
+  {
+    "id": "driftinggirl_guild_potion_buy",
+    "name": "公会商品：药水数量到上限后购买",
+    "enabled": true,
+    "asset": "assets/guild-shop/potion-min.png",
+    "source_crop": [
+      309,
+      410,
+      410,
+      455
+    ],
+    "search_area": [
+      250,
+      384,
+      475,
+      480
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_potion_quantity",
+    "next_stage": "guild_potion_confirm",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      165,
+      840,
+      548,
+      908
+    ],
+    "required_source_areas": [
+      [
+        305,
+        490,
+        424,
+        641
+      ],
+      [
+        323,
+        852,
+        359,
+        894
+      ],
+      [
+        500,
+        741,
+        536,
+        767
+      ]
+    ],
+    "required_tolerance": 30,
+    "quantity_condition": {
+      "label": "药水本次购买数量",
+      "stock_rule": "driftinggirl_guild_potion_select",
+      "maximum": 10,
+      "unit_price": 10,
+      "bundle_size": 1,
+      "quantity_area": [
+        272,
+        655,
+        450,
+        724
+      ],
+      "price_area": [
+        275,
+        846,
+        529,
+        905
+      ],
+      "preprocess": "tight",
+      "template_prefix": "potion",
+      "confidence": 0.93,
+      "mode": "buy"
+    }
+  },
+  {
+    "id": "driftinggirl_guild_potion_confirm",
+    "name": "公会商品：核对金额并确认购买药水",
+    "enabled": true,
+    "asset": "assets/guild-shop/potion-confirm.png",
+    "source_crop": [
+      163,
+      773,
+      256,
+      816
+    ],
+    "search_area": [
+      137,
+      745,
+      288,
+      841
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_potion_confirm",
+    "next_stage": "guild_material",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      111,
+      752,
+      331,
+      822
+    ],
+    "required_source_areas": [
+      [
+        228,
+        573,
+        257,
+        603
+      ],
+      [
+        338,
+        576,
+        528,
+        605
+      ],
+      [
+        309,
+        410,
+        410,
+        438
+      ]
+    ],
+    "required_tolerance": 20,
+    "color_condition": {
+      "source_area": [
+        130,
+        754,
+        298,
+        820
+      ],
+      "hsv": [
+        [
+          35,
+          80,
+          100
+        ],
+        [
+          90,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.4
+    },
+    "confirmation_condition": {
+      "label": "药水确认金额",
+      "price_area": [
+        278,
+        568,
+        337,
+        610
+      ],
+      "quantity_rule": "driftinggirl_guild_potion_buy",
+      "confidence": 0.93
+    }
+  },
+  {
+    "id": "driftinggirl_guild_material_select",
+    "name": "公会商品：选择天赋值",
+    "enabled": true,
+    "asset": "assets/guild-shop/guild.png",
+    "source_crop": [
+      175,
+      337,
+      328,
+      374
+    ],
+    "search_area": [
+      150,
+      312,
+      355,
+      404
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_material",
+    "next_stage": "guild_material_quantity",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      365,
+      407,
+      447,
+      461
+    ],
+    "purchase_condition": {
+      "label": "天赋值已购份数",
+      "counter_area": [
+        373,
+        502,
+        441,
+        530
+      ],
+      "balance_area": [
+        560,
+        350,
+        641,
+        377
+      ],
+      "expected_total": 5,
+      "unit_price": 20,
+      "confidence": 0.93,
+      "mode": "available"
+    },
+    "required_source_areas": [
+      [
+        91,
+        469,
+        132,
+        511
+      ],
+      [
+        526,
+        350,
+        553,
+        376
+      ],
+      [
+        354,
+        545,
+        383,
+        575
+      ],
+      [
+        419,
+        548,
+        449,
+        574
+      ],
+      [
+        365,
+        407,
+        447,
+        461
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_guild_material_skip",
+    "name": "公会商品：天赋值已买满或点数不足时跳过",
+    "enabled": true,
+    "asset": "assets/guild-shop/guild.png",
+    "source_crop": [
+      175,
+      337,
+      328,
+      374
+    ],
+    "search_area": [
+      150,
+      312,
+      355,
+      404
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_material",
+    "next_stage": "guild_close",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "action": "observe",
+    "purchase_condition": {
+      "label": "天赋值已购份数",
+      "counter_area": [
+        373,
+        502,
+        441,
+        530
+      ],
+      "balance_area": [
+        560,
+        350,
+        641,
+        377
+      ],
+      "expected_total": 5,
+      "unit_price": 20,
+      "confidence": 0.93,
+      "mode": "unavailable"
+    },
+    "required_source_areas": [
+      [
+        91,
+        469,
+        132,
+        511
+      ],
+      [
+        526,
+        350,
+        553,
+        376
+      ],
+      [
+        354,
+        545,
+        383,
+        575
+      ],
+      [
+        419,
+        548,
+        449,
+        574
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_guild_material_plus",
+    "name": "公会商品：天赋值逐次加一",
+    "enabled": true,
+    "asset": "assets/guild-shop/material-min.png",
+    "source_crop": [
+      284,
+      410,
+      438,
+      455
+    ],
+    "search_area": [
+      250,
+      384,
+      475,
+      480
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 0.4,
+    "stable_frames": 2,
+    "stage": "guild_material_quantity",
+    "next_stage": "guild_material_quantity",
+    "next_delay": 0.3,
+    "stage_timeout": 30,
+    "click_source_area": [
+      487,
+      739,
+      549,
+      768
+    ],
+    "required_source_areas": [
+      [
+        288,
+        490,
+        430,
+        641
+      ],
+      [
+        323,
+        852,
+        359,
+        894
+      ],
+      [
+        500,
+        741,
+        536,
+        767
+      ]
+    ],
+    "required_tolerance": 30,
+    "quantity_condition": {
+      "label": "天赋值本次购买数量",
+      "stock_rule": "driftinggirl_guild_material_select",
+      "maximum": 5,
+      "unit_price": 20,
+      "bundle_size": 50,
+      "quantity_area": [
+        272,
+        655,
+        450,
+        724
+      ],
+      "price_area": [
+        275,
+        846,
+        529,
+        905
+      ],
+      "preprocess": "purple_text",
+      "template_prefix": "material",
+      "confidence": 0.93,
+      "mode": "increment"
+    }
+  },
+  {
+    "id": "driftinggirl_guild_material_buy",
+    "name": "公会商品：天赋值数量到上限后购买",
+    "enabled": true,
+    "asset": "assets/guild-shop/material-min.png",
+    "source_crop": [
+      284,
+      410,
+      438,
+      455
+    ],
+    "search_area": [
+      250,
+      384,
+      475,
+      480
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_material_quantity",
+    "next_stage": "guild_material_confirm",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      165,
+      840,
+      548,
+      908
+    ],
+    "required_source_areas": [
+      [
+        288,
+        490,
+        430,
+        641
+      ],
+      [
+        323,
+        852,
+        359,
+        894
+      ],
+      [
+        500,
+        741,
+        536,
+        767
+      ]
+    ],
+    "required_tolerance": 30,
+    "quantity_condition": {
+      "label": "天赋值本次购买数量",
+      "stock_rule": "driftinggirl_guild_material_select",
+      "maximum": 5,
+      "unit_price": 20,
+      "bundle_size": 50,
+      "quantity_area": [
+        272,
+        655,
+        450,
+        724
+      ],
+      "price_area": [
+        275,
+        846,
+        529,
+        905
+      ],
+      "preprocess": "purple_text",
+      "template_prefix": "material",
+      "confidence": 0.93,
+      "mode": "buy"
+    }
+  },
+  {
+    "id": "driftinggirl_guild_material_confirm",
+    "name": "公会商品：核对金额并确认购买天赋值",
+    "enabled": true,
+    "asset": "assets/guild-shop/material-confirm.png",
+    "source_crop": [
+      163,
+      773,
+      256,
+      816
+    ],
+    "search_area": [
+      137,
+      745,
+      288,
+      841
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_material_confirm",
+    "next_stage": "guild_close",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      111,
+      752,
+      331,
+      822
+    ],
+    "required_source_areas": [
+      [
+        228,
+        573,
+        257,
+        603
+      ],
+      [
+        338,
+        576,
+        528,
+        605
+      ],
+      [
+        284,
+        410,
+        438,
+        438
+      ]
+    ],
+    "required_tolerance": 20,
+    "color_condition": {
+      "source_area": [
+        130,
+        754,
+        298,
+        820
+      ],
+      "hsv": [
+        [
+          35,
+          80,
+          100
+        ],
+        [
+          90,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.4
+    },
+    "confirmation_condition": {
+      "label": "天赋值确认金额",
+      "price_area": [
+        278,
+        568,
+        337,
+        610
+      ],
+      "quantity_rule": "driftinggirl_guild_material_buy",
+      "confidence": 0.93
+    }
+  },
+  {
+    "id": "driftinggirl_guild_close",
+    "name": "公会商品：关闭公会商店",
+    "enabled": true,
+    "asset": "assets/guild-shop/guild.png",
+    "source_crop": [
+      175,
+      337,
+      328,
+      374
+    ],
+    "search_area": [
+      150,
+      312,
+      355,
+      404
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_close",
+    "next_stage": "guild_return",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "click_source_area": [
+      633,
+      244,
+      700,
+      304
+    ],
+    "required_source_areas": [
+      [
+        91,
+        469,
+        132,
+        511
+      ],
+      [
+        526,
+        350,
+        553,
+        376
+      ],
+      [
+        637,
+        251,
+        688,
+        294
+      ]
+    ]
+  },
+  {
+    "id": "driftinggirl_guild_return",
+    "name": "公会商品：确认回到主界面",
+    "enabled": true,
+    "asset": "assets/guild-shop/main.png",
+    "source_crop": [
+      649,
+      371,
+      698,
+      415
+    ],
+    "search_area": [
+      610,
+      340,
+      720,
+      450
+    ],
+    "scales": [
+      1.0
+    ],
+    "threshold": 0.94,
+    "interval": 1,
+    "stable_frames": 3,
+    "stage": "guild_return",
+    "next_stage": "main",
+    "next_delay": 0.6,
+    "stage_timeout": 30,
+    "action": "observe",
+    "color_condition": {
+      "source_area": [
+        659,
+        378,
+        691,
+        406
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          140
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.4
+    },
+    "absent_rule": "driftinggirl_guild_close"
+  },
+  {
+    "id": "driftinggirl_ad_entry_recover",
+    "name": "成长广告：入口未打开时重新识别",
+    "enabled": true,
+    "asset": "assets/navigation/main.png",
+    "source_crop": [
+      211,
+      1140,
+      266,
+      1189
+    ],
+    "search_area": [
+      200,
+      1130,
+      276,
+      1200
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "required_source_areas": [
+      [
+        542,
+        1140,
+        597,
+        1183
+      ],
+      [
+        437,
+        1144,
+        486,
+        1193
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        558,
+        1147,
+        585,
+        1168
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    },
+    "stable_frames": 3,
+    "interval": 1,
+    "stage": "ad_confirm",
+    "action": "observe",
+    "next_stage": "main",
+    "min_stage_seconds": 6,
+    "recovery_entry": "driftinggirl_bottom_right_arrow",
+    "note": "只在打开广告后尚未点击继续的步骤生效。至少等待六秒，三个游戏底栏图标连续三帧清晰可见才恢复入口检测；只观察，不点击战斗；保留原入口间隔和每日计数，五分钟最多恢复三次，不记领奖完成。"
+  },
+  {
+    "id": "driftinggirl_potion_ad_entry_recover",
+    "name": "药水广告：入口未打开时重新识别",
+    "enabled": true,
+    "asset": "assets/navigation/main.png",
+    "source_crop": [
+      211,
+      1140,
+      266,
+      1189
+    ],
+    "search_area": [
+      200,
+      1130,
+      276,
+      1200
+    ],
+    "scales": [
+      1
+    ],
+    "threshold": 0.93,
+    "required_source_areas": [
+      [
+        542,
+        1140,
+        597,
+        1183
+      ],
+      [
+        437,
+        1144,
+        486,
+        1193
+      ]
+    ],
+    "color_condition": {
+      "source_area": [
+        558,
+        1147,
+        585,
+        1168
+      ],
+      "hsv": [
+        [
+          0,
+          0,
+          210
+        ],
+        [
+          179,
+          255,
+          255
+        ]
+      ],
+      "minimum_fraction": 0.3
+    },
+    "stable_frames": 3,
+    "interval": 1,
+    "stage": "potion_ad_confirm",
+    "action": "observe",
+    "next_stage": "main",
+    "min_stage_seconds": 6,
+    "recovery_entry": "driftinggirl_potion_ad_open",
+    "note": "只在打开广告后尚未点击继续的步骤生效。至少等待六秒，三个游戏底栏图标连续三帧清晰可见才恢复入口检测；只观察，不点击战斗；保留原入口间隔和每日计数，五分钟最多恢复三次，不记领奖完成。"
+  }
+]

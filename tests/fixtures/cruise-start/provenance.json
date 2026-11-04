@@ -1,0 +1,52 @@
+[
+  {
+    "frame_id": "845da40a278d4a51835a8c6ed45c3653",
+    "source": "diagnostics\\2026-11-01\\startup-cast-0930\\before\\native-845da40a278d4a51835a8c6ed45c3653.png",
+    "sha256": "d392e5f185a246330563587d59d856d820c2f363d78554ced775214aa74614a0",
+    "crop": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "expected": [
+      3,
+      40
+    ]
+  },
+  {
+    "frame_id": "f81cc9b4f0b640b89b770c03f66401d7",
+    "source": "diagnostics\\2026-11-01\\startup-cast-0930\\before\\native-f81cc9b4f0b640b89b770c03f66401d7.png",
+    "sha256": "aef204382f79c1f710612743fad7716bbc32843e3c7817d17c7447f03ec3f591",
+    "crop": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "expected": [
+      3,
+      40
+    ]
+  },
+  {
+    "frame_id": "485c1f99b19b4c5c9a15453e864ad0ed",
+    "source": "diagnostics\\2026-11-01\\startup-cast-0930\\before\\native-485c1f99b19b4c5c9a15453e864ad0ed.png",
+    "sha256": "5e66fb8ad5c24d0db3cc8ee932b229e4092d0057f200f5e5b0ef84f2b20d6513",
+    "crop": [
+      650,
+      814,
+      718,
+      834
+    ],
+    "expected": [
+      3,
+      40
+    ]
+  },
+  {
+    "source": "diagnostics\\2026-11-01\\startup-cast-0930\\production\\native-1103c9f48aa44580991205fd2a326eef.png",
+    "sha256": "5400ad811e6b05ddad3b6552cd365a10f1d1f7e7608cc24a76a9f76f3aff87d0",
+    "expected": "R51 original-world whale rescue, timer and crossed-weapons footer; no HP sword"
+  }
+]

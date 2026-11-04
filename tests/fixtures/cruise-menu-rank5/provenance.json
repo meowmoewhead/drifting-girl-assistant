@@ -1,0 +1,23 @@
+[
+  {
+    "file": "menu-0.png",
+    "frame_id": "97b3c1c0fac04ffb900d23c5ceed4f5d",
+    "sha256": "9bb6b0d580945e236e0d6810e6c5a10edd2d0e894ae829da4059e3eae3b4368c",
+    "expected_stage": 10,
+    "expected_rank": 5
+  },
+  {
+    "file": "menu-1.png",
+    "frame_id": "208e9ab144084667b96b160a31e6f8bc",
+    "sha256": "e234167217bba7ee0c44a552874dd84f45e43e6ca212d24761733516f745c233",
+    "expected_stage": 10,
+    "expected_rank": 5
+  },
+  {
+    "file": "menu-2.png",
+    "frame_id": "2e79afe72337482a865b92fec0de0a1b",
+    "sha256": "3e7cf521f4c043239177f5a53e254626f82a8fca9d47bc597ab807f2a306a407",
+    "expected_stage": 10,
+    "expected_rank": 5
+  }
+]

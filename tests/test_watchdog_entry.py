@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class WatchdogEntryTests(unittest.TestCase):
     def test_tools_module_reexports_the_packaged_implementation(self):
         # tests keep importing the tools path; the exe imports the drift path
-        tools = importlib.import_module('tools.run_watchdog')
+        tools = importlib.import_module('dev_tools.run_watchdog')
         packaged = importlib.import_module('drift.web.watchdog')
         for name in ('main', 'should_restart', 'read_status', 'start_run', 'read_history',
                      'save_history', 'history_lock'):

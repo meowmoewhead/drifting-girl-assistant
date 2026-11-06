@@ -116,9 +116,8 @@ class ReturnParallel(ParallelScreen):
     def _save(self):
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            temporary = self.path.with_suffix(self.path.suffix + '.tmp')
-            temporary.write_text(json.dumps(self.journal, ensure_ascii=False, indent=2), encoding='utf-8')
-            temporary.replace(self.path)
+            from drift.core.persistence import atomic_write_text
+            atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2))
         except OSError as exc:
             raise RetryableStage('返回平行世界记录无法保存，停止本任务输入', task='return_parallel') from exc
 
@@ -376,3 +375,22 @@ class ReturnParallel(ParallelScreen):
                 if self._gate_active(frame):
                     self._input('enter', (354,482))
         return True
+
+# Keep legacy task logic; delegate every record read/write to shared storage.
+from drift.core.persistence import ReliablePath as Path
+
+# Shared reliability layer; retain all other deployed methods.
+def _save(self):
+    try:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2))
+    except OSError as exc:
+        raise RetryableStage('返回平行世界记录无法保存，停止本任务输入', task='return_parallel') from exc
+
+ReturnParallel._save = _save
+
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

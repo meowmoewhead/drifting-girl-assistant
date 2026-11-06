@@ -1,0 +1,20 @@
+[
+  {
+    "name": "main-2200",
+    "source": "diagnostics/2026-11-06/stuck-0737/final-route-observation/native-9010d64d9bda46bd99f292f65305cb64.png",
+    "sha256": "7ae062395141d7519aa49d1ddaca5f7e08db98c0c2889c04398f35742cc59083",
+    "independent_of_entry_reference": true
+  },
+  {
+    "name": "main-262",
+    "source": "diagnostics/2026-11-06/event-potion-icon/before-menu/native-d4fbc362d47d43b384b2591565e069e9.png",
+    "sha256": "112b3201bc11b9e07f0e6f13194350549139654fc1b863018cea58c81c19d281",
+    "independent_of_entry_reference": false
+  },
+  {
+    "name": "battle-255",
+    "source": "diagnostics/2026-11-06/event-potion-icon/before-menu/native-fead8200790541118849a0db1963fb11.png",
+    "sha256": "aa40f06e1be0f7a486a27410120bcecf7afa40a9a7d5feed4291e53e4da3246d",
+    "independent_of_entry_reference": true
+  }
+]

@@ -15,7 +15,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app import Clicker
-from tools.configure_parallel_mailbox_recovery import NEW_IDS, update
+from dev_tools.configure_parallel_mailbox_recovery import NEW_IDS, update
 
 
 class ParallelMailboxRecoveryTests(unittest.TestCase):

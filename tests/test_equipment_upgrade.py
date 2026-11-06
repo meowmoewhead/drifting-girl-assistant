@@ -17,7 +17,7 @@ from app import Clicker
 from equipment_upgrade import EquipmentUpgrade, WEAPONS
 from boss_training import BossTraining
 from training_sailing import TrainingSailing
-from tools.configure_equipment_upgrade import add, RULE
+from dev_tools.configure_equipment_upgrade import add, RULE
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -244,7 +244,9 @@ class EquipmentUpgradeTests(unittest.TestCase):
         self.assertEqual(self.u.swipes,1)
 
     def test_fresh_scroll_observation_does_not_extend_cycle_deadline(self):
-        clock = [179.9]
+        # Begin before the new close reserve, then let capture itself cross
+        # the original deadline. The fresh-frame guard must still reject input.
+        clock = [169.9]
         self.u.phase = 'to_top'
         self.u.started_at = 0
         self.u.swipes = 1
@@ -257,6 +259,7 @@ class EquipmentUpgradeTests(unittest.TestCase):
         self.assertEqual(self.u.phase,'close')
         self.assertEqual(self.actions,[])
         self.assertEqual(self.u.started_at,0)
+        self.assertTrue(self.u.interrupted)
 
     def test_shifted_title_strokes_still_require_both_headers_and_currency(self):
         frame = image('top-weather-header')
@@ -366,10 +369,10 @@ class EquipmentUpgradeTests(unittest.TestCase):
                 pass
         with tempfile.TemporaryDirectory(prefix='equipment-replay-') as directory:
             root = Path(directory)
-            if saved_route:
-                shutil.copytree(ROOT/'assets',root/'assets')
-            else:
-                shutil.copytree(ROOT/'assets/equipment', root/'assets/equipment')
+            # Current runtime main-screen guards also read the parallel/map
+            # anchors. Include the real optional source-sprite asset set so
+            # this replay exercises the same recognition path as production.
+            shutil.copytree(ROOT/'assets',root/'assets')
             config = json.loads((ROOT/'config.json').read_text(encoding='utf-8-sig'))
             rules = [deepcopy(RULE)]
             if saved_route:

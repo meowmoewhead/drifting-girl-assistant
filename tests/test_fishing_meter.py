@@ -17,7 +17,7 @@ from boss_training import BossTraining
 from digit_ocr import DigitReader
 from fishing_meter import FishingMeter
 from parallel_world import ParallelWorld
-from tools.configure_parallel_world import RULE
+from dev_tools.configure_parallel_world import RULE
 
 ROOT = Path(__file__).resolve().parents[1]
 

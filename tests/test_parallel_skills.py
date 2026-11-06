@@ -17,12 +17,21 @@ from parallel_skills import ParallelSkills
 from app import Clicker
 from boss_training import BossTraining
 from training_sailing import TrainingSailing
-from tools.configure_parallel_skills import RULE, add
+from dev_tools.configure_parallel_skills import RULE, add
 
 ROOT = Path(__file__).resolve().parents[1]
 
 def image(name):
     return np.asarray(Image.open(ROOT/'tests/fixtures/parallel-skills'/(name+'.png')).convert('RGB'))
+
+
+def enable_skill_fixture(config):
+    """Exercise skill recovery explicitly, independent of safe release defaults."""
+    from drift.tasks.cruise_options import DEFAULTS
+    for rule in config['rules']:
+        if rule['id'] == 'driftinggirl_parallel_skills':
+            rule['cruise_settings'] = deepcopy(DEFAULTS)
+            rule['cruise_settings']['cruise']['enabled'] = False
 
 
 class ParallelSkillsTests(unittest.TestCase):
@@ -178,6 +187,23 @@ class ParallelSkillsTests(unittest.TestCase):
             self.assertEqual(self.actions, [])
             self.assertEqual(self.u.path.read_bytes(), saved)
 
+    def assert_expired_navigation_or_purchase(self,frame,second):
+        phase=self.u.phase;cycles=self.u.cycles
+        saved=self.u.path.read_bytes() if self.u.path.exists() else None
+        try:
+            self.u.step(frame)
+        except RuntimeError as exc:
+            self.assertIn('超时',str(exc))
+        else:
+            # Current DS navigation policy abandons an unopened menu, while
+            # older supported controllers stop. Purchase phases must still stop.
+            self.assertIn(phase,('opening','await_main','closing','configure'))
+            self.assertEqual(self.u.phase,'idle')
+            self.assertEqual(self.u.next_check_at,second+30)
+            self.assertEqual(self.u.cycles,cycles)
+            self.assertEqual(self.u.path.read_bytes() if self.u.path.exists() else None,saved)
+        self.assertEqual(self.actions,[])
+
     def test_timeout_grace_requires_visible_expected_page_and_has_a_fixed_limit(self):
         panel = image('parallel-sailing-open-timeout')
         for phase, frame, second in (
@@ -186,8 +212,7 @@ class ParallelSkillsTests(unittest.TestCase):
             ('verify', panel, 31), ('await_main', panel, 31)):
             self.u.phase, self.u.since = phase, 0
             with patch('parallel_skills.time.monotonic', return_value=second):
-                with self.assertRaisesRegex(RuntimeError, '超时'):
-                    self.u.step(frame)
+                self.assert_expired_navigation_or_purchase(frame,second)
         self.assertEqual(self.actions, [])
 
     def test_opening_observations_must_be_consecutive(self):
@@ -260,8 +285,7 @@ class ParallelSkillsTests(unittest.TestCase):
                     if suspended:
                         self.u.suspend(60)
                 with patch('parallel_skills.time.monotonic',return_value=second):
-                    with self.assertRaisesRegex(RuntimeError,'超时'):
-                        self.u.step(current)
+                    self.assert_expired_navigation_or_purchase(current,second)
         self.assertEqual(self.actions,[])
 
     def test_interrupted_opening_still_adopts_a_real_panel(self):
@@ -306,6 +330,7 @@ class ParallelSkillsTests(unittest.TestCase):
         root = Path(self.temp.name)
         shutil.copytree(ROOT/'assets', root/'assets')
         config = json.loads((ROOT/'config.json').read_text(encoding='utf-8-sig'))
+        enable_skill_fixture(config)
         config.update(rules=[deepcopy(r) for r in config['rules']
                             if r['id'] in ('driftinggirl_parallel_world', 'driftinggirl_parallel_skills')],
                       poll_interval=.1)
@@ -375,6 +400,7 @@ class ParallelSkillsTests(unittest.TestCase):
         root = Path(self.temp.name)
         shutil.copytree(ROOT/'assets',root/'assets')
         config = json.loads((ROOT/'config.json').read_text(encoding='utf-8-sig'))
+        enable_skill_fixture(config)
         config.update(rules=[deepcopy(r) for r in config['rules']
                             if r['id'] in ('driftinggirl_parallel_world','driftinggirl_parallel_skills')],poll_interval=.1)
         for rule in config['rules']:

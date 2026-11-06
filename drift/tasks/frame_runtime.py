@@ -5,7 +5,7 @@ and its OCR submits multiple numeric regions together. Game controllers keep
 their own deadlines, confirmations and fresh-input guards above this layer.
 """
 from collections import deque
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import threading
 import time
 
@@ -19,6 +19,7 @@ class FrameRuntime:
         self.samples = {}
         self.counts = {}
         self.engine = None
+        self.ui = None
 
     def start_engine(self):
         from drift.core.maa_engine import MaaEngine
@@ -39,9 +40,14 @@ class FrameRuntime:
         finally:self.record(name,self.clock()-began)
 
     def call(self, name, function, *args, **kwargs):
+        if getattr(self,'ui',None) is not None and kwargs.get('due') is not False and not self.ui.can_call(name):
+            return False
         with self.measure(name):
             if self.engine is None or self.engine.in_action():
-                return function(*args, **kwargs)
+                try:
+                    with self.ui.scope(name) if getattr(self,'ui',None) is not None else nullcontext():
+                        return function(*args, **kwargs)
+                finally:self._flush_ui(name)
             def invoke():
                 reader=self.reader()
                 begin=getattr(reader,'begin_frame',None)
@@ -50,10 +56,19 @@ class FrameRuntime:
                 # callback even on the same OS thread. Do not assume its TLS
                 # survives jobs or transport a previous job's numeric cache.
                 if callable(begin):begin()
-                try:return function(*args, **kwargs)
+                try:
+                    with self.ui.scope(name) if getattr(self,'ui',None) is not None else nullcontext():
+                        return function(*args, **kwargs)
                 finally:
                     if callable(end):end()
+                    self._flush_ui(name)
             return self.engine.call(name,invoke)
+
+    def _flush_ui(self,name):
+        ui=getattr(self,'ui',None)
+        if ui is not None:
+            canonical=ui.ALIASES.get(name,name)
+            if canonical in ui.MANAGED or canonical in ui.PRIORITY:ui.flush()
 
     def close(self):
         if self.engine is not None:self.engine.close()
@@ -119,3 +134,63 @@ class FrameRuntime:
                     framework=self.engine.snapshot() if self.engine is not None else None,
                     transport=getattr(self.device,'screenshot_transport',None),
                     native=native_status() if callable(native_status) else None)
+
+# Shared reliability layer; retain all other deployed methods.
+def call(self, name, function, *args, **kwargs):
+    if getattr(self,'ui',None) is not None and kwargs.get('due') is not False and not self.ui.can_call(name):
+        return False
+    with self.measure(name):
+        if self.engine is None or self.engine.in_action():
+            return function(*args, **kwargs)
+        def invoke():
+            reader=self.reader()
+            begin=getattr(reader,'begin_frame',None)
+            end=getattr(reader,'end_frame',None)
+            # ctypes may create a fresh Python thread state for each Maa
+            # callback even on the same OS thread. Do not assume its TLS
+            # survives jobs or transport a previous job's numeric cache.
+            if callable(begin):begin()
+            try:return function(*args, **kwargs)
+            finally:
+                if callable(end):end()
+        return self.engine.call(name,invoke)
+
+FrameRuntime.call = call
+
+
+from contextlib import nullcontext
+
+def call(self, name, function, *args, **kwargs):
+    if getattr(self,'ui',None) is not None and kwargs.get('due') is not False and not self.ui.can_call(name):
+        return False
+    with self.measure(name):
+        if self.engine is None or self.engine.in_action():
+            try:
+                with self.ui.scope(name) if getattr(self,'ui',None) is not None else nullcontext():
+                    return function(*args, **kwargs)
+            finally:self._flush_ui(name)
+        def invoke():
+            reader=self.reader()
+            begin=getattr(reader,'begin_frame',None)
+            end=getattr(reader,'end_frame',None)
+            # ctypes may create a fresh Python thread state for each Maa
+            # callback even on the same OS thread. Do not assume its TLS
+            # survives jobs or transport a previous job's numeric cache.
+            if callable(begin):begin()
+            try:
+                with self.ui.scope(name) if getattr(self,'ui',None) is not None else nullcontext():
+                    return function(*args, **kwargs)
+            finally:
+                if callable(end):end()
+                self._flush_ui(name)
+        return self.engine.call(name,invoke)
+
+FrameRuntime.call = call
+
+def _flush_ui(self,name):
+    ui=getattr(self,'ui',None)
+    if ui is not None:
+        canonical=ui.ALIASES.get(name,name)
+        if canonical in ui.MANAGED or canonical in ui.PRIORITY:ui.flush()
+
+FrameRuntime._flush_ui = _flush_ui

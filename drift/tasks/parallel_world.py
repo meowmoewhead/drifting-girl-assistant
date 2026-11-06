@@ -1667,3 +1667,5 @@ class ParallelWorld(ParallelScreen):
             return True
 
         raise RuntimeError(f'未知平行世界步骤：{self.phase}')
+
+

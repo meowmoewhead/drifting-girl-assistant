@@ -130,3 +130,5 @@ class LoopState:
         self.daily_orphan_frames = 0
         self.recovery_pause_at = self.recovery_pause_stage = None
         self.recovery_pause_used = 0.0
+
+

@@ -480,9 +480,8 @@ class StoneFarm(ParallelScreen):
             request.update(mode='observed_cycle_restore',allow_observed_cycle_restore=True,
                            allow_ordinary_cancel=False,expires_at=time.time()+60)
         path = root/'stone_farm_retry.json'
-        temporary = path.with_suffix('.tmp')
-        temporary.write_text(json.dumps(request,indent=2)+'\n',encoding='utf-8')
-        temporary.replace(path)
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(path, json.dumps(request, indent=2) + '\n')
         return request
 
     @staticmethod
@@ -658,9 +657,8 @@ class StoneFarm(ParallelScreen):
         return True
 
     def _save(self):
-        temporary = self.path.with_suffix('.tmp')
-        temporary.write_text(json.dumps(self.journal, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
-        temporary.replace(self.path)
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2) + '\n')
 
     def retire_retryable(self, frame):
         """Release an expired handoff only on its fresh unobscured main.
@@ -2871,3 +2869,23 @@ class StoneFarm(ParallelScreen):
                 self._finish(frame)
             return True
         raise RuntimeError('未知次元石降阶步骤：'+phase)
+
+# Shared reliability layer; retain all other deployed methods.
+def _save(self):
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2) + '\n')
+
+StoneFarm._save = _save
+
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path
+from drift.tasks.entry_recovery import install as _install_entry_record
+_install_entry_record(StoneFarm)
+del _install_entry_record
+
+
+from drift.perception.menu_rank import install as _install_menu_rank
+_install_menu_rank(StoneFarm)
+del _install_menu_rank

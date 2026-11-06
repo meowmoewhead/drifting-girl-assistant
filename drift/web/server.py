@@ -125,6 +125,10 @@ def make_handler(app):
                     result = app.change_task_time(data)
                 elif path == "/api/settings":
                     result = app.change_settings(data)
+                elif path == "/api/devices/detect":
+                    result = app.list_devices(data)
+                elif path == "/api/devices/select":
+                    result = app.select_device(data)
                 elif path == "/api/start":
                     result = app.start(preview=data.get("preview", True) is not False,
                                        rule_ids=data.get("rule_ids"), stop_on_main=data.get("stop_on_main", False),
@@ -146,3 +150,12 @@ def make_handler(app):
                 self.respond({"error": str(exc)}, status=400)
 
     return Handler
+
+
+# Native desktop adapter; retain the deployed HTTP/task implementation above.
+_desktop_base_factory = make_handler
+def make_handler(app):
+    from drift.desktop.service import extend_handler
+    return extend_handler(_desktop_base_factory, app)
+
+

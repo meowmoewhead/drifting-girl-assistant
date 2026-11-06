@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from tools import package_release as release
+from deploy import package_release as release
 
 
 class PackageReleaseTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class PackageReleaseTests(unittest.TestCase):
             self.write(name, b"fixture\n")
         self.write("VERSION", b"0.1.0\n")
         self.write("config.json", b'\xef\xbb\xbf{"rules": [], "serial": "fixture"}\r\n')
-        self.write("config.example.json", b'\xef\xbb\xbf{"rules": [], "serial": "fixture"}\r\n')
+        self.write("config/default.json", b'\xef\xbb\xbf{"rules": [], "serial": "fixture"}\r\n')
         self.write("release/mumu-panel.exe", b"MZ\x00portable-test-executable\xff")
         self.write("assets/sub/template.png", b"template")
         self.write("assets/sub/metadata.bin", b"include all resource extensions")
@@ -79,7 +79,7 @@ class PackageReleaseTests(unittest.TestCase):
         with self.archive() as archive:
             manifest = json.loads(archive.read("mumu-clicker/version.json"))
             self.assertEqual(set(manifest), {"version", "built_at", "exe_sha256", "exe_bytes",
-                                             "upstream", "files", "asset_files", "model_files", "source_sha256"})
+                                             "upstream", "files", "asset_files", "model_files", "source_sha256", "update_schema", "payload_sha256"})
             exe = archive.read("mumu-clicker/mumu-panel.exe")
             self.assertEqual(manifest["exe_sha256"], hashlib.sha256(exe).hexdigest())
             self.assertEqual(manifest["exe_bytes"], len(exe))
@@ -102,7 +102,7 @@ class PackageReleaseTests(unittest.TestCase):
     def test_missing_required_input_does_not_replace_existing_archive(self):
         archive = self.root / "release/mumu-clicker-0.1.0-win64.zip"
         archive.write_bytes(b"previous release")
-        (self.root / "config.example.json").unlink()
+        (self.root / "config/default.json").unlink()
         with self.assertRaises(FileNotFoundError):
             release.package_release(self.root)
         self.assertEqual(archive.read_bytes(), b"previous release")
@@ -125,7 +125,7 @@ class PackageReleaseTests(unittest.TestCase):
         for name in release.FULL_FILES:
             if not (self.root / name).exists():
                 self.write(name, b"legacy source")
-        for name in ("tests/test_fixture.py", "drift/runtime.py", "tools/example.py",
+        for name in ("tests/test_fixture.py", "drift/runtime.py", "dev_tools/example.py",
                      "captures/mailbox-before-claim.png", "diagnostics/daily-reward/cycle-021-daily_return.png"):
             self.write(name, b"legacy fixture")
         with self.archive(full=True) as archive:
@@ -133,7 +133,7 @@ class PackageReleaseTests(unittest.TestCase):
             self.assertIn("mumu-panel.exe", archive.namelist())
             self.assertIn("tests/test_fixture.py", archive.namelist())
             self.assertIn("drift/runtime.py", archive.namelist())
-            self.assertIn("tools/example.py", archive.namelist())
+            self.assertIn("dev_tools/example.py", archive.namelist())
             self.assertIn("captures/mailbox-before-claim.png", archive.namelist())
             self.assertIn("diagnostics/daily-reward/cycle-021-daily_return.png", archive.namelist())
             self.assertFalse(any(name.startswith("mumu-clicker/") for name in archive.namelist()))

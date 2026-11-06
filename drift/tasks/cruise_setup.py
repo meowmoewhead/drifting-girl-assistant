@@ -233,3 +233,5 @@ class CruiseSetup:
             self.done = True
         self.state, self.deadline = 'idle', None
         self._key, self._seen = None, 0
+
+

@@ -78,11 +78,13 @@ class TaskRegistryTests(unittest.TestCase):
             self.assertFalse(spec.main_guard, spec.id)
 
     def test_rule_feature_mapping_covers_config_rules(self):
+        from drift.ui.world_map import RULE_ID
         rules = config_rules()
-        missing = [identifier for identifier in rules if identifier not in RULE_FEATURE]
+        # The shared map-close handler is not a standalone scheduled task.
+        missing = [identifier for identifier in rules if identifier not in RULE_FEATURE and identifier != RULE_ID]
         self.assertEqual(missing, [], f"config.json 里有未挂到任何功能的规则: {missing}")
         declared = {identifier for spec in TASK_SPECS.values() for identifier in spec.rules}
-        self.assertEqual(declared, set(rules))
+        self.assertEqual(declared | {RULE_ID}, set(rules))
 
     def test_dependency_graph_only_references_known_features(self):
         for spec in TASK_SPECS.values():

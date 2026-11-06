@@ -110,7 +110,7 @@ class ScheduleTests(unittest.TestCase):
     def test_failed_atomic_write_does_not_change_saved_time(self):
         self.schedule.set_next('equipment_upgrade',self.now.isoformat())
         saved = self.schedule.path.read_bytes()
-        with patch.object(Path,'replace',side_effect=OSError('disk full')):
+        with patch('drift.core.persistence.os.replace',side_effect=OSError('disk full')):
             with self.assertRaises(OSError):
                 self.schedule.set_next('equipment_upgrade',(self.now+timedelta(hours=1)).isoformat())
         self.assertEqual(self.schedule.path.read_bytes(),saved)
@@ -240,6 +240,7 @@ class RunnerScheduleTests(unittest.TestCase):
         self.assertEqual(self.app.config,original)
         self.assertFalse(self.app.task_schedule.path.exists())
         self.app.start(preview=True)
+        self.app.task_schedule.active.add('daily_reward')
         with self.assertRaises(ValueError):self.app.change_task_time(dict(id='daily_reward',next_run=None))
 
 

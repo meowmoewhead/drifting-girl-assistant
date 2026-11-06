@@ -17,7 +17,7 @@ from app import Clicker
 from digit_ocr import DigitReader, CounterReading
 from boss_training import BossTraining
 from parallel_world import ParallelWorld
-from tools.configure_backpack_sale import update, RULE
+from dev_tools.configure_backpack_sale import update, RULE
 
 ROOT = Path(__file__).resolve().parents[1]
 

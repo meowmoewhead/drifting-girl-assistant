@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *.spec
+!deploy/mumu-panel.spec
 config.json
 config.json.*
 *_state.json

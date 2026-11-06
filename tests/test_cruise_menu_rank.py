@@ -45,7 +45,8 @@ class ActualMenuRankTests(unittest.TestCase):
         for legacy,new in cases:
             with self.subTest(legacy=legacy,new=new), \
                  patch('drift.tasks.stone_farm.read_numeric_views',side_effect=[legacy,legacy]), \
-                 patch('drift.tasks.parallel_screen.read_numeric_views',return_value=new):
+                 patch('drift.tasks.parallel_screen.read_numeric_views',return_value=new), \
+                 patch('drift.perception.menu_rank.read_numeric_views',side_effect=[legacy+legacy[:2],new+new]):
                 self.assertIsNone(self.w._sailing_menu_rank(f))
     def test_complete_known_settings_get_fresh_start_guard(self):
         from drift.tasks.cruise_options import normalize

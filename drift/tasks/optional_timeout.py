@@ -322,3 +322,5 @@ class OptionalCleanup:
         else:
             self.frames += 1
         return self.frames >= 3 and now-self.since >= 3
+
+

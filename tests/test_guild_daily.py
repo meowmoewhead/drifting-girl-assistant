@@ -11,7 +11,7 @@ from drift.tasks.daily import DailySchedule, BEIJING
 from drift.tasks.schedule import TaskSchedule
 from drift.tasks.guild_daily import GuildDaily, GuildVisual
 import cv2
-from tools.configure_guild_daily import add, RULE
+from dev_tools.configure_guild_daily import add, RULE
 
 
 class GuildScheduleTests(unittest.TestCase):

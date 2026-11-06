@@ -287,11 +287,20 @@ class ParallelSkills:
                 return True
             # A slow capture can arrive after the deadline with the expected
             # page already visible. Only finish its consecutive observations;
-            # unknown pages and purchase phases never gain a renewed deadline.
+            # purchase phases never gain a renewed deadline.
             visible = ((self.phase == 'opening' and (self.panel(frame)
                         or (self.opening_interrupted and self.main(frame))))
                        or (self.phase == 'await_main' and self.main(frame)))
             if not visible or now-self.since > self.STEP_SECONDS+self.OBSERVATION_GRACE:
+                # Navigation timeouts: abandon this round and retry later.
+                # Raising here used to hard-stop the whole panel via record_failure.
+                if self.phase in ('opening', 'await_main', 'closing', 'configure'):
+                    delay = 30
+                    phase = self.phase
+                    self.next_check_at = now + delay
+                    self._set('idle')
+                    self.event(f'平行世界技能步骤超时（{phase}）：本轮放弃，{int(delay)}秒后重新检查')
+                    return True
                 raise RuntimeError('平行世界技能步骤超时：'+self.phase)
         if self.phase == 'opening':
             if self.panel(frame):
@@ -376,3 +385,15 @@ class ParallelSkills:
             else:
                 self.stable, self.key = 0, None
         return True
+
+# Shared reliability layer; retain all other deployed methods.
+def _save(self):
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2) + '\n')
+
+ParallelSkills._save = _save
+
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

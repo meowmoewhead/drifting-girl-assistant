@@ -192,7 +192,7 @@ class CandyEventPotionTests(EventPotionTests):
             self.assertFalse(self.match('return', missing)[0])
 
     def test_migration_preserves_user_choices_and_all_other_workflows(self):
-        from tools.configure_event_candy import update, IDS
+        from dev_tools.configure_event_candy import update, IDS
         before = deepcopy(self.config)
         for rule in before['rules']:
             if rule['id'] in IDS:

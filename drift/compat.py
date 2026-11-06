@@ -77,3 +77,5 @@ def module_proxy(name, target_path):
     namespace.update({key: value for key, value in vars(target).items() if not key.startswith("__")})
     current.__class__ = _ModuleProxy
     return current
+
+

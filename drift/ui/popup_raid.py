@@ -151,3 +151,5 @@ class PopupRaidReturn:
         st.target_keys.clear()
         self.clear()
         return True
+
+

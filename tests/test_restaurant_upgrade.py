@@ -14,7 +14,7 @@ from drift.perception.restaurant import RestaurantVisual
 from drift.tasks.restaurant_upgrade import RestaurantUpgrade, unpack
 from drift.tasks.schedule import TaskSchedule
 from drift.tasks.daily import BEIJING
-from tools.configure_restaurant_upgrade import add, RULE
+from dev_tools.configure_restaurant_upgrade import add, RULE
 
 ROOT=Path(__file__).resolve().parents[1]
 EVIDENCE=ROOT/'diagnostics/2026-10-25/restaurant-upgrade'
@@ -1094,13 +1094,13 @@ class RestaurantJournalTests(unittest.TestCase):
             self.assertEqual(c.phase,'detail')
 
 class RestaurantScheduleTests(unittest.TestCase):
-    def test_failed_run_also_waits_three_days(self):
+    def test_failed_run_uses_existing_thirty_minute_retry(self):
         with tempfile.TemporaryDirectory() as d:
             now=datetime(2026,10,25,9,41,23,tzinfo=BEIJING)
             s=TaskSchedule(d,'x',lambda:now)
             s.begin('restaurant_upgrade',259200)
             s.finish('restaurant_upgrade',259200,success=False)
-            self.assertEqual(s.next_run('restaurant_upgrade'),now+timedelta(days=3))
+            self.assertEqual(s.next_run('restaurant_upgrade'),now+timedelta(seconds=1800))
             self.assertEqual(s.entries['restaurant_upgrade']['reason'],'retry')
 
     def test_three_day_schedule_survives_restart(self):

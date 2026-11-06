@@ -56,12 +56,19 @@ from drift.ui.guild_selection import GuildSelectionGuard, GuildReturnGuard, SELE
 from drift.ui.popup_raid import PopupRaidReturn
 from drift.ui.popup_cruise import PopupCruiseReturn
 from drift.ui.mailbox_close import MailboxCloseGuard, CLOSES as MAILBOX_CLOSES
+from drift.ui.world_map import (
+    RULE_ID as WORLD_MAP_CLOSE_ID, CLOSE_XY as WORLD_MAP_CLOSE_XY,
+    world_map_open, map_navigation_owned,
+)
 from drift.core.util import hsv_mask, number, png_bytes, rectangle
 from drift.core.matcher import (observe_native_crown_return, observe_popup_equipment_return,
                                 popup_reclick_decision, scan_rules)
 from drift.core.exceptions import GameStuck, RetryableStage
 from drift.tasks.optional_timeout import PotionAdRecovery
 from drift.core.progress import ProgressGuard
+from drift.core.lifecycle import RuntimeLifecycle
+from drift.tasks.entry_recovery import attach as attach_entry_recovery
+from drift.build_info import BUILD
 from drift.core.observability import stop_request_context
 from drift.core.pages import build
 from drift.core.ui import Navigator, nav_requested
@@ -179,6 +186,8 @@ class Clicker:
         self.pass_evidence = None
         self.guild_daily_evidence = None
         self.restaurant_evidence = None
+        from drift.device.profiles import recover_switch
+        recover_switch(self.root)
         self.config = json.loads((self.root / "config.json").read_text(encoding="utf-8-sig"))
         self.daily_schedule = _lookup("DailySchedule")(self.root, self.config['serial'])
         self.daily_schedule.require_bonus = any(supported_bonus(r) and r['enabled'] for r in self.config['rules'])
@@ -256,16 +265,16 @@ class Clicker:
             self.event('已登记一次标尺修复重试；原失败记录、次数和截止时间未修改')
             return result
     def persist(self, config=None):
-        temporary = self.root / "config.json.tmp"
-        temporary.write_text(json.dumps(self.config if config is None else config, ensure_ascii=False, indent=2), encoding="utf-8")
-        temporary.replace(self.root / "config.json")
-    def commit_config(self, config):
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(self.root / 'config.json', json.dumps(self.config if config is None else config, ensure_ascii=False, indent=2))
+    def commit_config(self, config, *, task_update=True):
         # Save a whole workflow atomically; a failed write leaves the running config intact.
         self.persist(config)
         self.config = config
         self.device.config = config
         self.daily_schedule.require_bonus = any(supported_bonus(r) and r['enabled'] for r in config['rules'])
-        self.config_revision += 1
+        if task_update:
+            self.config_revision += 1
     def remember(self, image):
         identifier = uuid.uuid4().hex
         with self.lock:
@@ -306,7 +315,12 @@ class Clicker:
         with self.lock:
             if self.running() and self.state["frame_id"]:
                 return self.frame_info(self.state["frame_id"])
-        return self.frame_info(self.remember(self.device.screenshot()))
+            device = self.device
+        image = device.screenshot()
+        with self.lock:
+            if device is not self.device:
+                raise ValueError("模拟器连接已更换，请重新刷新截图")
+            return self.frame_info(self.remember(image))
     def frame_info(self, identifier):
         with self.lock:
             image = self.frames[identifier]
@@ -322,6 +336,7 @@ class Clicker:
         # Maa shutdown may wait for a callback that updates this app. Do not
         # hold the app lock while taking the framework's independent snapshot.
         performance = self.runtime.snapshot() if self.runtime is not None else None
+        lifecycle = getattr(self, 'lifecycle', None)
         with self.lock:
             return {**self.state, "running": self.running(), "rules": self.config["rules"],
                     "features": self.feature_status(),
@@ -331,7 +346,9 @@ class Clicker:
                     "warnings": list(self.state.get('warnings', [])),
                     "serial": self.config["serial"], "resolution": self.config["resolution"],
                     "events": list(self.events), "upstream": UPSTREAM,
-                    "performance": performance, "stone_record": handoff_journal.status(self.root),
+                    "performance": performance, "build": dict(BUILD),
+                    "lifecycle": lifecycle.status() if lifecycle is not None else None,
+                    "stone_record": handoff_journal.status(self.root),
                     "meter_record": meter_journal.status(self.root)}
     def feature_status(self):
         daily = self.daily_schedule.status()
@@ -339,7 +356,8 @@ class Clicker:
                               self.task_schedule.status(self.config, daily, self.running()))
     def change_task_time(self, data):
         with self.lock:
-            self.idle_only()
+            if self.running() and self.state['scoped']:
+                raise ValueError('请先停止单项测试，再调整任务时间')
             if set(data) != {'id', 'next_run'}:
                 raise ValueError('需要任务 ID 和下次开启时间')
             feature = next((f for f in self.feature_status() if f['id'] == data['id']), None)
@@ -382,9 +400,6 @@ class Clicker:
                 raise ValueError("功能开关必须为布尔值")
             if feature['id'] == 'return_parallel' and 'interval' in data:
                 raise ValueError('返回平行世界只支持功能开关')
-            if "interval" in data or "mana_threshold" in data or "training" in data or "growth_points" in data or "targets" in data:
-                if not cruise_change:
-                    self.idle_only()
             updated = deepcopy(self.config)
             members = {r["id"]: r for r in updated["rules"] if r["id"] in feature["rules"]}
             if len(members) != len(feature["rules"]):
@@ -439,9 +454,18 @@ class Clicker:
             suffix = "，返回主画面后生效" if self.running() else ""
             self.event(f"{action}：{feature['name']}{suffix}")
             return next(f for f in self.feature_status() if f["id"] == feature["id"])
+    def list_devices(self, data):
+        from drift.device.selection import list_devices
+        return list_devices(self, data)
+
+
+    def select_device(self, data):
+        from drift.device.selection import select_device
+        return select_device(self, data)
+
+
     def change_settings(self, data):
         with self.lock:
-            self.idle_only()
             if not data or not set(data) <= {"poll_interval", "max_consecutive_clicks"}:
                 raise ValueError("不支持的运行设置")
             updated = deepcopy(self.config)
@@ -453,8 +477,10 @@ class Clicker:
                     raise ValueError("重复点击上限必须为整数")
                 number(value, 1, 10000)
                 updated["max_consecutive_clicks"] = value
-            self.commit_config(updated)
-            self.event("运行设置已保存")
+            # The loop reads these two values for every new wait/limit check.
+            # They need no task reconstruction and must not reset click counts.
+            self.commit_config(updated, task_update=False)
+            self.event("运行参数已保存，下一轮检查使用新值" if self.running() else "运行设置已保存")
     def add_rule(self, data):
         with self.lock:
             self.idle_only()
@@ -1229,14 +1255,6 @@ class Clicker:
         st.stage_started_at = _time().monotonic()
         st.daily_period = self.daily_schedule.period()
         st.scheduled = not preview and follow_settings
-        def finish_scheduled_daily(success=False):
-            if st.scheduled_daily is not None:
-                feature, interval, started_period = st.scheduled_daily
-                daily = self.daily_schedule.status()[feature]
-                if daily['period'] != started_period:
-                    daily = {**daily, 'period': started_period, 'completed': False}
-                self.task_schedule.finish(feature, interval, daily, success=success)
-                st.scheduled_daily = None
         def begin_daily_cleanup(stage='daily_after_claim'):
             # Cleanup is a separate, bounded return, never a renewed award
             # attempt. Its close and return remain the configured rules.
@@ -1251,17 +1269,6 @@ class Clicker:
             st.number_values.clear();st.target_keys.clear()
             with self.lock:
                 self.state['stage'] = st.stage
-        def step_scheduled_controller(feature, label, controller, image):
-            invoke = lambda fn, picture: runtime.call(label, fn, picture)
-            if feature == 'parallel_skills' and getattr(controller,'force_check',False):
-                owned=invoke(controller.step,image)
-                if controller.cycles:
-                    controller.force_check=False
-                    self.task_schedule.finish(feature,controller.interval,success=True)
-                return owned
-            if st.scheduled:
-                return self.task_schedule.step_controller(feature, controller, image, invoke)
-            return invoke(controller.step, image)
         st.number_values = {}
         st.target_keys = {}
         st.matchers = {rule["id"]: (rule, button, offset) for rule, button, offset in rules}
@@ -1281,7 +1288,7 @@ class Clicker:
                     return False
                 cleanup.begin(st.stage_deadline)
                 entry = st.matchers[cleanup.ENTRY][0]
-                self.task_schedule.finish('potion_ad', entry['interval'], success=False)
+                self.task_schedule.finish('potion_ad', entry['interval'], success=False, outcome='blocked')
                 st.daily_attempt, st.daily_verified = None, False
                 st.entry_recoveries.setdefault(cleanup.ENTRY, deque()).append(now)
                 st.stage = 'potion_ad_cancel_return'
@@ -1308,7 +1315,8 @@ class Clicker:
                         # buy a second cancellation of the same modal.
                         cleanup.cancelled = True
                         with self.lock:self.state['potion_ad'] = cleanup.status()
-                        self.device.click(cleanup.button)
+                        with self.lifecycle.ui.scope('cleanup'):
+                            self.device.click(cleanup.button)
                         with self.lock:self.state['clicks'] += 1
                         return True
                 runtime.call('potion_ad_cancel', cancel_wrong_world)
@@ -1343,25 +1351,6 @@ class Clicker:
         guild_daily = None
         restaurant = None
         return_parallel = None
-        def parallel_click(x, y, label):
-            x, y = int(x), int(y)
-            self.device.click(SimpleNamespace(button=(max(0, x-5), max(0, y-5),
-                                                      min(720, x+5), min(1280, y+5))))
-            with self.lock:
-                self.state['clicks'] += 1
-                self.state['matches'] += 1
-                self.state['last_match'] = {'name': label, 'score': 1.,
-                                            'box': [x-5, y-5, x+5, y+5]}
-            self.event(f'点击：{label}，坐标 ({x}, {y})')
-        def parallel_swipe(x1, y1, x2, y2, label):
-            with self.device.io_lock:
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                self.device.command('shell', 'input', 'swipe', str(x1), str(y1),
-                                    str(x2), str(y2), '480')
-            with self.lock:
-                self.state['clicks'] += 1
-            self.event(label)
         def make_parallel():
             entry = next((rule for rule, _, _ in rules
                           if rule['id'] == 'driftinggirl_parallel_world'), None)
@@ -1401,215 +1390,6 @@ class Clicker:
             controller.sailing_shutdown = drain
             controller.only_sailing_shutdown = drain
             return controller
-        def portal_click(action, owner=None):
-            owner = parallel if owner is None else owner
-            with self.device.io_lock:
-                if (self.stop_event.is_set()
-                        or max_clicks is not None and self.state['clicks'] >= max_clicks
-                        or st.run_deadline is not None and _time().monotonic() >= st.run_deadline):
-                    raise InterruptedError('已停止')
-                returning = action['kind'].startswith('return-')
-                abandoning_boss = owner is stone and action['kind'] in ('lower-boss-abandon','lower-boss-abandon-menu')
-                fast_contact = returning or abandoning_boss
-                cancelling = owner is stone and action['kind'] == 'handoff-cancel'
-                def stopped():
-                    return (self.stop_event.is_set()
-                        or max_clicks is not None and self.state['clicks'] >= max_clicks
-                        or st.run_deadline is not None and _time().monotonic() >= st.run_deadline)
-                started = _time().monotonic()
-                capture = runtime.capture
-                fresh = capture()
-                if cancelling:
-                    scan_deadline = started+6
-                    reserved = False
-                    for index in range(40):
-                        if stopped() or _time().monotonic() >= scan_deadline or not owner.same_cancel_context(action,fresh):
-                            return False
-                        if owner.validate_portal(action,fresh) and _time().monotonic()-started <= .12:
-                            if reserved:
-                                break
-                            # Persist the conservative attempt before contact,
-                            # then capture again. Disk writes may outlive the
-                            # 120 ms input frame; never spend that stale frame
-                            # or reserve a second attempt for the same scan.
-                            if not owner.reserve_input(action):
-                                return False
-                            reserved = True
-                        if index == 39:
-                            return False
-                        started = _time().monotonic()
-                        fresh = capture()
-                frame_id = self.remember(fresh)
-                # The cancelling loop just checked this exact fresh frame.
-                # Repeating its image work eats the fleeting cast window.
-                if not cancelling and not owner.validate_portal(action,fresh):
-                    return False
-                if (self.stop_event.is_set()
-                        or max_clicks is not None and self.state['clicks'] >= max_clicks
-                        or st.run_deadline is not None and _time().monotonic() >= st.run_deadline):
-                    raise InterruptedError('已停止')
-                if (fast_contact or cancelling) and _time().monotonic()-started > .12:
-                    return False
-                if cancelling and _time().monotonic() >= scan_deadline:
-                    return False
-                if not cancelling and hasattr(owner, 'reserve_input') and not owner.reserve_input(action):
-                    return False
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                if (fast_contact or cancelling) and _time().monotonic()-started > .12:
-                    return False
-                if cancelling and _time().monotonic() >= scan_deadline:
-                    return False
-                metadata = dict(input_id=uuid.uuid4().hex,frame_id=frame_id,
-                    kind=action['kind'],x=action['x'],y=action['y'],
-                    label=action['label'],rank=owner.rank,
-                    completed_rank_40=owner.completed_rank_40,
-                    controller='stone_farm' if owner is stone else 'parallel_world',
-                    input_begin_time=_time().time(),capture_age_ms=round((_time().monotonic()-started)*1000,2))
-                if cancelling:
-                    metadata['continuous_cast_stop'] = action.get('continuous_stop') is True
-                if fast_contact or cancelling:
-                    if action['kind']=='return-confirm' or owner is stone and action['kind']=='lower-boss-abandon-menu':
-                        # Unity's modal button needs a complete stationary
-                        # contact. Keep the battle SDK's 40 ms release intact;
-                        # this is the existing 80 ms ADB menu gesture instead.
-                        if stopped():
-                            raise InterruptedError('已停止')
-                        self.device.command('shell','input','swipe',str(action['x']),str(action['y']),
-                                            str(action['x']),str(action['y']),'80')
-                        contact = dict(input_transport='adb-stationary',hold_ms=80)
-                    else:
-                        contact = self.device.touch_fast(action['x'],action['y'],started,stopped)
-                    if contact is None:
-                        return False
-                    metadata.update(contact)
-                    with self.lock:
-                        self.state['clicks'] += 1
-                        self.state['matches'] += 1
-                        self.state['last_match'] = {'name':action['label'],'score':1.,
-                            'box':[action['x']-5,action['y']-5,action['x']+5,action['y']+5]}
-                    self.event(f"点击：{action['label']}，坐标 ({action['x']}, {action['y']})")
-                elif owner is stone and action['kind'] == 'first-pan':
-                    X,Y,milliseconds=action['swipe']
-                    self.device.command('shell','input','swipe',str(action['x']),str(action['y']),
-                                        str(X),str(Y),str(milliseconds))
-                    metadata.update(input_transport='adb-swipe',swipe=action['swipe'])
-                    with self.lock:
-                        self.state['clicks'] += 1
-                        self.state['matches'] += 1
-                    self.event('滑动：'+action['label'])
-                else:
-                    parallel_click(action['x'],action['y'],action['label'])
-                    metadata['input_transport'] = 'adb'
-                if hasattr(owner, 'input_issued'):
-                    owner.input_issued(action, metadata)
-                after = None
-                if not self.stop_event.is_set():
-                    after = capture()
-                    metadata['after_frame_id'] = self.remember(after)
-                    metadata['after_time'] = _time().time()
-                if self.portal_evidence is None:
-                    self.portal_evidence = _lookup("BossInputEvidence")(self.root,self.event,
-                        folder='portal-input',label='传送门')
-                self.portal_evidence.record(metadata,fresh.copy(),after.copy() if after is not None else None)
-            return True
-        def completion_click():
-            with self.device.io_lock:
-                if (self.stop_event.is_set()
-                        or max_clicks is not None and self.state['clicks'] >= max_clicks
-                        or st.run_deadline is not None and _time().monotonic() >= st.run_deadline):
-                    raise InterruptedError('已停止')
-                fresh = runtime.capture()
-                self.remember(fresh)
-                if not parallel.completion_visible(fresh):
-                    return False
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                parallel_click(360,840,'平行世界：确认本阶段探索结束')
-                if equipment is not None:
-                    equipment.yielded_for_completion()
-            return True
-        def defense_click(expected, owner=None, rank=None):
-            owner = parallel if owner is None else owner
-            attack_rank = owner.rank if rank is None else rank
-            with self.device.io_lock:
-                captured = {}
-                pending = []
-                if self.boss_evidence is None:
-                    self.boss_evidence = _lookup("BossInputEvidence")(self.root,self.event)
-                def capture_defense_frame():
-                    started = _time().monotonic()
-                    fresh = runtime.capture()
-                    identifier = self.remember(fresh)
-                    if pending:
-                        metadata,before = pending.pop()
-                        metadata.update(after_frame_id=identifier,after_time=_time().time())
-                        self.boss_evidence.record(metadata,before,fresh.copy())
-                    captured.update(frame=fresh,frame_id=identifier,started=started)
-                    return fresh
-                def defense_stopped():
-                    return (self.stop_event.is_set()
-                            or owner is stone and not owner.enabled()
-                            or owner is stone and owner.active and not owner.input_allowed()
-                            or max_clicks is not None and self.state['clicks'] >= max_clicks
-                            or st.run_deadline is not None and _time().monotonic() >= st.run_deadline)
-                def hit_defense_target(target):
-                    if defense_stopped():
-                        raise InterruptedError('已停止')
-                    # This applies to both native and fresh ADB transports.
-                    # A slow capture must never authorize a late contact.
-                    if _time().monotonic()-captured['started'] > .12:
-                        return False
-                    x,y = target['x'],target['y']
-                    metadata = dict(input_id=uuid.uuid4().hex,frame_id=captured['frame_id'],
-                        rank=attack_rank,controller_rank=attack_rank,
-                        controller='stone_farm' if owner is stone else 'parallel_world',
-                        kind=target.get('kind','defense'),
-                        target=dict(target),input_begin_time=_time().time(),
-                        transport=getattr(self.device,'screenshot_transport','test'),
-                        capture_to_command_ms=round((_time().monotonic()-captured['started'])*1000,1),
-                        gesture='stationary_touch',hold_ms=80,result='issued_only')
-                    # A DOWN/UP within one Unity frame can be lost by gameplay
-                    # input polling. Hold for several frames, with no movement
-                    # or unguarded repeat at the old coordinates.
-                    if hasattr(self.device,'touch_fast'):
-                        contact=self.device.touch_fast(x,y,captured['started'],defense_stopped)
-                        if contact is None:
-                            return False
-                        metadata.update(contact)
-                    else:
-                        self.device.command('shell','input','swipe',str(x),str(y),str(x),str(y),'80')
-                        metadata.update(input_transport='adb')
-                    metadata['input_end_time'] = _time().time()
-                    pending.append((metadata,captured['frame'].copy()))
-                    with self.lock:
-                        self.state['clicks'] += 1
-                        self.state['matches'] += 1
-                        self.state['last_match'] = {'name':('战斗：点击屏幕补充伤害' if target.get('kind') == 'damage'
-                                                             else '海神：连续点击发黄光的触手武器'),
-                            'score':1.,'box':[x-5,y-5,x+5,y+5],
-                            'frame_id':captured['frame_id'],'input_id':metadata['input_id'],
-                            'hold_ms':metadata['hold_ms'],'transport':metadata['transport'],
-                            'input_transport':metadata['input_transport'],'result':'issued_only'}
-                try:
-                    # First-cast result votes need fresh outer frames before
-                    # their original deadline; a four-second burst must not
-                    # consume the remaining verification window. Other fights
-                    # retain the existing burst and per-input guards.
-                    limits = {'seconds':.5} if owner is stone and owner.phase=='first_verify' else {}
-                    taps = owner.defense.burst(capture_defense_frame,hit_defense_target,
-                                              attack_rank,defense_stopped,**limits)
-                finally:
-                    if pending:
-                        metadata,before = pending.pop()
-                        metadata.update(after_frame_id=None,after_reason='burst_ended')
-                        self.boss_evidence.record(metadata,before)
-            counts = owner.defense.last_burst
-            if counts.get('defense_taps'):
-                self.event(f"海神反击：连续核对新截图后点击充能武器 {counts['defense_taps']} 次")
-            if counts.get('damage_taps'):
-                self.event(f"战斗补伤害：新截图核对后点击屏幕 {counts['damage_taps']} 次；充能触手优先")
-            return taps
         def close_defense_equipment(owner=None, rank=None):
             owner = parallel if owner is None else owner
             attack_rank = owner.rank if rank is None else rank
@@ -1643,232 +1423,6 @@ class Clicker:
                 parallel_click(360,1166,'BOSS 航行：到达切换点，先收起鱼饼强化面板')
                 equipment.yielded_for_sailing()
             return True
-        def sailing_click(action, x, y, label):
-            with self.device.io_lock:
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                fresh = runtime.capture()
-                self.remember(fresh)
-                controller = parallel.sailing
-                if not controller.validate(action,fresh):
-                    self.event('自动航行：点击前画面或目标变化，等待重新识别')
-                    return False
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                controller.before_click(action)
-                metadata = (dict(input_id=uuid.uuid4().hex,frame_id=self.state.get('frame_id'),
-                    action=action,profile=controller.profile,rank=parallel.rank,
-                    x=x,y=y,time=_time().time(),result='issued_only')
-                    if controller.profile == 'boss' else None)
-                parallel_click(x,y,label)
-                if metadata is not None:
-                    after = None
-                    if not self.stop_event.is_set():
-                        after = runtime.capture()
-                        metadata['after_frame_id'] = self.remember(after)
-                    if self.sailing_evidence is None:
-                        self.sailing_evidence = _lookup("BossInputEvidence")(self.root,self.event,
-                            folder='sailing-input',label='自动航行')
-                    self.sailing_evidence.record(metadata,fresh.copy(),after.copy() if after is not None else None)
-            return True
-        def fishing_action(action, data, owner=None, guard=None, reserve=None, allowed=None,
-                           route_expected=None):
-            owner = parallel if owner is None else owner
-            observed = []
-            def fishing_stopped():
-                return (self.stop_event.is_set()
-                         or guard is not None and not (allowed or calibrator.input_allowed)()
-                        or max_clicks is not None and self.state['clicks'] >= max_clicks
-                        or st.run_deadline is not None and _time().monotonic() >= st.run_deadline)
-            def raise_fishing_stop():
-                if (guard is not None and allowed is None and not self.stop_event.is_set()
-                        and not (max_clicks is not None and self.state['clicks'] >= max_clicks)
-                        and not (st.run_deadline is not None and _time().monotonic() >= st.run_deadline)
-                        and not calibrator.input_allowed()):
-                    raise MeterWorkflowLimit('标尺输入前校准窗口已到期或功能已关闭')
-                raise InterruptedError('已停止')
-            with self.device.io_lock:
-                if fishing_stopped():
-                    raise_fishing_stop()
-                meter = owner.fishing
-                # Only the independent calibration opts into preserving native
-                # sailing. Navigation/training/stone handoffs still require OFF.
-                keep_route = bool(guard is not None and callable(route_expected)
-                                  and route_expected() is True)
-                cancelling = action in ('cancel','scan_cancel')
-                captured = {}
-                def capture_cancel_frame():
-                    started = _time().monotonic()
-                    image = runtime.capture()
-                    identifier = self.remember(image)
-                    captured.update(frame=image,frame_id=identifier,started=started)
-                    return image
-                if cancelling:
-                    if self.fishing_evidence is None:
-                        self.fishing_evidence = _lookup("BossInputEvidence")(self.root,self.event,
-                            folder='fishing-input',label='钓鱼计量')
-                    def usable_cancel_frame(image):
-                        return _time().monotonic()-captured['started'] <= .12
-                    def stopped_route(image):
-                        if (not owner._parallel(image) or not keep_route
-                                and owner.training.options['auto_sailing']
-                                and owner.training.state.get('sailing_enabled')
-                                or guard is not None and not guard(image)):
-                            return None
-                        return owner.sailing.running(image)
-                    scan_options = {'expected_route': True} if keep_route else {}
-                    fresh = meter.scan_cancel_frame(capture_cancel_frame,stopped_route,
-                                                    data,fishing_stopped,usable_cancel_frame,**scan_options)
-                    if fresh is None:
-                        return False
-                else:
-                    fresh = runtime.capture()
-                    self.remember(fresh)
-                    route = owner.sailing.running(fresh) if owner.sailing else False
-                    if ((route is not True if keep_route else route is True or owner.sailing
-                            and owner.training.options['auto_sailing']
-                            and (route is not False or owner.training.state.get('sailing_enabled')))
-                            or guard is not None and not guard(fresh)):
-                        self.event('钓鱼计量：航巡状态或校准上下文变化，等待重新确认')
-                        return False
-                    if not meter.validate(action, fresh, data):
-                        self.event('钓鱼计量：操作前画面变化，等待重新识别')
-                        return False
-                    actual_start = getattr(meter,'validated_start',None) if action == 'start' else None
-                    if actual_start is not None and actual_start[0] is fresh:
-                        # Input receipt and log must describe this fresh frame,
-                        # rather than the slightly different planned selection.
-                        data = actual_start[1]
-                if fishing_stopped():
-                    raise_fishing_stop()
-                if reserve is not None and not reserve(action):
-                    return False
-                if fishing_stopped():
-                    raise_fishing_stop()
-                calibration_metadata = None
-                if guard is not None and not cancelling:
-                    calibration_metadata = dict(input_id=uuid.uuid4().hex,
-                        frame_id=self.state.get('frame_id'),kind='meter_'+action,
-                        rank=owner.training.state.get('rank'),input_begin_time=_time().time(),
-                        target=dict(value=data.get('value'),goal=data.get('goal')),
-                        result='issued_only')
-                    calibration_before = fresh.copy()
-                if cancelling:
-                    # The X is the left-hand label; target the fish-shaped
-                    # cancellation button itself, rather than that label.
-                    x,y = 690,1090
-                    if _time().monotonic()-captured['started'] > .12:
-                        return False
-                    before = fresh.copy()
-                    metadata = dict(input_id=uuid.uuid4().hex,frame_id=captured['frame_id'],
-                        kind='meter_cancel',rank=owner.training.state.get('rank'),
-                        target=dict(x=x,y=y),input_begin_time=_time().time(),
-                        transport=getattr(self.device,'screenshot_transport','test'),
-                        capture_to_command_ms=round((_time().monotonic()-captured['started'])*1000,1),
-                        result='issued_only')
-                    if hasattr(self.device,'touch_fast'):
-                        contact = self.device.touch_fast(x,y,captured['started'],fishing_stopped)
-                        if contact is None:
-                            return False
-                        metadata.update(contact)
-                    else:
-                        self.device.command('shell','input','tap',str(x),str(y))
-                        metadata.update(input_transport='adb',hold_ms=0)
-                    metadata['input_end_time'] = _time().time()
-                    label = '钓鱼计量：尝试取消已确认的普通鱼准备状态，等待休眠证据'
-                    if not self.stop_event.is_set():
-                        observed.append(runtime.capture())
-                        metadata.update(after_frame_id=self.remember(observed[-1]),after_time=_time().time())
-                    self.fishing_evidence.record(metadata,before,observed[-1].copy() if observed else None)
-                elif action == 'resume_cast':
-                    x, y = 360, 1010
-                    if calibration_metadata is not None:
-                        calibration_metadata['gesture'] = dict(x=x,y=y,duration_ms=80)
-                    self.device.command('shell', 'input', 'swipe', str(x), str(y),
-                                        str(x), str(y), '80')
-                    label = '标尺校准：仅短点灰色鱼钩恢复钓鱼，等待真实填充或战斗，不计校准成功'
-                elif action in ('drag','reveal'):
-                    x, y, to_y = data['x'], data['y'], data['to_y']
-                    if calibration_metadata is not None:
-                        calibration_metadata['gesture'] = dict(x=x,y=y,to_y=to_y,duration_ms=meter.DRAG_MS)
-                    self.device.command('shell', 'input', 'swipe', str(x), str(y),
-                                        str(x), str(to_y), str(meter.DRAG_MS))
-                    label = ('钓鱼计量：移开遮挡范围标签的数字框，重新读取上下限' if action == 'reveal'
-                             else f"钓鱼计量：拖动数字框 {data['value']} → 目标 {data['goal']}，角色 Lv{data['player']}")
-                else:
-                    x, y = 360, 1010
-                    hold_feedback = getattr(self.device,'hold_feedback',None)
-                    if callable(hold_feedback):
-                        # The gesture owns its during-hold capture. No numeric
-                        # cache may survive across those separately acquired pixels.
-                        runtime.end_frame()
-                        observed.append(hold_feedback(x,y,meter.HOLD_MS))
-                    else:
-                        self.device.command('shell', 'input', 'swipe', str(x), str(y),
-                                            str(x), str(y), str(meter.HOLD_MS))
-                    label = f"钓鱼计量：已调到 {data['value']}，长按中央圆盘 {meter.HOLD_MS/1000:g} 秒开始钓鱼"
-                    # Fast fishing can finish before the next OCR-heavy loop.
-                    # Capture immediately while the same device lock is held.
-                    if not self.stop_event.is_set():
-                        observed.append(runtime.capture())
-                        self.remember(observed[-1])
-                if action in ('resume_cast','start') and not fishing_stopped():
-                    # 取消钓鱼的 X 只在抛竿后约 1.5~2 秒内出现(2026-10-23 实测):
-                    # 抛完立刻补一帧,把这个短窗口写进证据,但不拖住主循环。
-                    probe = runtime.capture()
-                    self.remember(probe)
-                    if meter.cancel_button(probe):
-                        self.event('钓鱼计量：抛竿后捕捉到取消 X（约 2 秒窗口）')
-                if calibration_metadata is not None:
-                    calibration_metadata['input_end_time'] = _time().time()
-                    if not observed and not fishing_stopped():
-                        observed.append(runtime.capture())
-                        self.remember(observed[-1])
-                    if self.fishing_evidence is None:
-                        self.fishing_evidence = _lookup("BossInputEvidence")(self.root,self.event,
-                            folder='fishing-input',label='钓鱼计量')
-                    after_id = self.state.get('frame_id') if observed else None
-                    calibration_metadata['after_frame_id'] = after_id
-                    self.fishing_evidence.record(calibration_metadata,calibration_before,
-                                                observed[-1].copy() if observed else None)
-                    if action == 'start' and len(observed) >= 2:
-                        feedback = dict(input_id=uuid.uuid4().hex,
-                            parent_input_id=calibration_metadata['input_id'],kind='meter_hold_feedback',
-                            frame_id=uuid.uuid4().hex,after_frame_id=after_id,
-                            hold_ms=meter.HOLD_MS,time=_time().time(),result='observed_only')
-                        self.fishing_evidence.record(feedback,observed[0].copy(),observed[-1].copy())
-            with self.lock:
-                self.state['clicks'] += 1
-                self.state['matches'] += 1
-                self.state['last_match'] = {'name': label, 'score': 1.,
-                                           'box': [x-5, y-5, x+5, y+5]}
-            self.event(label)
-            return observed if observed else True
-        def equipment_hold(x, y, seconds, weapon, label):
-            with self.device.io_lock:
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                fresh = runtime.capture()
-                self.remember(fresh)
-                if (not equipment.validate_hold(fresh, weapon, x, y)
-                        or parallel and not parallel.boss_sailing_hold_allowed(fresh)
-                        or parallel and parallel.defense and parallel.defense.owns(fresh,parallel.rank)
-                        or stone and (stone.defense.encounter(fresh,39)
-                                      or stone.defense._match(fresh,'timer',(188,125,610,165),.94)
-                                      or stone.defense._match(fresh,'swords',(307,962,415,1057),.96))):
-                    self.event('武器强化：长按前画面变化，等待重新识别')
-                    return False
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                self.device.command('shell', 'input', 'swipe', str(x), str(y),
-                                    str(x), str(y), str(int(seconds * 1000)))
-            with self.lock:
-                self.state['clicks'] += 1
-                self.state['matches'] += 1
-                self.state['last_match'] = {'name': label, 'score': 1.,
-                                           'box': [x-5, y-5, x+5, y+5]}
-            self.event(f'{label}，{seconds} 秒，坐标 ({x}, {y})')
-            return True
         def make_equipment():
             entry = next((r for r, _, _ in rules if r['id'] == 'driftinggirl_equipment_upgrade'), None)
             if preview or entry is None:
@@ -1892,67 +1446,6 @@ class Clicker:
                                         and (parallel.defense.owns(frame,parallel.rank)
                                              or parallel.defense._match(frame,'timer',(188,125,610,165),.94)
                                              or parallel.defense._match(frame,'swords',(307,962,415,1057),.96))))
-        def backpack_click(x, y, label, action):
-            with self.device.io_lock:
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                if max_clicks is not None and self.state['clicks'] >= max_clicks:
-                    raise InterruptedError('已达到点击次数限制')
-                if st.run_deadline is not None and _time().monotonic() >= st.run_deadline:
-                    raise InterruptedError('已达到运行时间限制')
-                fresh = runtime.capture()
-                self.remember(fresh)
-                if (parallel is not None and parallel.sailing is not None
-                        and parallel.sailing.running(fresh) is None):
-                    # A recognized bag/map covers gameplay's lower AUTO. Its
-                    # fresh top OFF icon and current world/RANK must positively
-                    # establish stopping; unknown icons never authorize input.
-                    panel_stopped = backpack.stopped_panel(fresh)
-                    same_world_rank = parallel.sailing_context('bag',fresh)
-                    if not panel_stopped or not same_world_rank:
-                        self.event('背包出售：航行状态未知，拒绝输入并等待重新确认停止')
-                        return False
-                if (parallel is not None and parallel.sailing is not None
-                        and (parallel.sailing.active or parallel.training.state.get('sailing_enabled')
-                             or parallel.sailing.running(fresh) is True)):
-                    self.event('背包出售：航行尚未停稳，等待重新确认')
-                    return False
-                if not backpack.validate(action, fresh, x, y):
-                    self.event('背包出售：操作前画面变化，等待重新识别')
-                    return False
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                if max_clicks is not None and self.state['clicks'] >= max_clicks:
-                    raise InterruptedError('已达到点击次数限制')
-                if st.run_deadline is not None and _time().monotonic() >= st.run_deadline:
-                    raise InterruptedError('已达到运行时间限制')
-                parallel_click(x, y, label)
-            return True
-        def backpack_swipe(x1, y1, x2, y2, label):
-            with self.device.io_lock:
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                if max_clicks is not None and self.state['clicks'] >= max_clicks:
-                    raise InterruptedError('已达到点击次数限制')
-                if st.run_deadline is not None and _time().monotonic() >= st.run_deadline:
-                    raise InterruptedError('已达到运行时间限制')
-                fresh = runtime.capture()
-                self.remember(fresh)
-                if (parallel is not None and parallel.sailing is not None
-                        and (parallel.sailing.active or parallel.training.state.get('sailing_enabled'))):
-                    self.event('背包出售：航行尚未停稳，等待重新确认地图')
-                    return False
-                if not backpack.validate_scan(fresh):
-                    self.event('背包出售：滑动前世界、RANK、地点或停航状态变化，等待新图')
-                    return False
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                if max_clicks is not None and self.state['clicks'] >= max_clicks:
-                    raise InterruptedError('已达到点击次数限制')
-                if st.run_deadline is not None and _time().monotonic() >= st.run_deadline:
-                    raise InterruptedError('已达到运行时间限制')
-                parallel_swipe(x1, y1, x2, y2, label)
-            return True
         def make_backpack():
             entry = next((r for r, _, _ in rules if r['id'] == 'driftinggirl_backpack_sell'), None)
             if preview or entry is None:
@@ -1968,26 +1461,6 @@ class Clicker:
             controller.before_route = lambda frame: (parallel is None or parallel.sailing is None
                                                      or not parallel.sailing.step(frame, False))
             return controller
-        def skill_click(x, y, label, action):
-            with self.device.io_lock:
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                fresh = runtime.capture()
-                self.remember(fresh)
-                if action in ('open_growth','confirm') and getattr(skills,'options',None) is not None:
-                    live=next((r for r in self.config['rules'] if r['id']=='driftinggirl_parallel_skills'),{})
-                    desired=cruise_options(live)['skills']
-                    if not live.get('enabled') or not desired['enabled'] or not desired['growth_points']:
-                        skills.growth_points=False
-                        return False  # Next owned step cancels an open purchase or closes the panel.
-                if not skills.validate(action, fresh, x, y):
-                    self.event('技能加速：点击前画面或余额变化，等待重新识别')
-                    return False
-                if self.stop_event.is_set():
-                    raise InterruptedError('已停止')
-                skills.before_click(action, fresh)
-                parallel_click(x, y, label)
-            return True
         def make_skills():
             entry = next((r for r, _, _ in rules if r['id'] == 'driftinggirl_parallel_skills'), None)
             if preview or entry is None:
@@ -2294,6 +1767,8 @@ class Clicker:
             policy=configured_cruise()
             controller.cruise_policy=deepcopy(policy) if policy and policy['enabled'] else None
             controller.observed_restore_allowed = lambda: not self.stop_event.is_set()
+            if type(controller) is StoneFarm and getattr(type(controller),'_entry_record_installed',False):
+                attach_entry_recovery(controller,self.config['serial'])
             if retire_expired:
                 # Same tolerance as the meter controller: a stub or an older
                 # controller without the hook must not stop the run.
@@ -2322,8 +1797,7 @@ class Clicker:
                 frame = fresh
                 self.remember(frame)
                 with self.lock:self.state['frames'] += 1
-                self.task_schedule.finish('stone_farm', stone.interval,
-                                          success=False, retry_seconds=retry)
+                self.task_schedule.finish('stone_farm', stone.interval, success=False, retry_seconds=retry, controller=stone)
                 st.stable = {key: 0 for key in st.stable}
                 st.number_values.clear(); st.target_keys.clear()
                 with self.lock:
@@ -2331,31 +1805,6 @@ class Clicker:
                     self.state['stage'] = 'main'
                 self.event(f'次元石：本次交接已归档且未计成功，{retry:g} 秒后重新检查；其他任务继续（{exc}）')
                 return False
-        def pass_click(action,x,y,context):
-            with self.device.io_lock:
-                def stopped():
-                    return (self.stop_event.is_set() or _time().monotonic()>=pass_task.deadline
-                        or max_clicks is not None and self.state['clicks']>=max_clicks
-                        or st.run_deadline is not None and _time().monotonic()>=st.run_deadline)
-                if stopped():return False
-                fresh=runtime.capture();before_id=self.remember(fresh)
-                period=self.daily_schedule.period()
-                if not pass_task.validate(action,fresh,context,period) or stopped():return False
-                if not pass_task.reserve(action):return False
-                metadata=dict(input_id=uuid.uuid4().hex,action=action,frame_id=before_id,
-                    x=x,y=y,period=period,time=_time().time(),result='reserved')
-                after=None
-                try:
-                    if stopped():return False
-                    metadata['result']='uncertain'
-                    parallel_click(x,y,'PASS每日奖励：'+{'open':'打开PASS','tab':'选择每日页','claim':'领取免费奖励','close':'关闭PASS'}[action])
-                    metadata['result']='issued_only'
-                    after=runtime.capture();metadata['after_frame_id']=self.remember(after)
-                finally:
-                    if self.pass_evidence is None:
-                        self.pass_evidence=_lookup('BossInputEvidence')(self.root,self.event,limit=16,folder='pass-daily',label='PASS每日奖励')
-                    self.pass_evidence.record(metadata,fresh,after)
-                return True
         def make_pass():
             entry=next((r for r,_,_ in rules if r['id']==PASS_ID),None)
             if preview or entry is None:return None
@@ -2365,36 +1814,6 @@ class Clicker:
             controller=PassDaily(self.root,self.digit_reader,pass_click,self.event)
             controller.interval=entry['interval']
             return controller
-        def restaurant_click(action):
-            with self.device.io_lock:
-                def stopped():
-                    return (self.stop_event.is_set() or not restaurant.allowed()
-                        or max_clicks is not None and self.state['clicks']>=max_clicks
-                        or st.run_deadline is not None and _time().monotonic()>=st.run_deadline)
-                if stopped():return False
-                fresh=runtime.capture();before_id=self.remember(fresh)
-                if not restaurant.validate(action,fresh) or stopped():return False
-                if not restaurant.reserve(action) or stopped():return False
-                receipt=dict(input_id=uuid.uuid4().hex,frame_id=before_id,action=action,
-                    time=_time().time(),result='uncertain',controller='restaurant_upgrade')
-                after=None
-                try:
-                    x,y=action['x'],action['y']
-                    X,Y,ms=action.get('swipe',(x,y,action.get('hold_ms',80)))
-                    self.device.command('shell','input','swipe',str(x),str(y),str(X),str(Y),str(ms))
-                    with self.lock:self.state['clicks']+=1
-                    receipt['result']='issued_only'
-                    restaurant.input_issued(action,receipt)
-                    self.event('餐品强化输入：'+action['kind']+f' ({x},{y}) {ms}ms')
-                    if not self.stop_event.is_set():
-                        after=runtime.capture();receipt['after_frame_id']=self.remember(after)
-                        if action['kind'].startswith('scan:'):restaurant.observe_map_scan(fresh,after)
-                finally:
-                    if self.restaurant_evidence is None:
-                        self.restaurant_evidence=BossInputEvidence(self.root,self.event,limit=180,
-                            folder='restaurant-input',label='餐品强化')
-                    self.restaurant_evidence.record(receipt,fresh,after)
-                return True
 
         def make_restaurant():
             entry=next((r for r,_,_ in rules if r['id']==RESTAURANT_ID),None)
@@ -2408,74 +1827,11 @@ class Clicker:
             task.enabled=lambda:any(r['id']==RESTAURANT_ID and r['enabled'] for r in self.config['rules'])
             return task
 
-        def step_restaurant(image,allow_start=True):
-            was_active=restaurant.active
-            due=allow_start and self.task_schedule.ready('restaurant_upgrade')
-            try:
-                owned=runtime.call('restaurant_upgrade',restaurant.step,image,due=due)
-            except RuntimeError as exc:
-                # Count failed runs on the runner, not frames or controllers:
-                # waiting and config reloads must not permit infinite retries.
-                self.restaurant_failures+=1
-                restaurant.abandon(str(exc))
-                self.task_schedule.finish('restaurant_upgrade',restaurant.interval,
-                    success=False,retry_seconds=1800)
-                st.stable={key:0 for key in st.stable}
-                st.number_values.clear();st.target_keys.clear()
-                with self.lock:
-                    self.state['restaurant_upgrade']=restaurant.status()
-                    self.state['stage']='main'
-                if self.restaurant_failures>=RESTAURANT_FAILURE_LIMIT:
-                    self.event(f'餐品强化：连续失败达到 {RESTAURANT_FAILURE_LIMIT} 次，停止运行（{exc}）')
-                    raise
-                self.event(f'餐品强化：本轮中止，30 分钟后重试，运行继续（{exc}）')
-                return False
-            if not was_active and restaurant.active:
-                self.task_schedule.begin('restaurant_upgrade',restaurant.interval)
-            if restaurant.done is not None:
-                if restaurant.done:self.restaurant_failures=0
-                # A retired run must come back in half an hour, not after the
-                # three-day interval: the cookbook consumes the backlog.
-                retry=(1800 if not restaurant.done
-                       and getattr(restaurant,'journal',{}).get('retirement') else None)
-                if retry:
-                    self.task_schedule.finish('restaurant_upgrade',restaurant.interval,
-                        success=bool(restaurant.done),retry_seconds=retry)
-                else:
-                    self.task_schedule.finish('restaurant_upgrade',restaurant.interval,success=bool(restaurant.done))
-                if stop_on_main:
-                    with self.lock:self.state['stop_reason']='cycle_complete' if restaurant.done else 'observation_complete'
-                    self.stop_event.set()
-            with self.lock:
-                self.state['restaurant_upgrade']=restaurant.status()
-                if owned:self.state['stage']='restaurant_'+restaurant.phase
-            return owned
 
         def return_parallel_enabled():
             return (not preview and follow_settings
                     and self.config.get('return_parallel_enabled') is True)
 
-        def return_parallel_action(action):
-            with self.device.io_lock:
-                def stopped():
-                    return (self.stop_event.is_set() or not return_parallel_enabled()
-                            or max_clicks is not None and self.state['clicks'] >= max_clicks
-                            or st.run_deadline is not None and _time().monotonic() >= st.run_deadline)
-                if stopped():return False
-                fresh = runtime.capture()
-                self.remember(fresh)
-                if not return_parallel.validate(action, fresh) or stopped():return False
-                x, y = action['x'], action['y']
-                if action.get('swipe'):
-                    X, Y, ms = action['swipe']
-                    self.device.command('shell', 'input', 'swipe', str(x), str(y), str(X), str(Y), str(ms))
-                else:
-                    # 2026-10-27：与本文件 guild_daily_click 一致，用 80 毫秒定点点按。
-                    # 零时长的 input tap 会被这里带过渡动画的地图/弹窗控件吞掉。
-                    self.device.command('shell', 'input', 'swipe', str(x), str(y), str(x), str(y), '80')
-                with self.lock:self.state['clicks'] += 1
-                self.event('返回平行世界输入：' + action['kind'] + f' ({x},{y})')
-                return True
 
         def make_return_parallel():
             task = (ReturnParallel(self.root, return_parallel_action, self.event, self.config['serial'])
@@ -2484,46 +1840,6 @@ class Clicker:
             with self.lock:self.state['return_parallel'] = task.status() if task else None
             return task
 
-        def guild_daily_click(action):
-            with self.device.io_lock:
-                def stopped():
-                    return (self.stop_event.is_set() or not guild_daily.allowed()
-                        or max_clicks is not None and self.state['clicks']>=max_clicks
-                        or st.run_deadline is not None and _time().monotonic()>=st.run_deadline)
-                if stopped():return False
-                began=_time().monotonic();fresh=runtime.capture();before_id=self.remember(fresh)
-                if not guild_daily.validate(action,fresh) or stopped():return False
-                fast=action['kind']=='cancel'
-                if fast and _time().monotonic()-began>.12:return False
-                if not guild_daily.reserve(action) or stopped():return False
-                receipt=dict(input_id=uuid.uuid4().hex,frame_id=before_id,action=action,
-                    time=_time().time(),result='uncertain',controller='guild_daily')
-                after=None
-                try:
-                    x,y=action['x'],action['y']
-                    if fast:
-                        contact=self.device.touch_fast(x,y,began,stopped)
-                        if contact is None:return False
-                        receipt.update(contact)
-                        with self.lock:self.state['clicks']+=1
-                    elif action.get('swipe'):
-                        X,Y,ms=action['swipe']
-                        self.device.command('shell','input','swipe',str(x),str(y),str(X),str(Y),str(ms))
-                        with self.lock:self.state['clicks']+=1
-                    else:
-                        self.device.command('shell','input','swipe',str(x),str(y),str(x),str(y),'80')
-                        with self.lock:self.state['clicks']+=1
-                    receipt['result']='issued_only'
-                    guild_daily.input_issued(action,receipt)
-                    self.event('公会任务输入：'+action['kind']+f' ({x},{y})')
-                    if not self.stop_event.is_set():
-                        after=runtime.capture();receipt['after_frame_id']=self.remember(after)
-                finally:
-                    if self.guild_daily_evidence is None:
-                        self.guild_daily_evidence=BossInputEvidence(self.root,self.event,limit=80,
-                            folder='guild-daily-input',label='公会任务')
-                    self.guild_daily_evidence.record(receipt,fresh,after)
-                return True
         def make_guild_daily():
             entry=next((r for r,_,_ in rules if r['id']==GUILD_ID),None)
             if preview or entry is None:return None
@@ -2534,51 +1850,6 @@ class Clicker:
             task.retire_expired_on_start()
             task.enabled=lambda:any(r['id']==GUILD_ID and r['enabled'] for r in self.config['rules'])
             return task
-        def step_guild_daily(image,allow_start=True):
-            daily=self.daily_schedule.status()['guild_daily']
-            was_active=guild_daily.active
-            due=(allow_start and not daily['completed'] and self.task_schedule.ready('guild_daily',daily))
-            try:
-                owned=runtime.call('guild_daily',guild_daily.step,image,due=due,period=daily['period'])
-            except RuntimeError as exc:
-                # 单个任务超时不该停掉整个 runner:2026-10-26 18:12 公会往返超时直接把
-                # 主循环带走,18:12:20→21:43:25 停摆 3 h 31 min,期间所有任务全丢。
-                retry=1800
-                self.event(f'公会任务：本次往返中止，{retry//60} 分钟后重试，运行继续（{exc}）')
-                try:guild_daily.abandon()
-                except Exception:self.event('公会任务：中止时清理记录失败，按原样保留')
-                self.task_schedule.finish('guild_daily',guild_daily.interval,daily,
-                    success=False,retry_seconds=retry)
-                with self.lock:self.state['guild_daily']=guild_daily.status()
-                return False
-            if not was_active and guild_daily.active:
-                self.task_schedule.begin('guild_daily',guild_daily.interval,daily)
-            if guild_daily.done is not None:
-                if guild_daily.done:self.daily_schedule.mark_complete('guild_daily',guild_daily.started_period)
-                self.task_schedule.finish('guild_daily',guild_daily.interval,self.daily_schedule.status()['guild_daily'],
-                    success=bool(guild_daily.done))
-            with self.lock:
-                self.state['guild_daily']=guild_daily.status()
-                if owned:self.state['stage']='guild_daily_'+guild_daily.phase
-            return owned
-        def step_pass(image):
-            daily=self.daily_schedule.status()['pass_daily']
-            due=(not daily['completed'] and self.task_schedule.ready('pass_daily',daily))
-            was_active=pass_task.active
-            if was_active and not any(r['id']==PASS_ID and r['enabled'] for r in self.config['rules']):
-                pass_task.claim_allowed=False
-            ready=(pass_task.main_visible(image) or
-                   (self.daily_return_visible(image,st.matchers) if 'driftinggirl_daily_return' in st.matchers else
-                    pass_task.entry(image)))
-            owned=runtime.call('pass_daily',pass_task.step,image,due=due,period=daily['period'],main_ready=ready)
-            if not was_active and pass_task.active:
-                self.task_schedule.begin('pass_daily',pass_task.interval,daily)
-            if pass_task.done is not None:
-                if pass_task.done:
-                    self.daily_schedule.mark_complete('pass_daily',pass_task.started_period)
-                self.task_schedule.finish('pass_daily',pass_task.interval,self.daily_schedule.status()['pass_daily'],
-                    success=bool(pass_task.done),retry_seconds=None if pass_task.done else pass_task.interval)
-            return owned
         st.run_deadline = _time().monotonic() + timeout if timeout is not None else None
         st.defense_pause_at = None
         st.completion_pause_at = None
@@ -2601,6 +1872,32 @@ class Clicker:
                 if optional_cleanup is not None:
                     failure['optional_cleanup'] = optional_cleanup.status()
                 path.with_suffix('.json').write_text(json.dumps(failure, ensure_ascii=False, indent=2), encoding='utf-8')
+        from drift.runtime_inputs import build_handlers
+        from drift.runtime_tasks import build_services
+        def task_bindings():
+            return {'backpack':backpack,'calibrator':calibrator,'equipment':equipment,'guild_daily':guild_daily,'max_clicks':max_clicks,'parallel':parallel,'parallel_click':parallel_click,'parallel_swipe':parallel_swipe,'pass_task':pass_task,'restaurant':restaurant,'return_parallel':return_parallel,'return_parallel_enabled':return_parallel_enabled,'runtime':runtime,'self':self,'skills':skills,'st':st,'stone':stone,'stop_on_main':stop_on_main}
+        handlers=build_handlers(task_bindings,globals())
+        services=build_services(task_bindings,globals())
+        backpack_click=handlers['backpack_click']
+        backpack_swipe=handlers['backpack_swipe']
+        completion_click=handlers['completion_click']
+        defense_click=handlers['defense_click']
+        equipment_hold=handlers['equipment_hold']
+        fishing_action=handlers['fishing_action']
+        guild_daily_click=handlers['guild_daily_click']
+        parallel_click=handlers['parallel_click']
+        parallel_swipe=handlers['parallel_swipe']
+        pass_click=handlers['pass_click']
+        portal_click=handlers['portal_click']
+        restaurant_click=handlers['restaurant_click']
+        return_parallel_action=handlers['return_parallel_action']
+        sailing_click=handlers['sailing_click']
+        skill_click=handlers['skill_click']
+        finish_scheduled_daily=services['finish_scheduled_daily']
+        step_guild_daily=services['step_guild_daily']
+        step_pass=services['step_pass']
+        step_restaurant=services['step_restaurant']
+        step_scheduled_controller=services['step_scheduled_controller']
         try:
             runtime.start_engine()
             self.event('MaaFramework 执行器已启动；保留 NextRun 与实时触发调度')
@@ -2620,6 +1917,35 @@ class Clicker:
                         and callable(getattr(self.device, 'game_state', None)) else None)
             # 打转检测只在正式运行时启用:单项识别预览没有 stage 迁移。
             progress = None if preview else ProgressGuard(_time().monotonic)
+            def ownership_snapshot():
+                return st.stage, dict(equipment_upgrade=equipment,backpack_sale=backpack,
+                    parallel_skills=skills,pass_daily=pass_task,guild_daily=guild_daily,
+                    restaurant_upgrade=restaurant,return_parallel=return_parallel,
+                    meter_calibration=calibrator,stone_farm=stone,parallel=parallel,
+                    cruise_setup=setup,cruise_watchdog=cruise,game_recovery=recovery), bool(
+                        st.handling_interrupt or st.interrupt_started_at is not None
+                        or st.daily_cleanup_deadline is not None)
+            def lifecycle_budget():
+                offset=self.lifecycle.context.clock_offset if getattr(self,'lifecycle',None) and self.lifecycle.context else 0
+                budget={key:getattr(st,key,None) for key in ('stage_trigger','consecutive','nav_clicks','previous',
+                    'previous_progress','skip_on_timeout','daily_verified','scheduled_daily','daily_attempt')}
+                for key in ('stage_deadline','stage_started_at','stage_ready_at','run_deadline'):
+                    value=getattr(st,key,None)
+                    budget[key+'_epoch']=round(offset+value,6) if type(value) in (int,float) and value>0 else None
+                budget['clicks']=self.state['clicks'];budget['max_clicks']=max_clicks
+                for key,value in list(budget.items()):
+                    try:json.dumps(value)
+                    except (TypeError,ValueError):budget[key]=None
+                return budget
+            self.lifecycle = RuntimeLifecycle(ownership_snapshot,event=self.event,clock=_time().monotonic,
+                root=self.root,serial=self.config['serial'],budget=lifecycle_budget)
+            if not preview and follow_settings:
+                retire=getattr(self.lifecycle.context,'retire_expired_recovery_on_start',None)
+                if callable(retire):retire()
+            runtime.ui = self.lifecycle.ui if not preview else None
+            if not preview:
+                self.device.input_guard=self.lifecycle.ui.authorize
+                self.device.input_issued=self.lifecycle.ui.issued
             for frame in module.loop(skip_first=False, capture=capture_loop_frame):
                 if self.stop_event.is_set():
                     break
@@ -2659,6 +1985,21 @@ class Clicker:
                                                 progress.status()['edges'].items())
                                     + ' 之间反复往返，未取得进展')
                 self.remember(frame)
+                if not preview:
+                    self.lifecycle.ui.rule=None
+                    probe=stone or parallel or getattr(getattr(setup,'view',None),'owner',None)
+                    main_visible=(probe is not None and probe.fishing._main_visible(frame)
+                        and not probe.sailing.menu(frame) and not probe._map(frame))
+                    self.lifecycle.context.reconcile_stage(st,st.matchers,module,frame,self.state['frame_id'],main=main_visible)
+                    for ended in self.lifecycle.context.drain_outcomes():
+                        feature=ended['feature']
+                        if feature in FEATURE_BY_ID:
+                            rule=next((r for r in self.config['rules'] if r['id'] in FEATURE_BY_ID[feature]['rules']),None)
+                            if rule is not None:
+                                self.task_schedule.finish(feature,ended.get('interval',rule['interval']),
+                                    outcome=ended['outcome'],success=False,detail=ended['detail'])
+                    self.lifecycle.observe(frame,self.state['frame_id'],probe=probe,
+                        enabled=bool(configured_cruise() is not None or stone is not None or parallel is not None))
                 if mailbox_pending_evidence is not None:
                     receipt, before = mailbox_pending_evidence
                     receipt['after_frame_id'] = self.state['frame_id']
@@ -2721,16 +2062,23 @@ class Clicker:
                             and (sailing is None or not sailing.active
                                  and (not parallel.sailing_shutdown or parallel.shutdown_complete))
                             and revision != self.config_revision):
+                        previous_rules = [r for r, _, _ in rules]
                         rules = [self.load_rule(deepcopy(r)) for r in self.config["rules"] if r["enabled"]
                                  and (follow_settings or r['id'] in scoped_rule_ids)]
+                        self.task_schedule.refresh_intervals(previous_rules, [r for r, _, _ in rules])
+                        # Keep the last trigger instant: a new interval changes
+                        # the remaining wait, never grants a fresh click budget.
+                        for rule, _, _ in rules:
+                            timer = module.interval_timer.get(rule['id'])
+                            if timer is not None:
+                                timer.limit = rule['interval']
                         st.matchers = {r["id"]: (r, b, o) for r, b, o in rules}
                         st.stable = {r["id"]: 0 for r, _, _ in rules}
                         st.number_values.clear()
                         st.target_keys.clear()
-                        st.previous, st.previous_progress, st.consecutive = None, None, 0
                         revision = self.config_revision
                         self.state.update(active_rule_ids=list(st.matchers), applied_revision=revision, numbers={})
-                        self.event("功能开关已应用" if rules else "所有功能已关闭，等待开启任务")
+                        self.event("新参数与功能开关已应用" if rules else "所有功能已关闭，等待开启任务")
                         parallel = make_parallel()
                         equipment = make_equipment()
                         backpack = make_backpack()
@@ -2796,8 +2144,7 @@ class Clicker:
                         calibrator = make_calibrator(retire_expired=True)
                         stone = make_stone(retire_expired=True)
                         if pass_task is not None and pass_task.active:
-                            self.task_schedule.finish('pass_daily',pass_task.interval,
-                                self.daily_schedule.status()['pass_daily'],success=False)
+                            self.task_schedule.finish('pass_daily', pass_task.interval, self.daily_schedule.status()['pass_daily'], success=False, controller=pass_task)
                         pass_task=make_pass()
                         guild_daily=make_guild_daily()
                         restaurant=make_restaurant()
@@ -2854,6 +2201,10 @@ class Clicker:
                 if not preview and not st.handling_interrupt:
                     for rule, button, offset in rules:
                         if rule.get('interrupt') and module.appear(button, offset=offset, similarity=rule['threshold']):
+                            if rule['id'] == WORLD_MAP_CLOSE_ID and map_navigation_owned(
+                                    parallel=parallel, stone=stone, backpack=backpack,
+                                    restaurant=restaurant, return_parallel=return_parallel):
+                                continue
                             interruption = rule['id']
                             break
                 if interruption is not None:
@@ -3041,12 +2392,18 @@ class Clicker:
                     now = _time().monotonic()
                     while history and now-history[0] >= 300:
                         history.popleft()
-                    if len(history) >= 3:
+                    capped = len(history) >= 3
+                    if capped and entry_key != 'driftinggirl_event_potion_open':
                         raise RuntimeError(f'{entry_label}入口五分钟内已恢复三次仍未打开，已停止')
-                    history.append(now)
+                    if not capped:history.append(now)
                     st.stage,st.stage_deadline,st.stage_trigger = 'main',None,None
                     st.stage_started_at,st.stage_ready_at = now,0
                     finish_scheduled_daily()
+                    if capped:
+                        # Only this already-confirmed ordinary fishing context
+                        # may release the failed optional entry. Keep its used
+                        # recovery count, buy nothing, and defer the next run.
+                        self.task_schedule.finish('event_potion', resource_entry[0]['interval'], success=False, retry_seconds=max(300.0, resource_entry[0]['interval']), outcome='blocked')
                     st.daily_attempt,st.daily_verified = None,False
                     st.stable = {key:0 for key in st.stable}
                     st.number_values.clear();st.target_keys.clear()
@@ -3057,7 +2414,9 @@ class Clicker:
                         self.state['recoveries'] += 1
                         self.state['matches'] += 1
                         self.state['stage'] = 'main'
-                    if entry_context[1] == 'native':
+                    if capped:
+                        self.event(f'{entry_label}入口本轮已恢复三次仍未打开：当前实际钓鱼已连续确认，本轮跳过并按间隔重试；保留已用次数，不记购买完成')
+                    elif entry_context[1] == 'native':
                         self.event(f'{entry_label}入口未展开：已连续三帧三秒确认当前世界/RANK、游戏航巡和实际钓鱼画面，保留入口间隔恢复；本次不记购买完成')
                     else:
                         self.event(f'{entry_label}入口被普通资源战斗打断：已连续三帧三秒确认当前世界/RANK和已验证航行，保留入口间隔恢复；本次不记购买完成')
@@ -3374,7 +2733,7 @@ class Clicker:
                             break
                         continue
                 if (not preview and interruption is None and st.stage == 'raid_battle'
-                        and raid is not None and raid.step(frame)):
+                        and raid is not None and runtime.call('raid_cast',raid.step,frame)):
                     # 甩杆输入独占这一帧,避免和 raid_confirm 的观察规则抢。
                     with self.lock:
                         self.state['matches'] += 1
@@ -3474,6 +2833,26 @@ class Clicker:
                         if runtime.wait(self.config['poll_interval']):break
                         continue
                     guild_orphan_key, guild_orphan_since, guild_orphan_frames = None, None, 0
+                # Unexpected large world-map overlay: click bottom-right red X.
+                # Distinct from task-popup top-right close. Skip when a controller
+                # is intentionally navigating the map (find_boss / first_map / ...).
+                if (not preview and interruption is None and st.stage == 'main'
+                        and not st.handling_interrupt):
+                    map_visible = world_map_open(frame, self.root)
+                    map_owned = map_navigation_owned(
+                        parallel=parallel, stone=stone, backpack=backpack,
+                        restaurant=restaurant, return_parallel=return_parallel)
+                    if map_visible and not map_owned:
+                        st.world_map_frames = int(getattr(st, 'world_map_frames', 0)) + 1
+                        if st.world_map_frames >= 3:
+                            parallel_click(
+                                WORLD_MAP_CLOSE_XY[0], WORLD_MAP_CLOSE_XY[1],
+                                '大地图：点右下红叉关闭，避免空转')
+                            st.world_map_frames = 0
+                        if runtime.wait(self.config['poll_interval']):
+                            break
+                        continue
+                    st.world_map_frames = 0
                 if not preview and interruption is None and st.stage == 'main':
                     owned = False
                     equipment_checked = False
@@ -3647,6 +3026,8 @@ class Clicker:
                     scan_candidates = [item for item in scan_candidates if item[0]['id'] != potion_cleanup.ENTRY]
                 if not preview and event_potion_skips >= 3:
                     scan_candidates = [item for item in scan_candidates if item[0]['id'] != 'driftinggirl_event_potion_open']
+                if not preview and (self.lifecycle.context.pending_stage or self.lifecycle.context.blocked):
+                    scan_candidates=[item for item in scan_candidates if item[0].get('interrupt')]
                 candidate, grace_visible, previous_visible = runtime.call('rule_scan',scan_rules,
                     frame, scan_candidates, module, st.matchers, load_rule=self.load_rule, preview=preview,
                     interruption=interruption, stage=st.stage, stage_expired=stage_expired,
@@ -3725,6 +3106,55 @@ class Clicker:
                         raise RetryableStage(
                             '每日奖励清算在总窗口内未确认主画面，本次不记完成；保留记录稍后重试')
                     if candidate is None:
+                        # 任务弹窗：关红叉后若弹窗已消失但回程画面认不出，不要硬停整机。
+                        # 对齐平行世界 opening 的 soft abandon：清中断态回 main 续跑；
+                        # 若弹窗仍在（关失败），保持原硬停，避免反复盲点。
+                        popup_return_miss = (
+                            st.stage == 'task_popup_return'
+                            or (st.handling_interrupt
+                                and str(st.stage_trigger or '').startswith('任务弹窗'))
+                        )
+                        if popup_return_miss:
+                            close_rule = st.matchers.get('driftinggirl_task_popup_close')
+                            notice_still = bool(
+                                close_rule is not None
+                                and module.appear(
+                                    close_rule[1],
+                                    offset=close_rule[2],
+                                    similarity=close_rule[0]['threshold'],
+                                )
+                            )
+                            if not notice_still:
+                                soft_n = int(getattr(st, 'task_popup_soft_retries', 0)) + 1
+                                st.task_popup_soft_retries = soft_n
+                                if soft_n <= 5:
+                                    self.event(
+                                        f'任务弹窗关闭后未认出后续界面，软重试回主流程'
+                                        f'（第{soft_n}/5次），不停止'
+                                    )
+                                    st.handling_interrupt = False
+                                    st.interrupt_started_at = None
+                                    st.stage = 'main'
+                                    st.stage_trigger = None
+                                    st.stage_deadline = None
+                                    st.stage_ready_at = 0.0
+                                    st.skip_on_timeout = False
+                                    st.popup_reclick = 0
+                                    st.popup_reclick_frames = 0
+                                    st.popup_map_frames = 0
+                                    st.popup_panel_context = None
+                                    st.popup_panel_frames = 0
+                                    st.popup_panel_since = None
+                                    st.stable = {key: 0 for key in st.stable}
+                                    with self.lock:
+                                        self.state['stage'] = st.stage
+                                    if runtime.wait(self.config['poll_interval']):
+                                        break
+                                    continue
+                                raise RuntimeError(
+                                    f'任务弹窗关闭后连续{soft_n - 1}次未认出后续界面，已停止；'
+                                    f'请在单项验证时确认画面'
+                                )
                         raise RuntimeError(f"执行「{st.stage_trigger}」后未识别到后续界面，已停止；请在单项验证时确认画面")
                 # A disappearing/reappearing housekeeping icon is a new episode,
                 # not another failed attempt at the same unchanged screen.
@@ -3734,6 +3164,7 @@ class Clicker:
                     st.previous_progress = None
                     st.consecutive = 0
                 if candidate and not self.stop_event.is_set():
+                    if not preview:self.lifecycle.ui.select_rule(candidate[0])
                     rule, button, offset = candidate
                     cleanup_click = optional_cleanup is not None and bool(rule.get('cleanup_origin'))
                     if (cleanup_click and not optional_cleanup.ready(
@@ -4187,6 +3618,11 @@ class Clicker:
             if st.scheduled:
                 self.task_schedule.release()
             runtime.close()
+            if not preview:
+                try:self.lifecycle.ui.flush()
+                except Exception as exc:self.log.warning('最终接续快照未更新，保留旧记录与次数：%s',exc)
+            self.device.input_guard=None
+            self.device.input_issued=None
             if cleanup_evidence is not None:
                 cleanup_evidence.close()
             if self.boss_evidence is not None:
@@ -4236,3 +3672,7 @@ class Clicker:
             self.event("运行已停止")
 
 
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

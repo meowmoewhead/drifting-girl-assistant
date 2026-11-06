@@ -32,3 +32,5 @@ def setup_file_logging(logger, directory, filename="clicker.log", max_bytes=2_00
     handler.setFormatter(logging.Formatter(FORMAT))
     logger.addHandler(handler)
     return logger
+
+

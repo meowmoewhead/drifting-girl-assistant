@@ -43,3 +43,5 @@ def hsv_mask(image, bounds):
     mask = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_RGB2HSV),
                        np.array(bounds[0], dtype=np.uint8), np.array(bounds[1], dtype=np.uint8))
     return cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+
+

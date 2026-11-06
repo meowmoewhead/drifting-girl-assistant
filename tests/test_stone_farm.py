@@ -15,7 +15,7 @@ import numpy as np
 from digit_ocr import DigitReader
 from drift.tasks import handoff_journal as records
 from drift.tasks.stone_farm import StoneFarm
-from tools.configure_stone_farm import add
+from dev_tools.configure_stone_farm import add
 from tests import test_clicker as helpers
 
 ROOT = Path(__file__).resolve().parents[1]

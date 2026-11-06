@@ -38,9 +38,11 @@ class RestaurantContinuousTests(unittest.TestCase):
         task.next_at = 0
         task.event = Mock()
         task.enabled = lambda:True
+        task.targets=frozenset(CATEGORIES)
         task.same_world = Mock(return_value=True)
         task.view = Mock()
         task.view._off_icon.return_value = True
+        task.view._battle.return_value = False
         task.visual = Mock(spec=RestaurantVisual)
         task.visual.detail.return_value = True
         task.visual.atlas.return_value = False
@@ -94,7 +96,7 @@ class RestaurantContinuousTests(unittest.TestCase):
     def cycle(self, values=None):
         if values is not None:
             self.task.visual.detail_values.return_value = values
-        for _ in range(3):
+        for _ in range(5 if self.task.phase in ('align','list') else 3):
             self.step()
 
     def list_phase(self, cards):
@@ -318,7 +320,10 @@ class RestaurantContinuousTests(unittest.TestCase):
         self.cycle(self.values(9))
         self.assertEqual(self.task.phase, 'detail_close')
         self.task.event.assert_any_call('餐品强化：「dish-a」本轮材料用完（已升 4 级）')
-        self.task._complete_category()
+        self.task.journal['visited'].extend(dict(category=0,level=20,art=pack(self.art(i))) for i in range(1,9))
+        self.task.visual.detail.return_value=False
+        self.task.visual.atlas.return_value=True
+        self.step()
         self.task.event.assert_any_call(f'餐品强化：「{CATEGORIES[0]}」本轮结束，升级 1 个餐品，提交 128 份食材')
 
     def test_budget_allows_24_feed_reservations_but_only_one_upgrade_per_level(self):
@@ -335,8 +340,8 @@ class RestaurantContinuousTests(unittest.TestCase):
         self.task.journal.update(pending=False, exhausted_dishes=['old-dish'])
         self.task.phase = 'idle'
         self.task.serial = 'offline'
-        self.task.start_screen = Mock(return_value={'route':False})
-        self.task.origin_screen = Mock(return_value={'route':False, 'at_restaurant':True})
+        self.task.start_screen = Mock(return_value={'parallel':False,'header':['rank','world'],'route':False})
+        self.task.origin_screen = Mock(return_value={'parallel':False,'header':['rank','world'],'route':False, 'at_restaurant':True})
         for _ in range(3):
             self.now += 1.5
             self.task.step(self.frame())
@@ -403,12 +408,13 @@ class RestaurantContinuousTests(unittest.TestCase):
         scrolls = [a['kind'] for a in self.issued if a['kind'].startswith('scroll:')]
         self.assertEqual(scrolls, ['scroll:0:0']*5 + ['scroll:0:1'])
 
-    def test_five_scrolls_with_no_new_cards_end_category_without_sixth_scroll(self):
+    def test_five_scrolls_with_no_new_cards_start_backscan_without_false_completion(self):
         self.scroll_without_new_cards()
         self.task.visual.list_key.return_value = self.art(10)[:, :, 0]
         self.cycle()
-        self.assertEqual(self.task.phase, 'category_next')
-        self.assertEqual(self.task.journal['categories'], [0])
+        self.assertEqual(self.task.phase, 'list')
+        self.assertEqual(self.task.journal['categories'], [])
+        self.assertEqual(self.task.journal['atlas_scan']['direction'],'backward')
         self.assertEqual(len(self.issued), 5)
 
 

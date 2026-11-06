@@ -21,6 +21,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class RestaurantTargetTests(unittest.TestCase):
+    def setUp(self):
+        # These tests isolate category routing; real fresh-frame motion gates
+        # are exercised separately by test_restaurant_list and real replays.
+        self.addCleanup(patch.stopall)
+        patch('drift.tasks.restaurant_list.settled',return_value=True).start()
+
+    @staticmethod
+    def cover_category(task,category):
+        task.journal['visited'].extend(dict(category=category,level=20,
+            art=pack(np.random.default_rng(category*10+i).integers(0,256,(8,8,3),dtype=np.uint8))) for i in range(9))
+
     def controller(self, folder, **options):
         task = RestaurantUpgrade(ROOT, None, Mock(return_value=True), Mock(), 'test',
                                  state_path=Path(folder)/'state.json', clock=lambda:100,
@@ -31,6 +42,7 @@ class RestaurantTargetTests(unittest.TestCase):
         task.visual.point.return_value = (600, 300)
         task.visual.list_key.return_value = np.zeros((5, 5), dtype=np.uint8)
         task.visual.cards.return_value = []
+        task.visual.art_matches.side_effect=np.array_equal
         if not task.active:
             task.phase = 'atlas'
             task.journal.update(pending=True, phase='atlas', deadline=1000,
@@ -132,9 +144,10 @@ class RestaurantTargetTests(unittest.TestCase):
             self.assertNotIn(message, [c.args[0] for c in resumed.event.call_args_list])
             resumed.journal['pending'] = False
             resumed.phase = 'idle'
-            resumed.start_screen = Mock(return_value={'route':False})
-            resumed.origin_screen = Mock(return_value={'route':False, 'at_restaurant':True})
+            resumed.start_screen = Mock(return_value={'route':False,'parallel':False,'header':['rank','world'],'at_restaurant':True})
+            resumed.origin_screen = Mock(return_value={'route':False,'at_restaurant':True,'parallel':False,'header':['rank','world']})
             resumed._confirmed = Mock(return_value=True)
+            resumed.view._battle=Mock(return_value=False)
             resumed.step(object())
             resumed._set('atlas')
             resumed.step(object(), due=False)
@@ -158,7 +171,7 @@ class RestaurantTargetTests(unittest.TestCase):
                         self.assertEqual(task.phase, 'align')
                         task.journal['aligns'] = 4
                         task.step(object(), due=False)
-                        task.journal['scrolls'] = 5
+                        self.cover_category(task,category)
                         task.step(object(), due=False)
                         completed.append(category)
                     self.assertEqual(task.phase, 'category_next')
@@ -171,7 +184,7 @@ class RestaurantTargetTests(unittest.TestCase):
                 actions = [c.args[0]['kind'] for c in task.action.call_args_list]
                 self.assertEqual(len(actions), index)
                 self.assertTrue(all(k.startswith('next:') for k in actions))
-                self.assertEqual(task.status()['checked'], 0)
+                self.assertEqual(task.status()['checked'],9*len(completed))
                 skips = [c.args[0] for c in task.event.call_args_list if '不在已选类别内' in c.args[0]]
                 self.assertEqual(len(skips), index-1)
 
@@ -247,7 +260,7 @@ class RestaurantTargetTests(unittest.TestCase):
                     self.assertEqual(task.phase, 'align')
                     task.journal['aligns'] = 4
                     task.step(object(), due=False)
-                    task.journal['scrolls'] = 5
+                    self.cover_category(task,category)
                     task.step(object(), due=False)
                     self.assertEqual(task.phase, 'category_next')
                     task.step(object(), due=False)
@@ -365,21 +378,25 @@ class RestaurantTargetTests(unittest.TestCase):
             self.assertEqual(task.journal['categories'], [])
             task.action.assert_not_called()
 
-    def test_exhausted_short_list_closes_at_confirmed_end_without_nine_categories(self):
+    def test_short_list_end_requires_backscan_and_remains_incomplete(self):
         with tempfile.TemporaryDirectory() as d:
-            task = self.controller(d, targets=['汤'])
-            task._confirmed = Mock(return_value=True)
-            task.visual.category.return_value = 7
-            key = np.arange(25, dtype=np.uint8).reshape(5, 5)
-            task.visual.list_key.return_value = key
-            task.journal.update(category=7, scrolls=1, previous_list=pack(key))
-            self.unavailable_dish(task, 'only-readable-dish')
-            task.step(object(), due=False)
-            self.assertEqual(task.phase, 'category_next')
-            task.step(object(), due=False)
-            self.assertEqual(task.phase, 'close')
+            task=self.controller(d,targets=['干货'])
+            task._confirmed=Mock(return_value=True)
+            task.visual.category.return_value=0
+            task.journal.update(category=0,scrolls=5,aligns=4)
+            task._set('list',1200)
+            task.step(object(),due=False)
+            self.assertEqual(task.phase,'list')
+            self.assertEqual(task.journal['atlas_scan']['direction'],'backward')
+            self.assertEqual(task.journal['categories'],[])
+            task.journal['atlas_scan']['back_steps']=5
+            task.step(object(),due=False)
+            self.assertEqual(task.phase,'category_next')
+            self.assertEqual(task.journal['categories'],[])
+            self.assertEqual(len(task.journal['incomplete_categories']),1)
+            task.step(object(),due=False)
+            self.assertEqual(task.phase,'close')
             task.action.assert_not_called()
-            self.assertIn('未知卡片未点击', task.journal['skipped'][-1]['reason'])
 
     def test_revisited_category_cannot_complete_run_early(self):
         with tempfile.TemporaryDirectory() as d:
@@ -467,15 +484,13 @@ class RestaurantPreferenceAPITests(unittest.TestCase):
                     self.app.change_feature({'id':feature, 'targets':[]})
         self.assertEqual(self.app.config, before)
 
-    def test_targets_alone_requires_idle(self):
-        before = deepcopy(self.app.config)
+    def test_targets_can_queue_while_running_without_calling_idle_guard(self):
         with patch.object(self.app, 'running', return_value=True):
-            with self.assertRaisesRegex(ValueError, '请先停止运行'):
-                self.app.change_feature({'id':'restaurant_upgrade', 'targets':['烧烤']})
-        self.assertEqual(self.app.config, before)
-        with patch.object(self.app, 'idle_only', wraps=self.app.idle_only) as idle:
-            self.app.change_feature({'id':'restaurant_upgrade', 'targets':['烧烤']})
-            idle.assert_called_once_with()
+            with patch.object(self.app, 'idle_only', wraps=self.app.idle_only) as idle:
+                result=self.app.change_feature({'id':'restaurant_upgrade', 'targets':['烧烤']})
+                idle.assert_not_called()
+            self.assertTrue(self.app.status()['settings_pending'])
+        self.assertEqual(result['targets'],['烧烤'])
 
     def test_persist_failure_keeps_original_preferences(self):
         before = deepcopy(self.app.config)
@@ -516,7 +531,7 @@ let markup = '', sent;
 function element(id) {
   const node = {value:'', textContent:'', checked:false, listeners:{}, nextElementSibling:{},
     addEventListener(name, fn) { this.listeners[name] = fn; },
-    closest() { return this; }, insertAdjacentHTML(position, text) { parse(text); }};
+    closest(selector) { return ['#settings-form','#schedule-form'].includes(selector) ? null : this; }, insertAdjacentHTML(position, text) { parse(text); }};
   Object.defineProperty(node, 'innerHTML', {set(text) { if (id === 'feature-detail') markup = text; parse(text); }});
   elements.set(id, node); return node;
 }
@@ -538,7 +553,8 @@ function parse(text) {
   }
 }
 element('feature-detail');
-const context = {detailId:'', detailDirty:false, scheduleDirty:false, state:{rules:[]}, busy:false, connected:true,
+const context = {detailId:'', detailDirty:false, scheduleDirty:false, state:{rules:[],features:[input.feature]}, busy:false, connected:true,
+  deviceScanning:false, deviceScan:null,
   $:id=>elements.get(id), esc:value=>String(value ?? ''), icon:()=>'', toggleMarkup:()=>'',
   notes:{}, executionKind:()=>'', nextRunText:()=>'', timeInputValue:()=>'',
   api:(path, data)=>{ sent = {path, data}; return Promise.resolve(); }, act:fn=>fn(),
@@ -562,7 +578,7 @@ if (input.selected !== null) {
 const dirty = context.detailDirty;
 context.renderDetail(input.feature); // Status refresh must preserve unsaved choices.
 elements.get('feature-form').onsubmit({preventDefault(){}});
-for (const id of ['run', 'preview', 'stop', 'refresh', 'refresh-mini']) element(id);
+for (const id of ['run', 'preview', 'stop', 'refresh', 'refresh-mini', 'device-detect','device-adb-path','device-select','device-connect','device-auto']) element(id);
 vm.runInContext(source.slice(source.indexOf('function updateControls('), source.indexOf('\nfunction showNumbers(')), context);
 const disabledStates = [];
 for (const [running, busy, connected] of [[false,false,true], [true,false,true], [false,true,true], [false,false,false], [false,false,true]]) {
@@ -625,7 +641,7 @@ process.stdout.write(JSON.stringify({markup, initial, dirty, sent,
         self.assertEqual(result['sent']['data']['targets'], [])
 
     def test_dropdown_is_disabled_while_running_busy_or_disconnected(self):
-        self.assertEqual(self.panel({})['disabledStates'], [False, True, True, True, False])
+        self.assertEqual(self.panel({})['disabledStates'], [False, False, True, True, False])
 
     def test_other_features_have_no_target_controls_or_payload(self):
         for feature in ({'id':'mana'}, {'id':'parallel_skills', 'growth_points':False}, {'id':'equipment_upgrade'}):

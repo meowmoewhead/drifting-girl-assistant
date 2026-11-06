@@ -64,3 +64,5 @@ def adapt_resource_battle(rule, button, reference):
             and not rule.get('click_source_area') and not rule.get('match_hsv')):
         return ResourceBattleRecoveryButton(button,reference)
     return button
+
+

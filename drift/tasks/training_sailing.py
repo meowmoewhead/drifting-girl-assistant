@@ -477,3 +477,12 @@ class TrainingSailing:
             return False
         self._timeout()
         return True
+
+
+# Reviewed source-sprite recognition; controller guards and input logic unchanged.
+from drift.perception.original_templates import install_original_templates as _install_original_templates
+_install_original_templates(TrainingSailing, 'training-sailing', '_fixed')
+
+# Reviewed source-sprite recognition; controller guards and input logic unchanged.
+from drift.perception.original_templates import install_original_templates as _install_original_templates
+_install_original_templates(TrainingSailing, 'training-sailing', '_fixed')

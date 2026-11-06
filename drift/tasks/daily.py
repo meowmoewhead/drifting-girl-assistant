@@ -90,9 +90,8 @@ class DailySchedule:
                      'checked_at': self.clock().astimezone(BEIJING).isoformat()}
         if bonus:
             saved['bonus_checked'] = bonus
-        temporary = self.path.with_suffix('.json.tmp')
-        temporary.write_text(json.dumps(saved, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-        temporary.replace(self.path)
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(self.path, json.dumps(saved, ensure_ascii=False, indent=2) + '\n')
         self.completed = updated
         self.bonus_checked = bonus
         return True
@@ -109,3 +108,35 @@ class DailySchedule:
                               if feature == 'daily_reward' else {}),
                            'reset_hour': 8, 'timezone': 'Asia/Shanghai', 'next_reset': following.isoformat()}
                 for feature in DAILY_RETURNS}
+
+# Keep legacy task logic; delegate every record read/write to shared storage.
+from drift.core.persistence import ReliablePath as Path
+
+# Shared reliability layer; retain all other deployed methods.
+def mark_complete(self, feature, started_period):
+    # A workflow that straddles reset must be checked again in the new period.
+    if feature not in DAILY_RETURNS or started_period != self.period():
+        return False
+    updated = deepcopy(self.completed)
+    if updated.get(feature, {}).get('period') != started_period:
+        updated[feature] = {'period': started_period,
+                            'completed_at': self.clock().astimezone(BEIJING).isoformat()}
+    saved = {'version': 1, 'serial': self.serial, 'completed': updated}
+    bonus = self.bonus_checked
+    if feature == 'daily_reward' and self.require_bonus:
+        bonus = {'period': started_period,
+                 'checked_at': self.clock().astimezone(BEIJING).isoformat()}
+    if bonus:
+        saved['bonus_checked'] = bonus
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(self.path, json.dumps(saved, ensure_ascii=False, indent=2) + '\n')
+    self.completed = updated
+    self.bonus_checked = bonus
+    return True
+
+DailySchedule.mark_complete = mark_complete
+
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

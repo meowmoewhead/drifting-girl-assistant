@@ -58,3 +58,5 @@ class DailyBonusVisual:
                 and float(pixels.mean()) >= 65):
             return 'gray'
         return None
+
+

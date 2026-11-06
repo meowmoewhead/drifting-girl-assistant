@@ -18,7 +18,7 @@ from app import Clicker
 from digit_ocr import DigitReader, NumberReading, CounterReading
 from purchase_checks import currency_floor, stock_check, quantity_check, QuantityTemplates, confirmation_check, read_stock_counter
 from drift.tasks.features import FEATURE_BY_ID
-from tools.configure_guild_shop import presets
+from dev_tools.configure_guild_shop import presets
 
 
 class GuildShopTests(unittest.TestCase):

@@ -254,3 +254,5 @@ class GameRecovery:
                 else:
                     self.title_frames = 0
         return 'wait'
+
+

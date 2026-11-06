@@ -173,3 +173,5 @@ def build(rules, *, hub=MAIN, allowed_actions=None):
             # 都指向返回主画面),后出现的不覆盖,结果由配置顺序决定。
             pages[source].links.setdefault(target, rule['id'])
     return pages
+
+

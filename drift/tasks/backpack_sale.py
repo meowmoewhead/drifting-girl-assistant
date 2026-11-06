@@ -206,9 +206,8 @@ class BackpackSale:
         image = base64.b64encode(cv2.imencode('.png', self.origin)[1]).decode('ascii') if self.origin is not None else None
         saved = {'version': 1, 'pending': pending, 'parallel': self.parallel,
                  'origin': image, 'total': self.capacity_before, 'attempted': self.attempted}
-        temporary = self.path.with_suffix('.json.tmp')
-        temporary.write_text(json.dumps(saved)+'\n', encoding='utf-8')
-        temporary.replace(self.path)
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(self.path, json.dumps(saved) + '\n')
 
     def _finish(self):
         self._save(False)
@@ -494,3 +493,21 @@ class BackpackSale:
         if self.phase == 'travel_origin' and self._confirmed(self.main(frame) and not self.moving(frame)):
             self._finish()
         return True
+
+# Keep legacy task logic; delegate every record read/write to shared storage.
+from drift.core.persistence import ReliablePath as Path
+
+# Shared reliability layer; retain all other deployed methods.
+def _save(self, pending=True):
+    image = base64.b64encode(cv2.imencode('.png', self.origin)[1]).decode('ascii') if self.origin is not None else None
+    saved = {'version': 1, 'pending': pending, 'parallel': self.parallel,
+             'origin': image, 'total': self.capacity_before, 'attempted': self.attempted}
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(self.path, json.dumps(saved) + '\n')
+
+BackpackSale._save = _save
+
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

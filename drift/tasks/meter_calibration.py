@@ -148,6 +148,9 @@ class MeterCalibration:
     LIMIT = 90
     CANDIDATE_LIMIT = 300
     RESTORE_RESERVE = 30
+    # Stop fishing only while there is room for both adjustment/verification
+    # and the existing restoration reserve. Late windows must leave it running.
+    CANCEL_MIN_REMAINING = 60
     CONFIRM_SECONDS = 3
     # Candidate votes only establish whether to open a fresh execution window.
     # OCR-heavy main loops can be 10-14s apart. Keep their context/number votes
@@ -192,6 +195,7 @@ class MeterCalibration:
             dict(mode='idle', fishing_meter_limits=training.get('fishing_meter_limits', {})))
         self.world.rank = self.journal.get('rank') if self.active else None
         self.fishing = FishingMeter(root, self.world.training, meter_action, event)
+        self.fishing.allow_sleep_wake = True
         self.sailing = TrainingSailing(root, self.world.training, self._no_navigation,
                                        event, self.fishing,
                                        context_check=self.fishing._context)
@@ -207,6 +211,11 @@ class MeterCalibration:
         self.fishing.cancels = counts.get('cancel', 0)
         self.fishing.drags = counts.get('drag', 0) + counts.get('reveal', 0)
         self.fishing.starts = counts.get('start', 0)
+        self.fishing.wakes = counts.get('wake', 0)
+        if self.active and self.fishing.wakes and not self.fishing.starts:
+            self.fishing.phase = 'waking'
+            wake_at = self.journal.get('wake_reserved_at', self.journal['deadline']-self.LIMIT)
+            self.fishing.since = time.monotonic()-max(0, time.time()-wake_at)
         self.fishing.current = self.journal.get('value')
         self.fishing.goal = self.journal.get('target', self.journal.get('trigger_player', self.journal.get('high')))
         trigger_player = self.journal.get('trigger_player')
@@ -389,9 +398,8 @@ class MeterCalibration:
             raise ValueError('已有标尺修复重试请求，请先核查')
         now = time.time()
         request = dict(version=1,failed_sha256=digest,requested_at=now,expires_at=now+300)
-        temporary = path.with_suffix('.tmp')
-        temporary.write_text(json.dumps(request,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-        temporary.replace(path)
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(path, json.dumps(request, ensure_ascii=False, indent=2) + '\n')
         return request
 
     def _apply_retry(self, frame):
@@ -455,6 +463,8 @@ class MeterCalibration:
         self.fishing.current,self.fishing.goal = data['value'],data.get('goal')
         self.journal['target'] = data.get('goal')
         self.fishing.drags = self.fishing.starts = self.fishing.cancels = 0
+        self.fishing.wakes = 0
+        self.journal.pop('wake_reserved_at', None)
         self.fishing.start_fill_verified = False
         self.fishing.saved_player_gap = pre_input
         self.fishing.idle_since = None
@@ -598,9 +608,8 @@ class MeterCalibration:
 
     def _save(self):
         self.journal['training'] = self.world.training.state
-        temporary = self.path.with_suffix('.tmp')
-        temporary.write_text(json.dumps(self.journal, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
-        temporary.replace(self.path)
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2) + '\n')
 
     def _set(self, phase):
         # Only a new in-process calibration may begin its adjustment budget
@@ -823,10 +832,25 @@ class MeterCalibration:
             return False
         if not self.input_allowed():
             return False
+        if (self.preserves_route and action in ('cancel', 'scan_cancel')
+                and self.journal['deadline']-time.time() < self.CANCEL_MIN_REMAINING):
+            return False
+        if action == 'wake':
+            counts = self.journal.setdefault('attempts', {})
+            if (self.phase != 'prepare' or counts.get('start', 0)
+                    or self.journal['deadline']-time.time() < self.RESTORE_RESERVE):
+                return False
+            if counts.get('wake', 0):
+                raise MeterWorkflowLimit('标尺校准本轮Zzz唤醒已用，保留原输入次数')
+            counts['wake'] = 1
+            self.journal['wake_reserved_at'] = time.time()
+            self._save()
+            return True
         if action == 'resume_cast':
             if (self.phase != 'restore_fishing' or not self.preserves_route
                     or not self.journal.get('attempts', {}).get('cancel', 0)
                     or self.journal.get('attempts', {}).get('start', 0)
+                    or self.journal.get('attempts', {}).get('wake', 0)
                     or self.journal['deadline']-time.time() < 8):
                 return False
             # A short restoration cast consumes the same unused start allowance.
@@ -1018,10 +1042,10 @@ class MeterCalibration:
                 and self.journal.get('restore_retry') is None)
 
     def pre_battle_step(self, frame):
-        """Service a pending safe route stop before optional combat owns the loop.
+        """Service a saved calibration before optional combat owns the loop.
 
-        This cannot start calibration, cancel fishing or act on a task BOSS.
-        The input callback still captures again and applies validate_sailing.
+        This cannot open a new execution or cancel a task BOSS. Every action
+        still captures again and checks its ordinary-fish/context guards.
         """
         if self.awaiting_recovery:
             return self._observe_retired(frame)
@@ -1036,6 +1060,11 @@ class MeterCalibration:
             if self._untouched_route_wait():
                 self.step(frame)
             return False
+        # prepare already owns confirmed numeric RANK/stage plus fixed strokes.
+        # Recheck those same guards before the short scan, without spending a
+        # second full numeric OCR pass. A changed context takes the slow path.
+        if self.phase == 'prepare' and self.meter_frame_allowed(frame):
+            return self.step(frame)
         screen = self.screen(frame, restore_fishing=self.phase == 'restore_fishing')
         if screen is None or screen['menu']:
             return False
@@ -1140,6 +1169,7 @@ class MeterCalibration:
         # This observes combat/ambiguous frames; only scan_cancel_frame's fresh
         # ordinary-preparation + X guard can actually authorize a cancel.
         if (self.journal.get('attempts',{}).get('start',0)
+                or self.journal.get('attempts',{}).get('wake',0)
                 or self.fishing.start_fill_verified or self.fishing.idle_icon(frame)):
             return False
         reference = self.journal.get('selected_signature')
@@ -1168,6 +1198,7 @@ class MeterCalibration:
         return bool(self.input_allowed() and self.phase == 'restore_fishing'
             and self.journal['deadline']-time.time() >= 8
             and not self.journal.get('attempts', {}).get('start', 0)
+            and not self.journal.get('attempts', {}).get('wake', 0)
             and self.restore_cast_context is not None
             and self.screen(frame, restore_fishing=True) is not None
             and self.fishing._context(frame) == self.restore_cast_context
@@ -1204,7 +1235,8 @@ class MeterCalibration:
                 return False
             return True
         data = self.fishing.resume_cast_data(frame)
-        if data is None or self.journal.get('attempts', {}).get('start', 0):
+        if (data is None or self.journal.get('attempts', {}).get('start', 0)
+                or self.journal.get('attempts', {}).get('wake', 0)):
             self._set('restore_fishing')
             self.restore_cast_context = None
             self._report_wait('只恢复钓鱼：等待灰色鱼钩连续休眠；已有启动输入时只核对结果')
@@ -1289,6 +1321,7 @@ class MeterCalibration:
             if (self.active and self.preserves_route and self.phase != 'restore_fishing'
                     and self.journal.get('attempts', {}).get('cancel', 0)
                     and not self.journal.get('attempts', {}).get('start', 0)
+                    and not self.journal.get('attempts', {}).get('wake', 0)
                     and self.input_allowed() and self.journal['deadline']-time.time() >= 8):
                 self._begin_fishing_restore(str(exc))
                 return True
@@ -1341,10 +1374,16 @@ class MeterCalibration:
             return False
         if self.active and self.preserves_route:
             cancelled = self.journal.get('attempts', {}).get('cancel', 0)
+            if (not any(self.journal.get('attempts', {}).values())
+                    and not any(self.journal.get('sailing_attempts', {}).values())
+                    and self.journal['deadline']-time.time() < self.CANCEL_MIN_REMAINING):
+                self._retire_window('剩余时间不足以停钓、调整并恢复；未发出输入，保留当前钓鱼')
+                return False
             if cancelled and self.phase != 'restore_fishing':
                 reason = ('到达任务标记地点' if self.world.training.boss_mode(frame)
                           else '调整时间不足，预留恢复时间'
                           if not self.journal.get('attempts', {}).get('start', 0)
+                          and not self.journal.get('attempts', {}).get('wake', 0)
                           and self.journal['deadline']-time.time() <= self.RESTORE_RESERVE else None)
                 if reason:
                     self._begin_fishing_restore(reason)
@@ -1444,6 +1483,8 @@ class MeterCalibration:
             # cast_data labels the fixed strokes with the saved numeric value.
             self.journal['selected_signature'] = self._selection_signature(self.fishing.cast_data(frame))
             self.fishing.cancels = self.fishing.drags = self.fishing.starts = 0
+            self.fishing.wakes = 0
+            self.journal.pop('wake_reserved_at', None)
             self.fishing.phase, self.fishing.next_action_at = 'detect', 0
             self.fishing.start_fill_verified = False
             self.off_verified = False
@@ -1455,6 +1496,11 @@ class MeterCalibration:
             self._set('prepare')
             self.finish_candidate_observation('execution_started')
             self.event(f"标尺校准：角色 Lv{data['player']}、标尺 {data['value']}，差距超过{self.GAP}；保留航巡，仅停止持续钓鱼后校准")
+            # Do not throw away the ordinary-preparation opportunity that just
+            # armed this execution and wait for another OCR-heavy outer loop.
+            # _observe_cancel_window always captures new frames before input.
+            if self.meter_frame_allowed(frame):
+                self._observe_cancel_window(frame)
             return True
         if time.monotonic() < self.next_at:
             return True
@@ -1521,11 +1567,12 @@ class MeterCalibration:
             if self._observe_cancel_window(frame):
                 return True
             started = bool(self.journal.get('attempts',{}).get('start',0))
+            woke = bool(self.journal.get('attempts',{}).get('wake',0))
             if started and not self.fishing.start_fill_verified:
                 if self.fishing.phase != 'starting':
                     self.fishing.arm_start_observation(frame)
                 self.fishing.confirm_start(frame)
-            verified_start = bool(started and self.fishing.start_fill_verified
+            verified_start = bool((started or woke) and self.fishing.start_fill_verified
                                   and self.fishing.post_start_evidence(frame))
             # Idle preparation performs its own complete numeric read below.
             # Only an existing fill needs this additional read-only adoption
@@ -1574,3 +1621,401 @@ class MeterCalibration:
                     self._set('running')
             return True
         return True
+
+# Keep legacy task logic; delegate every record read/write to shared storage.
+from drift.core.persistence import ReliablePath as Path
+
+# Shared reliability layer; retain all other deployed methods.
+def _save(self):
+    self.journal['training'] = self.world.training.state
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2) + '\n')
+
+MeterCalibration._save = _save
+
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path
+
+# Bounded stop-window repair; preserve all other deployed methods.
+
+MeterCalibration.CANCEL_MIN_REMAINING = 60
+
+def reserve_meter_input(self, action):
+        if self._restoring_only():
+            return False
+        if not self.input_allowed():
+            return False
+        if (self.preserves_route and action in ('cancel', 'scan_cancel')
+                and self.journal['deadline']-time.time() < self.CANCEL_MIN_REMAINING):
+            return False
+        if action == 'wake':
+            counts = self.journal.setdefault('attempts', {})
+            if (self.phase != 'prepare' or counts.get('start', 0)
+                    or self.journal['deadline']-time.time() < self.RESTORE_RESERVE):
+                return False
+            if counts.get('wake', 0):
+                raise MeterWorkflowLimit('标尺校准本轮Zzz唤醒已用，保留原输入次数')
+            counts['wake'] = 1
+            self.journal['wake_reserved_at'] = time.time()
+            self._save()
+            return True
+        if action == 'resume_cast':
+            if (self.phase != 'restore_fishing' or not self.preserves_route
+                    or not self.journal.get('attempts', {}).get('cancel', 0)
+                    or self.journal.get('attempts', {}).get('start', 0)
+                    or self.journal.get('attempts', {}).get('wake', 0)
+                    or self.journal['deadline']-time.time() < 8):
+                return False
+            # A short restoration cast consumes the same unused start allowance.
+            # Persist before input, including uncertain transport failures.
+            self.journal.setdefault('attempts', {})['start'] = 1
+            self.journal['fishing_restore'].update(input_reserved_at=time.time(),
+                                                  action='resume_cast')
+            self._save()
+            return True
+        if self.phase == 'restore_fishing':
+            return False
+        if (self.preserves_route and action in ('cancel', 'scan_cancel', 'drag', 'reveal')
+                and self.journal['deadline']-time.time() <= self.RESTORE_RESERVE):
+            return False
+        action = 'cancel' if action == 'scan_cancel' else action
+        counts = self.journal.setdefault('attempts', {})
+        used = (counts.get('drag',0)+counts.get('reveal',0) if action in ('drag','reveal')
+                else counts.get(action,0))
+        limit = 4 if action in ('drag','reveal') else 2 if action == 'cancel' else 3
+        if used >= limit:
+            raise MeterWorkflowLimit('标尺校准已达到本轮输入上限')
+        counts[action] = counts.get(action, 0)+1
+        self._save()
+        return True
+
+MeterCalibration.reserve_meter_input = reserve_meter_input
+
+def pre_battle_step(self, frame):
+        """Service a saved calibration before optional combat owns the loop.
+
+        This cannot open a new execution or cancel a task BOSS. Every action
+        still captures again and checks its ordinary-fish/context guards.
+        """
+        if self.awaiting_recovery:
+            return self._observe_retired(frame)
+        if not self.active or (self.phase != 'stop'
+                               and not (self.preserves_route and self.phase in
+                                        ('route_context','prepare','restore_fishing'))):
+            return False
+        if not self.input_allowed():
+            # A never-issued wait can be observed even while a BOSS owns the
+            # next combat burst. This issues no input and never takes combat
+            # ownership; its original deadline remains expired throughout.
+            if self._untouched_route_wait():
+                self.step(frame)
+            return False
+        # prepare already owns confirmed numeric RANK/stage plus fixed strokes.
+        # Recheck those same guards before the short scan, without spending a
+        # second full numeric OCR pass. A changed context takes the slow path.
+        if self.phase == 'prepare' and self.meter_frame_allowed(frame):
+            return self.step(frame)
+        screen = self.screen(frame, restore_fishing=self.phase == 'restore_fishing')
+        if screen is None or screen['menu']:
+            return False
+        return self.step(frame)
+
+MeterCalibration.pre_battle_step = pre_battle_step
+
+def _step(self, frame):
+        if self.active:
+            if not self.enabled():
+                raise RuntimeError('标尺校准途中功能已关闭，已停止并保留恢复记录')
+            if self.retry is not None:
+                if self._apply_retry(frame):
+                    return True
+                if self.expired_observe_until is not None and time.monotonic() < self.expired_observe_until:
+                    return True
+                raise RuntimeError('标尺修复重试未确认原地点停航和休眠，保留原失败记录')
+            if time.time() >= self.journal['deadline']:
+                if (self._untouched_route_wait()
+                        and self.untouched_expiry_observed != self.journal['deadline']):
+                    # A bounded read-only consensus does not renew the expired
+                    # input budget. Used stop/cancel/drag/start limits retain
+                    # their original failure behavior and cannot enter here.
+                    self.untouched_expiry_observed = self.journal['deadline']
+                    self.expired_observe_until = time.monotonic()+15
+                if self._restoring_only():
+                    if time.time() >= self.journal['restore_retry']['deadline']:
+                        if self._resolve_expired(frame):
+                            return False
+                        # A restart needs the same bounded read-only consensus
+                        # as an expired normal calibration. Neither deadline
+                        # nor any input allowance changes during observation.
+                        if self.expired_observe_until is not None and time.monotonic() < self.expired_observe_until:
+                            return True
+                        raise MeterWorkflowLimit('标尺填充已验证，但40秒航巡恢复未完成')
+                elif self._resolve_expired(frame):
+                    return False
+                elif not self._restoring_only():
+                    self._report_wait('上次校准已到期；只读核对原航巡是否恢复，保留原截止时间和尝试次数')
+                    # Read-only verification cannot extend the saved input deadline.
+                    if self.expired_observe_until is not None and time.monotonic() < self.expired_observe_until:
+                        return True
+                    raise MeterWorkflowLimit('标尺校准90秒内未完成')
+        elif not self.enabled():
+            self._report_wait('标尺校准功能已关闭')
+            return False
+        elif time.time() < self._next_check():
+            self._report_wait('上次校准未完成；已确认钓鱼恢复，等待失败退避间隔结束'
+                              if self._failed_release_at() is not None else
+                              '上次成功校准后的冷却尚未结束')
+            return False
+        if self.active and self.preserves_route:
+            cancelled = self.journal.get('attempts', {}).get('cancel', 0)
+            if (not any(self.journal.get('attempts', {}).values())
+                    and not any(self.journal.get('sailing_attempts', {}).values())
+                    and self.journal['deadline']-time.time() < self.CANCEL_MIN_REMAINING):
+                self._retire_window('剩余时间不足以停钓、调整并恢复；未发出输入，保留当前钓鱼')
+                return False
+            if cancelled and self.phase != 'restore_fishing':
+                reason = ('到达任务标记地点' if self.world.training.boss_mode(frame)
+                          else '调整时间不足，预留恢复时间'
+                          if not self.journal.get('attempts', {}).get('start', 0)
+                          and not self.journal.get('attempts', {}).get('wake', 0)
+                          and self.journal['deadline']-time.time() <= self.RESTORE_RESERVE else None)
+                if reason:
+                    self._begin_fishing_restore(reason)
+            if self.phase == 'restore_fishing':
+                return self._restore_fishing(frame)
+        if not self.active and self.candidate_at is not None and time.time()-self.candidate_at >= self.CANDIDATE_LIMIT:
+            self.finish_candidate_observation('candidate_timeout')
+            self.journal.update(candidate_result=dict(reason='no_safe_window', at=time.time(),
+                                                     started_at=self.candidate_at, inputs=0),
+                                next_check=time.time()+self.failure_backoff())
+            self._save()
+            self.candidate_at = None
+            self._set('idle')
+            self._report_wait('300秒内未出现合适的停钓/休眠窗口，未发出输入，延期检测')
+            return False
+        if self.phase == 'running':
+            if self._confirm_resumed_route(frame):
+                self._finish()
+            return True
+        if self._restoring_only() and not self.off_verified:
+            # A process restart never reuses the original OFF proof or renews
+            # this explicitly requested repair window.
+            context = self._restore_repair_context(frame)
+            if context is not None and self._confirmed(context[1]):
+                self.off_verified = True
+                self._set(context[0])
+            return True
+        # The already verified stopped context includes exact current RANK,
+        # world/stage and location strokes. Avoid another numeric OCR pass
+        # before the short cancellation scan; all inputs still take new frames.
+        screen = (dict(rank=self.journal['rank'],stage=self.journal['stage'],menu=False,route=self.expected_route())
+                  if self.active and self.phase == 'prepare' and self.meter_frame_allowed(frame)
+                  else self.screen(frame))
+        if screen is None:
+            self.key = self.seen_at = None
+            self.seen = 0
+            # 写清是哪一条画面条件没过:泛泛的"不是主画面"无法区分世界/航巡/港口/RANK。
+            self.wait_unmet = self.screen_reason or '画面条件未知'
+            self._candidate_note('screen_guard', detail=self.wait_unmet)
+            self._report_wait(f'当前画面不是已确认的平行世界主画面：{self.wait_unmet}')
+            return self.active
+        if not self.active:
+            if screen['menu']:
+                self._candidate_note('sailing_menu')
+                self._report_wait('正在航行设置菜单里，等退出后再判断')
+                return False
+            data = self.fishing.measure(frame)
+            if data:
+                self.player, self.value = data['player'], data['value']
+            if not self.needs_adjustment(data):
+                if data is not None:
+                    self.finish_candidate_observation('gap_closed' if data['player']-data['value'] <= self.GAP
+                                                      else 'available_limit')
+                    self.candidate_at = None
+                self.key = self.seen_at = None
+                self.seen = 0
+                if data is None:
+                    self.wait_unmet = self._measure_unmet(frame)
+                    self._candidate_note('reading_unavailable', detail=self.wait_unmet)
+                    self._report_wait(f'计量与角色等级没读清：{self.wait_unmet}')
+                elif data['player'] - data['value'] <= self.GAP:
+                    self._report_wait(f'差距没超过 {self.GAP} 级，无需校准', data)
+                else:
+                    self._report_wait('标尺已经在可用上限，无需校准', data)
+                return False
+            if self.candidate_at is None:
+                self.candidate_at = time.time()
+                if getattr(self, '_candidate_trace', None) is None:
+                    self._candidate_trace = CandidateObservation(self.event, clock=time.monotonic)
+                self._candidate_trace.begin(self.candidate_at, rank=screen['rank'], stage=screen['stage'],
+                    player=data['player'], value=data['value'], high=data['high'])
+            key = (screen['rank'], screen['stage'], screen['route'], data['context'], data['value'], data['high'])
+            confirmed = self._confirmed(key,max_gap=self.CANDIDATE_FRAME_GAP)
+            ready = confirmed and self._candidate_ready(frame)
+            self._candidate_note(getattr(self, '_candidate_reason', 'window_unknown') if confirmed
+                                 else 'context_confirmation', key=key)
+            if not ready:
+                self._report_wait('只读候选：等待普通鱼准备或明确休眠，再开始90秒执行窗口', data)
+                return False
+            self.journal.update(pending=True, rank=screen['rank'], stage=screen['stage'],
+                restore_running=screen['route'], deadline=time.time()+self.LIMIT,
+                value=data['value'], high=data['high'], attempts={}, sailing_attempts={}, auto_sale_guard=None,
+                trigger_player=data['player'],
+                route_policy='preserve', calibration_context=None,
+                proof=None, resolution=None, resume_requested=False, stopped_context=None,
+                window_restarted_at=None, retirement=None, retired_at=None, restore_retry=None,
+                fishing_restore=None,
+                stage_strokes=self.world._stage_strokes(frame).hex())
+            self.candidate_at = None
+            self.resumed_pending = False
+            self.world.rank = screen['rank']
+            self.world.training.state = dict(mode='farming', rank=screen['rank'],
+                sailing_enabled=screen['route'], sailing_sleep_recovery=True, sailing_meter_adjustment=True)
+            self.fishing.current, self.fishing.goal = data['value'], data.get('goal')
+            self.journal['target'] = data.get('goal')
+            self.fishing.saved_player_gap = True
+            # cast_data labels the fixed strokes with the saved numeric value.
+            self.journal['selected_signature'] = self._selection_signature(self.fishing.cast_data(frame))
+            self.fishing.cancels = self.fishing.drags = self.fishing.starts = 0
+            self.fishing.wakes = 0
+            self.journal.pop('wake_reserved_at', None)
+            self.fishing.phase, self.fishing.next_action_at = 'detect', 0
+            self.fishing.start_fill_verified = False
+            self.off_verified = False
+            self.route_verified, self.context = True, data['context']
+            self.journal['calibration_context'] = self.context
+            self.fishing.start_route_expected = self.expected_route()
+            self.hold = None
+            self._save()
+            self._set('prepare')
+            self.finish_candidate_observation('execution_started')
+            self.event(f"标尺校准：角色 Lv{data['player']}、标尺 {data['value']}，差距超过{self.GAP}；保留航巡，仅停止持续钓鱼后校准")
+            # Do not throw away the ordinary-preparation opportunity that just
+            # armed this execution and wait for another OCR-heavy outer loop.
+            # _observe_cancel_window always captures new frames before input.
+            if self.meter_frame_allowed(frame):
+                self._observe_cancel_window(frame)
+            return True
+        if time.monotonic() < self.next_at:
+            return True
+        if self.preserves_route:
+            if screen['menu'] or screen['route'] is not self.expected_route():
+                self.route_verified = False
+                self.fishing.idle_since = None
+                self._set('route_context')
+                return True
+            context = self.fishing._context(frame)
+            if self.phase == 'prepare' and context != self.context:
+                self.route_verified = False
+                self.fishing.idle_since = None
+                self.fishing.stable, self.fishing.key = 0, None
+                self._set('route_context')
+            if self.phase == 'route_context':
+                if not self._confirmed(('route-context', screen['rank'], screen['stage'], screen['route'], context)):
+                    return True
+                # Re-read at a newly reached location; never move the deadline
+                # or clear spent cancel/drag/start counts during this re-anchor.
+                data = self.fishing.measure(frame)
+                if data is None:
+                    return True
+                self.context, self.route_verified = context, True
+                self.fishing.current = data['value']
+                self.journal['calibration_context'] = context
+                self.journal['selected_signature'] = self._selection_signature(self.fishing.cast_data(frame))
+                self._save()
+                self.fishing.idle_since = None
+                self._set('prepare')
+                return True
+        elif screen['route'] is True and self.phase != 'running':
+            self.off_verified = False
+            self.world.training.state['sailing_enabled'] = True
+            if self.phase != 'stop':
+                self._set('stop')
+        if self.phase == 'stop':
+            if screen['route'] is True:
+                if not self.stop_input_allowed():
+                    self._report_wait('停航确认所需时间不足；保留当前航巡，不追加停航输入')
+                    if self._defer_untouched(frame, screen):
+                        return False
+                    return True
+                self._click('stop',233,45,'标尺校准：停止当前游戏航巡')
+            elif screen['route'] is False:
+                context = self.fishing._context(frame)
+                if self._confirmed(context):
+                    self.off_verified, self.context = True, context
+                    self.journal['stopped_context'] = context
+                    self.world.training.state['sailing_enabled'] = False
+                    self._save()
+                    self.fishing.idle_since = None
+                    self._set('prepare')
+            elif (screen['menu'] and self.journal.get('proof')
+                    and self.journal.get('stopped_context')):
+                settings = self.settings_key(frame)
+                if settings is not None and self._confirmed(('stopped-menu',settings)):
+                    self.off_verified = True
+                    self._set('menu')
+            return True
+        if self.phase == 'prepare':
+            if not self.meter_frame_allowed(frame):
+                return True
+            if self._observe_cancel_window(frame):
+                return True
+            started = bool(self.journal.get('attempts',{}).get('start',0))
+            woke = bool(self.journal.get('attempts',{}).get('wake',0))
+            if started and not self.fishing.start_fill_verified:
+                if self.fishing.phase != 'starting':
+                    self.fishing.arm_start_observation(frame)
+                self.fishing.confirm_start(frame)
+            verified_start = bool((started or woke) and self.fishing.start_fill_verified
+                                  and self.fishing.post_start_evidence(frame))
+            # Idle preparation performs its own complete numeric read below.
+            # Only an existing fill needs this additional read-only adoption
+            # probe; duplicating it on every idle frame spends the 90s budget.
+            data = (self.fishing.measure(frame)
+                    if not started and self.fishing.blue_fill(frame) else None)
+            at_target_fill = bool(data and self.fishing.close_enough(data))
+            if verified_start or at_target_fill:
+                proof = self.fishing.start_proof or 'paired_hold' if verified_start else 'observed_target_fill'
+                # confirm_start already required three fresh post-release
+                # frames spanning three seconds in this stopped context.
+                # Do not repeat that observation and spend the route budget.
+                post_release_verified = verified_start and proof == 'post_release_fishing'
+                if post_release_verified or self._confirmed(('fill', self.context, proof)):
+                    self.journal['proof'] = proof
+                    self._save()
+                    if self.journal['restore_running'] and not self.preserves_route:
+                        self._set('open')
+                    else:
+                        self._finish()
+                return True
+            self.key = self.seen_at = None
+            self.seen = 0
+            self.fishing.prepare(frame)
+            return True
+        if self.phase == 'open':
+            if screen['menu']:
+                self._set('menu')
+            elif screen['route'] is False:
+                if self._click('open',233,45,'标尺校准：打开原航巡设置，核对自动贩卖') is not False:
+                    self._set('menu')
+            return True
+        if self.phase == 'menu':
+            if not screen['menu']:
+                return True
+            settings = self.settings_key(frame)
+            if settings is not None and self._confirmed(settings):
+                self.menu_key = settings
+                if not native_auto_sale.verified_on(self,frame,settings,self.journal.get('sailing_attempts',{})):
+                    if (not self.journal.get('sailing_attempts',{}).get(native_auto_sale.ACTION)
+                            and native_auto_sale.arm(self,frame,settings)):
+                        self._click(native_auto_sale.ACTION,576,647,'标尺校准：勾选游戏自动贩卖')
+                        self.key = None
+                    return True
+                if self._click('start',360,873,'标尺校准：按游戏当前勾选项恢复航巡') is not False:
+                    self._set('running')
+            return True
+        return True
+
+MeterCalibration._step = _step

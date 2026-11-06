@@ -119,15 +119,31 @@ class RestaurantVisual:
         level=readings[:2]
         if any(r.value is None or not 1<=r.value<=20 or r.confidence<.95 for r in level) or level[0].value!=level[1].value:return None
         counters=[]
+        unresolved=[]
         for i in range(4):
             values=[parse_counter(r.text,r.confidence) for r in readings[2+3*i:5+3*i]]
             # Tiny counter glyphs can lose an antialiased stroke at one cutoff.
             # Require two independent high-confidence decodes; any conflicting
             # high-confidence read invalidates the frame rather than voting it away.
             confident=[r for r in values if r.confidence>=.95 and r.current is not None]
-            if (len(confident)<2 or any(r.total not in (8,12,16) for r in confident)
-                    or len({(r.current,r.total) for r in confident})!=1):return None
-            counters.append((confident[0].current,confident[0].total))
+            if (any(r.total not in (8,12,16) for r in confident)
+                    or len({(r.current,r.total) for r in confident})>1):return None
+            counters.append(confident)
+            if len(confident)<2:unresolved.append(i)
+        if unresolved:
+            # A completed counter's green tick casts a moving shadow on its
+            # tiny digits. Recover those strokes at two brighter cutoffs;
+            # keep .95 confidence, independent agreement and conflict vetoes.
+            extra=self.reader.read_many([self.binary(crops[i+1],t)
+                                         for i in unresolved for t in (140,150)])
+            if len(extra)!=2*len(unresolved):return None
+            for n,i in enumerate(unresolved):
+                counters[i].extend(r for reading in extra[2*n:2*n+2]
+                    if (r:=parse_counter(reading.text,reading.confidence)).confidence>=.95
+                    and r.current is not None)
+        if any(len(v)<2 or any(r.total not in (8,12,16) for r in v)
+               or len({(r.current,r.total) for r in v})!=1 for v in counters):return None
+        counters=[(v[0].current,v[0].total) for v in counters]
         if len({v[1] for v in counters})!=1:return None
         result=dict(identity=self.identity(frame),level=level[0].value,counters=counters)
         self.cache['values']=result;return result
@@ -162,40 +178,9 @@ class RestaurantVisual:
                     and self.find(frame,'upgrade-ready')
                     and float((frame[744:762,590:619,1].astype(int)-frame[744:762,590:619,0].astype(int)>30).mean())>.15)
 
-    def cards(self,frame):
-        if not self.atlas(frame):return []
-        # Max-level cards are green and other cards are beige. Match only the
-        # fixed dark Lv outline, never the changing card background.
-        def strokes(image):
-            return cv2.GaussianBlur(((image.max(axis=2)<100)*255).astype('uint8'),(3,3),.7)
-        source=strokes(frame[447:486,106:623])
-        results=[]
-        for name in ('level-label','level-label-half'):
-            template=strokes(self.images[name])
-            results.append(cv2.matchTemplate(source,template,cv2.TM_CCOEFF_NORMED))
-        scores=np.nan_to_num(np.maximum(*results),nan=-1)
-        positions=[]
-        for _ in range(6):
-            _,score,_,(x,y)=cv2.minMaxLoc(scores)
-            if score<.94:break
-            x+=106
-            # Require the full dish artwork and numeral crop. The last card's
-            # decorative border can touch x623 while its art ends at x615.
-            if 115<=x and x+90<=623:positions.append(x)
-            scores[:,max(0,x-106-50):x-106+51]=-1
-        positions.sort();views=[]
-        for x in positions:
-            views.extend(self.binary(frame[453:483,x+37:x+81],t,True) for t in (215,230))
-        values=self.reader.read_many(views) if views else []
-        cards=[]
-        for i,x in enumerate(positions):
-            pair=values[2*i:2*i+2]
-            if (len(pair)!=2 or any(r.value is None or not 1<=r.value<=20 or r.confidence<.95 for r in pair)
-                    or pair[0].value!=pair[1].value):continue
-            # Art is stable while a card's level and completion tint can change.
-            art=frame[364:428,x+3:x+88]
-            cards.append(dict(point=(x+42,398),level=pair[0].value,art=art.copy()))
-        return cards
+    def cards(self,frame,*,strict_order=False):
+        from drift.perception.restaurant_cards import cards
+        return cards(self,frame,strict_order=strict_order)
 
     @staticmethod
     def art_matches(left,right):
@@ -208,3 +193,99 @@ class RestaurantVisual:
         # Used only to prove that a bounded scroll reached the end.
         image=cv2.cvtColor(frame[335:485,107:620],cv2.COLOR_RGB2GRAY)
         return cv2.resize(image,(257,75))
+
+
+# Reviewed source-sprite recognition; controller guards and input logic unchanged.
+from drift.perception.original_templates import install_original_templates as _install_original_templates
+_install_original_templates(RestaurantVisual, 'restaurant', 'find')
+
+def cards(self,frame,*,strict_order=False):
+    if not self.atlas(frame):return []
+    # Max-level cards are green and other cards are beige. Match only the
+    # fixed dark Lv outline, never the changing card background.
+    def strokes(image):
+        return cv2.GaussianBlur(((image.max(axis=2)<100)*255).astype('uint8'),(3,3),.7)
+    source=strokes(frame[447:486,106:623])
+    results=[]
+    for name in ('level-label','level-label-half'):
+        template=strokes(self.images[name])
+        results.append(cv2.matchTemplate(source,template,cv2.TM_CCOEFF_NORMED))
+    scores=np.nan_to_num(np.maximum(*results),nan=-1)
+    positions=[]
+    for _ in range(6):
+        _,score,_,(x,y)=cv2.minMaxLoc(scores)
+        if score<.94:break
+        x+=106
+        # Require the full dish artwork and numeral crop. The last card's
+        # decorative border can touch x623 while its art ends at x615.
+        if 115<=x and x+90<=623:positions.append(x)
+        scores[:,max(0,x-106-50):x-106+51]=-1
+    positions.sort();views=[]
+    for x in positions:
+        views.extend(self.binary(frame[453:483,x+37:x+81],t,True) for t in (215,230))
+    values=self.reader.read_many(views) if views else []
+    cards=[]
+    for i,x in enumerate(positions):
+        pair=values[2*i:2*i+2]
+        valid=(len(pair)==2 and all(r.value is not None and 1<=r.value<=20 and r.confidence>=.95 for r in pair)
+               and pair[0].value==pair[1].value)
+        if not valid and not strict_order:continue
+        # Art is stable while a card's level and completion tint can change.
+        art=frame[364:428,x+3:x+88]
+        # Keep an unread slot as an explicit barrier for sequential runs;
+        # dropping it would allow a later, readable card to overtake it.
+        cards.append(dict(point=(x+42,398),level=pair[0].value if valid else None,art=art.copy()))
+    return cards
+
+RestaurantVisual.cards = cards
+
+def detail_values(self,frame):
+    if not self.detail(frame) or self.max_detail(frame):return None
+    if 'values' in self.cache:return self.cache['values']
+    crops=[frame[738:768,141:176]]+[frame[687:703,x:x+70] for x in (109,222,335,447)]
+    views=[self.binary(crops[0],t) for t in (110,130)]
+    views.extend(self.binary(c,t) for c in crops[1:] for t in (80,110,130))
+    readings=self.reader.read_many(views)
+    level=readings[:2]
+    if any(r.value is None or not 1<=r.value<=20 or r.confidence<.95 for r in level) or level[0].value!=level[1].value:return None
+    counters=[]
+    unresolved=[]
+    for i in range(4):
+        values=[parse_counter(r.text,r.confidence) for r in readings[2+3*i:5+3*i]]
+        # Tiny counter glyphs can lose an antialiased stroke at one cutoff.
+        # Require two independent high-confidence decodes; any conflicting
+        # high-confidence read invalidates the frame rather than voting it away.
+        confident=[r for r in values if r.confidence>=.95 and r.current is not None]
+        if (any(r.total not in (8,12,16) for r in confident)
+                or len({(r.current,r.total) for r in confident})>1):return None
+        counters.append(confident)
+        if len(confident)<2:unresolved.append(i)
+    if unresolved:
+        # A completed counter's green tick casts a moving shadow on its
+        # tiny digits. Recover those strokes at two brighter cutoffs;
+        # keep .95 confidence, independent agreement and conflict vetoes.
+        extra=self.reader.read_many([self.binary(crops[i+1],t)
+                                     for i in unresolved for t in (140,150)])
+        if len(extra)!=2*len(unresolved):return None
+        for n,i in enumerate(unresolved):
+            counters[i].extend(r for reading in extra[2*n:2*n+2]
+                if (r:=parse_counter(reading.text,reading.confidence)).confidence>=.95
+                and r.current is not None)
+    if any(len(v)<2 or any(r.total not in (8,12,16) for r in v)
+           or len({(r.current,r.total) for r in v})!=1 for v in counters):return None
+    counters=[(v[0].current,v[0].total) for v in counters]
+    if len({v[1] for v in counters})!=1:return None
+    result=dict(identity=self.identity(frame),level=level[0].value,counters=counters)
+    self.cache['values']=result;return result
+
+RestaurantVisual.detail_values = detail_values
+
+
+# Independent numeral consensus; keep every other deployed perception method.
+from drift.perception.restaurant_cards import cards as _restaurant_cards
+RestaurantVisual.cards = _restaurant_cards
+
+
+# Reviewed source-sprite recognition; controller guards and input logic unchanged.
+from drift.perception.original_templates import install_original_templates as _install_original_templates
+_install_original_templates(RestaurantVisual, 'restaurant', 'find')

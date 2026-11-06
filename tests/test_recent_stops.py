@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT))
 from app import Clicker
 from digit_ocr import DigitReader, NumberReading
 from features import FEATURE_BY_ID
-from tools.configure_recent_stops import update, NEW_ID, CHANGED_FIELDS
+from dev_tools.configure_recent_stops import update, NEW_ID, CHANGED_FIELDS
 
 
 class RecentStopsTests(unittest.TestCase):

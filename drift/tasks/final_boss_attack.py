@@ -61,3 +61,5 @@ def options_for(training, rank, *, encounter=False, guardian=False):
     view['boss_interrupt'] = True
     view['battle_tap'] = True
     return view
+
+

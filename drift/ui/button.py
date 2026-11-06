@@ -121,3 +121,5 @@ class CroppedTemplateButton(Button):
         sx, sy = (x2 - x1) / (right - left), (y2 - y1) / (bottom - top)
         return (round(x1 + (area[0] - left) * sx), round(y1 + (area[1] - top) * sy),
                 round(x1 + (area[2] - left) * sx), round(y1 + (area[3] - top) * sy))
+
+

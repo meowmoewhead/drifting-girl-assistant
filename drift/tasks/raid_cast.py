@@ -67,3 +67,5 @@ class RaidCastAssist:
         self.due = now + self.RETRY_DELAY
         self.hold = f'RAID：已发出第 {self.taps} 次甩杆输入，等待 BOSS 出现'
         return True
+
+

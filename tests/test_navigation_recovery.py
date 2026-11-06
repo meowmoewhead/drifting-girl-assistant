@@ -15,7 +15,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app import Clicker
-from tools.configure_navigation_recovery import update, NEW_IDS, CHANGED_IDS
+from dev_tools.configure_navigation_recovery import update, NEW_IDS, CHANGED_IDS
 
 
 class NavigationRecoveryTests(unittest.TestCase):

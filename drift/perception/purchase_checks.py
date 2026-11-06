@@ -253,3 +253,5 @@ def confirmation_check(price, selection, condition):
                   limit=expected, valid=bool(passed), passed=bool(passed),
                   skip_reason=None if passed else '确认金额与本次已核对的购买总价不符或读数不清')
     return bool(passed), (cost, expected), result
+
+

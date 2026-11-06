@@ -50,3 +50,5 @@ class ProgressGuard:
     def status(self):
         return dict(window=self.window, limit=self.limit, stage=self.last,
                     edges={f'{a}->{b}': n for (a, b), n in self.counts.items()})
+
+

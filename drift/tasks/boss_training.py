@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 
-# Keep old gain/time keys readable when updating an existing local configuration.
+# Keep old gain/time keys readable when updating an existing runtime host configuration.
 # They no longer end a farming session before the requested boss-level target.
 DEFAULT_TRAINING = {'enabled': True, 'failure_limit': 2, 'level_gain': 20,
                     'minutes': 10, 'retry_level_gap': 20,
@@ -265,9 +265,8 @@ class BossTraining:
 
     def _save(self):
         saved = {'version': 1, **self.state}
-        temporary = self.path.with_suffix('.json.tmp')
-        temporary.write_text(json.dumps(saved, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
-        temporary.replace(self.path)
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(self.path, json.dumps(saved, ensure_ascii=False, indent=2) + '\n')
 
     def clear(self):
         if self.state.get('sailing_enabled'):
@@ -447,3 +446,19 @@ class BossTraining:
                 'final_boss_retry_level_gap': self.options['final_boss_retry_level_gap'],
                 'failures': self.failures, 'failure_limit': self.options['failure_limit'],
                 'elapsed': max(0, int(time.time()-self.state['started_at'])) if mode != 'idle' else 0}
+
+# Keep legacy task logic; delegate every record read/write to shared storage.
+from drift.core.persistence import ReliablePath as Path
+
+# Shared reliability layer; retain all other deployed methods.
+def _save(self):
+    saved = {'version': 1, **self.state}
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(self.path, json.dumps(saved, ensure_ascii=False, indent=2) + '\n')
+
+BossTraining._save = _save
+
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

@@ -204,3 +204,7 @@ summary{color:#96a2ab;font-size:11px;cursor:pointer}
 .cruise-skill-table { display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;align-items:center;margin:16px 0; }
 .cruise-skill-table .cruise-check { font-size:0;justify-content:center; }
 .cruise-skill-table>span:not(:nth-child(3n+1)) { text-align:center; }
+.device-actions { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 16px; }
+.device-panel .device-info { margin-top:24px; }
+.device-panel select { width:100%; min-width:0; }
+.device-panel .mono { overflow-wrap:anywhere; }

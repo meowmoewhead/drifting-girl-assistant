@@ -70,7 +70,7 @@ class DailyScheduleTests(unittest.TestCase):
     def test_failed_atomic_write_keeps_previous_completion(self):
         self.schedule.mark_complete('daily_reward','2026-10-03')
         previous = self.schedule.path.read_bytes()
-        with patch.object(Path,'replace',side_effect=OSError('disk full')):
+        with patch('drift.core.persistence.os.replace',side_effect=OSError('disk full')):
             with self.assertRaises(OSError):
                 self.schedule.mark_complete('guild_shop','2026-10-03')
         self.assertTrue(self.schedule.is_complete('daily_reward'))

@@ -251,3 +251,5 @@ def read_numeric_views(reader, images):
     """Keep simple readers compatible while batching the production model."""
     batch = getattr(type(reader),'read_many',None)
     return batch(reader,images) if callable(batch) else [reader.read(image) for image in images]
+
+

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import sys
+import json
 from pathlib import Path
 
 # 源码运行时是项目根目录;PyInstaller onefile 运行时是 exe 所在目录。
@@ -26,3 +27,27 @@ def read_version(root: Path = ROOT) -> str:
 
 
 VERSION = read_version()
+
+
+def ensure_user_config(root: Path) -> bool:
+    """Initialize a new installation once; never overwrite operator settings."""
+    root = Path(root)
+    target = root / 'config.json'
+    if target.exists():
+        return False
+    candidates = (root / 'config/default.json', root / 'config.example.json')
+    template = next((p for p in candidates if p.is_file()), None)
+    if template is None:
+        return False
+    content = template.read_bytes()
+    config = json.loads(content.decode('utf-8-sig'))
+    if config.get('return_parallel_enabled') or any(r.get('enabled') for r in config.get('rules', [])):
+        raise ValueError('首次启动模板必须关闭全部自动任务')
+    try:
+        with target.open('xb') as stream:
+            stream.write(content)
+    except FileExistsError:
+        return False
+    return True
+
+

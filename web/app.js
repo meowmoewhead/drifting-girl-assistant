@@ -31,6 +31,7 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 document.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon); });
 let state = null, busy = false, connected = false, generation = 0, featureKey = '', detailId = '', customKey = '', eventKey = '', groupId = '', portalDirty = false;
 let settingsDirty = false, detailDirty = false, scheduleDirty = false, toastTimer, currentId = null, frame = null, picture = null, selection = null, drag = null, loadingImage = false;
+let deviceScan = null, deviceScanStarted = false, deviceAdbDirty = false, deviceScanning = false;
 const canvas = $('canvas'), ctx = canvas.getContext('2d');
 /* 分组元数据由后端提供；子任务保留原 ID、开关和调度记录。 */
 const taskGroups = () => state?.task_groups || [];
@@ -109,7 +110,8 @@ function nextRunText(feature) {
   if (task.seconds_until <= 0) return `已到期 ${at} · 等待画面条件满足`;
   const seconds = Math.ceil(task.seconds_until);
   const countdown = seconds >= 3600 ? `${Math.floor(seconds/3600)}小时${Math.ceil(seconds%3600/60)}分` : seconds >= 60 ? `${Math.ceil(seconds/60)}分` : `${seconds}秒`;
-  return `下次开启 ${at} · ${countdown}后`;
+  const outcome = task.reason === 'manual' ? '手动安排' : task.outcome === 'blocked' ? '等待安全条件 · 重查' : task.outcome === 'skipped' ? '本轮跳过 · 下次检查' : task.outcome === 'retry' || task.reason === 'retry' ? '上轮未完成 · 重试' : '下次开启';
+  return `${outcome} ${at} · ${countdown}后${task.detail ? ` · ${task.detail}` : ''}`;
 }
 function timeInputValue(value) {
   if (!value) return '';
@@ -281,7 +283,7 @@ function renderDetail(feature) {
     const restaurantLabel = name => name ? `${name}（${restaurantEffects[name] || ''}）` : '全部';
     const restaurantSelection = feature.targets?.length === restaurantCategories.length ? '' : (feature.targets?.[0] ?? '');
     const restaurantTargets = feature.id === 'restaurant_upgrade' ? `<label for="restaurant-targets">强化类别</label><select id="restaurant-targets" name="targets" style="width:100%;padding:10px 12px;border:1px solid #dce4e9;border-radius:6px;background:#fff;color:#536b7a;font-size:13px">${['', ...restaurantCategories].map(name => `<option value="${name}" ${name === restaurantSelection ? 'selected' : ''}>${restaurantLabel(name)}</option>`).join('')}</select><p class="field-help">选择“全部”时检查九类已解锁餐品，选择单一类别时只检查该类。材料充足可连续升多级；无法继续交付或满级时换下一种，结束后恢复原活动。</p>${feature.targets?.length > 1 && restaurantSelection ? '<p class="field-help">原设置包含多个类别，当前显示首个类别；保存后仅强化下拉选中的类别。</p>' : ''}` : '';
-    $('feature-detail').innerHTML = `<div class="page-heading"><div><div class="eyebrow">${esc(feature.category)} · ${executionKind(feature)}</div><h1>${esc(feature.name)}</h1><p>${esc(feature.description)}</p></div><a class="button" href="#overview">返回任务组</a></div><div class="detail-layout"><div><section class="panel"><div class="feature-enable"><span class="feature-icon ${esc(feature.id)}">${icon(feature.icon)}</span><div><h2>启用${esc(feature.name)}</h2><p>开关即时保存，独立控制本项流程。</p></div>${toggleMarkup(feature)}</div><div class="detail-note">${esc(featureNote(feature))}</div>${feature.schedule ? '<p class="detail-note" id="daily-schedule" role="status"></p>' : ''}</section><section class="panel"><h2>功能参数</h2><form id="feature-form" class="parameter-form"><label for="feature-interval">${feature.schedule ? '未完成时重试间隔 / 秒' : '再次触发间隔 / 秒'}</label><input id="feature-interval" type="number" min="0.2" max="3600" step="0.1" required><p class="field-help">${feature.schedule ? '完成后等待下个周期的领取时间；未完成时按保存间隔重试。' : '完成操作后，至少等待此间隔才再次触发同一入口。'}</p>${feature.id === 'mana' ? '<label for="mana-threshold">法力低于此值时补充</label><input id="mana-threshold" type="number" min="1" max="100" required><p class="field-help">默认 25。数字读取不清晰时不会使用药水。</p>' : ''}${restaurantTargets}${cruiseFields(feature)}${feature.daily_limit ? `<label>游戏每日领取上限</label><p class="detail-note">${feature.daily_limit} 次 · 以游戏显示计数为准</p>` : ''}<button class="button primary form-submit" id="save-feature" type="submit">保存功能参数</button><p class="field-help">${feature.id === "parallel_skills" ? "支持运行中保存；当前操作完成后自动同步，其他任务与购买记录保留。" : "参数需停止运行后修改。"}</p></form></section></div><section class="panel"><h2>执行流程</h2><ol class="steps">${feature.steps.map(step => `<li>${esc(step)}</li>`).join('')}</ol><details><summary>查看 ${feature.rules.length} 条识别规则</summary><div id="detail-rules"></div></details></section></div>`;
+    $('feature-detail').innerHTML = `<div class="page-heading"><div><div class="eyebrow">${esc(feature.category)} · ${executionKind(feature)}</div><h1>${esc(feature.name)}</h1><p>${esc(feature.description)}</p></div><a class="button" href="#overview">返回任务组</a></div><div class="detail-layout"><div><section class="panel"><div class="feature-enable"><span class="feature-icon ${esc(feature.id)}">${icon(feature.icon)}</span><div><h2>启用${esc(feature.name)}</h2><p>开关即时保存，独立控制本项流程。</p></div>${toggleMarkup(feature)}</div><div class="detail-note">${esc(featureNote(feature))}</div>${feature.schedule ? '<p class="detail-note" id="daily-schedule" role="status"></p>' : ''}</section><section class="panel"><h2>功能参数</h2><form id="feature-form" class="parameter-form"><label for="feature-interval">${feature.schedule ? '未完成时重试间隔 / 秒' : '再次触发间隔 / 秒'}</label><input id="feature-interval" type="number" min="0.2" max="3600" step="0.1" required><p class="field-help">${feature.schedule ? '完成后等待下个周期的领取时间；未完成时按保存间隔重试。' : '完成操作后，至少等待此间隔才再次触发同一入口。'}</p>${feature.id === 'mana' ? '<label for="mana-threshold">法力低于此值时补充</label><input id="mana-threshold" type="number" min="1" max="100" required><p class="field-help">默认 25。数字读取不清晰时不会使用药水。</p>' : ''}${restaurantTargets}${cruiseFields(feature)}${feature.daily_limit ? `<label>游戏每日领取上限</label><p class="detail-note">${feature.daily_limit} 次 · 以游戏显示计数为准</p>` : ''}<button class="button primary form-submit" id="save-feature" type="submit">保存功能参数</button><p id="parameter-apply-state" class="detail-note" role="status"></p><p class="field-help">支持运行中保存；当前任务完成并返回主画面后应用，原截止时间、已用次数和购买记录保留。</p></form></section></div><section class="panel"><h2>执行流程</h2><ol class="steps">${feature.steps.map(step => `<li>${esc(step)}</li>`).join('')}</ol><details><summary>查看 ${feature.rules.length} 条识别规则</summary><div id="detail-rules"></div></details></section></div>`;
     const realtime = feature.execution?.mode === 'realtime';
     if (feature.id === 'stone_farm') {
       $('feature-form').closest('.panel').insertAdjacentHTML('beforebegin', '<section class="panel"><h2>交接记录</h2><p id="stone-record-state" class="detail-note" role="status"></p><button class="button" id="stone-clear" type="button">清除交接记录</button><p class="field-help">停止脚本后可清除。原记录先归档，保留输入次数；只解除本次交接占用，不操作游戏或自动重做同一交接。过期交接在下次开始时自动归档。</p></section>');
@@ -291,7 +293,7 @@ function renderDetail(feature) {
       $('feature-form').closest('.panel').insertAdjacentHTML('beforebegin', '<section class="panel"><h2>标尺记录</h2><p id="meter-record-state" class="detail-note" role="status"></p><button class="button" id="meter-clear" type="button">清除标尺记录</button><p class="field-help">停止脚本后可清除。原记录先归档，保留截止时间、输入次数和范围缓存。清除不操作游戏，不追加输入；重新启动后只读核对实际钓鱼和原航巡恢复，再按间隔检测。过期执行在下次开始时自动归档。</p></section>');
       $('meter-clear').onclick = () => act(() => api('/api/meter-clear', {sha256: state.meter_record.sha256}), '标尺执行已归档，将只读核对恢复状态');
     }
-    $('feature-form').closest('.panel').insertAdjacentHTML('beforebegin', `<section class="panel schedule-panel"><h2>${executionKind(feature)}</h2><p id="task-next-run" class="detail-note" role="status"></p>${realtime ? '<p class="field-help">持续检测当前画面，条件满足时处理；防重复间隔只限制再次触发，不设置下次开启日期。</p>' : '<form id="schedule-form"><label for="task-next-time">下次开启时间 / 北京时间</label><input id="task-next-time" type="datetime-local" step="1" required><p class="field-help">时间到后仍须满足画面条件；下次开启时间和完成记录在重启后保留。</p><div class="schedule-actions"><button class="button primary" type="submit">保存时间</button><button class="button" id="task-ready" type="button">设为可执行</button></div><p class="field-help">停止运行后可修改，不会自动打开已关闭的任务。</p></form>'}</section>`);
+    $('feature-form').closest('.panel').insertAdjacentHTML('beforebegin', `<section class="panel schedule-panel"><h2>${executionKind(feature)}</h2><p id="task-next-run" class="detail-note" role="status"></p>${realtime ? '<p class="field-help">持续检测当前画面，条件满足时处理；防重复间隔只限制再次触发，不设置下次开启日期。</p>' : '<form id="schedule-form"><label for="task-next-time">下次开启时间 / 北京时间</label><input id="task-next-time" type="datetime-local" step="1" required><p class="field-help">时间到后仍须满足画面条件；下次开启时间和完成记录在重启后保留。</p><div class="schedule-actions"><button class="button primary" type="submit">保存时间</button><button class="button" id="task-ready" type="button">设为可执行</button></div><p class="field-help">运行中可修改未在执行的任务；不会打开已关闭的任务或重置正在进行的任务。</p></form>'}</section>`);
     if (realtime) {
       document.querySelector('label[for="feature-interval"]').textContent = '防止重复触发间隔 / 秒';
       $('feature-interval').nextElementSibling.textContent = '持续检测触发条件；本次处理后，至少等待此间隔才再次触发同一入口。';
@@ -341,8 +343,11 @@ function renderDetail(feature) {
         const target = $('restaurant-targets').value;
         data.targets = target ? [target] : [];
       }
-      act(async () => { await api('/api/features/change', data); detailDirty = false; }, '功能参数已保存');
+      act(async () => { await api('/api/features/change', data); detailDirty = false; }, '功能参数已保存，当前任务结束后应用');
     };
+  }
+  if ($('parameter-apply-state')) {
+    $('parameter-apply-state').textContent = detailDirty ? '有未保存的修改，点击保存后应用。' : state.settings_pending ? '新参数已保存，等待当前任务结束并返回主画面后应用。' : '当前参数已生效。';
   }
   if ($('cruise-apply-state')) {
     $('cruise-apply-state').textContent = state.settings_pending ? '新设置已保存，等待当前操作结束后同步。' : state.cruise_setup?.hold || '保存后在下一个安全画面核对游戏设置。';
@@ -398,6 +403,10 @@ function route() {
   if (group) { renderGroup(group); renderFeatures(); }
   else { groupId=''; portalDirty=false; $('group-detail').replaceChildren(); }
   updateControls();
+  if (page === 'settings' && !deviceScanStarted && connected && !busy) {
+    deviceScanStarted = true;
+    scanDevices();
+  }
 }
 window.addEventListener('hashchange', route);
 
@@ -430,13 +439,18 @@ function updateControls() {
   if ($('stone-clear')) $('stone-clear').disabled = unavailable || running || !state?.stone_record?.pending || !!state?.stone_record?.error;
   if ($('meter-clear')) $('meter-clear').disabled = unavailable || running || !state?.meter_record?.pending || !!state?.meter_record?.error;
   $('refresh').disabled = unavailable || running; $('refresh-mini').disabled = unavailable || running;
+  $('device-detect').disabled = unavailable || deviceScanning;
+  $('device-adb-path').disabled = unavailable || running || deviceScanning;
+  $('device-select').disabled = unavailable || running || deviceScanning || !deviceScan?.devices.length;
+  $('device-connect').disabled = unavailable || running || deviceScanning || !deviceScan || !$('device-select').value;
+  $('device-auto').disabled = unavailable || running || deviceScanning || !deviceScan?.automatic_available;
   document.querySelectorAll('[data-feature-switch]').forEach(el => {
     const f = state?.features.find(f => f.id === el.dataset.featureSwitch);
     el.disabled = unavailable || !f?.available || (running && state.scoped);
     if (f) el.setAttribute('aria-checked', checked(f));
   });
   document.querySelectorAll('#portal-mode-form select,#portal-mode-form button').forEach(el => { el.disabled = unavailable || running; });
-  document.querySelectorAll('#schedule-form input,#schedule-form button,#feature-form input,#feature-form select,#feature-form button,#settings-form input,#settings-form button,#target-form input,#target-form button,[data-custom-switch],[data-delete]').forEach(el => { const hot = detailId === 'parallel_skills' && el.closest('#feature-form'); el.disabled = unavailable || (running && !hot); });
+  document.querySelectorAll('#schedule-form input,#schedule-form button,#feature-form input,#feature-form select,#feature-form button,#settings-form input,#settings-form button,#target-form input,#target-form button,[data-custom-switch],[data-delete]').forEach(el => { const scoped = !!state?.scoped; const scheduling = el.closest('#schedule-form'); const activeTask = state?.features.find(f => f.id === detailId)?.execution?.status === 'running'; const hot = el.closest('#settings-form') || (el.closest('#feature-form') && (!scoped || detailId === 'parallel_skills')) || (scheduling && !scoped && !activeTask); el.disabled = unavailable || (running && !hot); });
 }
 function showNumbers() {
   $('numbers').replaceChildren();
@@ -469,12 +483,20 @@ async function refreshStatus() {
   const bagText = `满背包出售 · ${bagPhases[state.backpack?.phase] || '识别画面'}${state.backpack?.capacity_after != null ? ` · ${state.backpack.capacity_after}/30` : ''}`;
   $('stage-text').textContent = !state.running ? `${activeCount} 项功能已开启，等待开始` : state.mode === 'preview' ? '仅识别画面，不发送点击' : state.stage === 'game_recovery' ? '游戏重连中 · 等待返回主画面' : state.stage.startsWith('stone_') ? `次元石：降阶刷最后BOSS · ${stonePairText()} · ${state.stone?.phase || '核对阶段'} · 第${state.stone?.world_stage ?? '—'}阶段 · RANK ${state.stone?.rank ?? '—'}` : state.stage.startsWith('meter_') ? `标尺等级校准 · ${state.meter?.pending ? '校准进行中' : (state.meter?.hold || '等待触发条件')}` : state.stage.startsWith('backpack_') ? bagText : state.stage.startsWith('skills_') ? `巡航系技能 · 钓鱼速度 ${state.skills?.fishing_percent ?? '—'}% · 技能点 ${state.skills?.balance ?? '待识别'}` : state.stage.startsWith('equipment_') ? `鱼饼武器强化 · ${state.equipment?.weapon || '识别列表'} · 本轮长按 ${state.equipment?.holds || 0} 次` : state.stage.startsWith('parallel_') ? (state.parallel?.phase === 'play' ? parallelText : `平行世界 · ${state.parallel?.phase || '识别中'} · RANK ${state.parallel?.rank ?? '—'}`) : state.stage === 'main' ? (state.parallel && state.features.find(f => f.id === 'parallel_world')?.enabled ? parallelText : state.active_rule_ids?.length ? '主画面 · 等待任务出现' : '所有功能已关闭，等待开启任务') : `当前流程 · ${stageRule?.name || state.stage}`;
   $('pending').hidden = !state.settings_pending;
+  const health = state.lifecycle?.health;
+  if (state.running && state.mode !== 'preview' && state.stage === 'main' && health) {
+    const fresh = health.sample_age_seconds != null && health.sample_age_seconds <= 15;
+    $('stage-text').textContent += ` · ${fresh ? health.reason : '等待新的实际钓鱼观测'}`;
+  }
+  if (state.running && state.lifecycle?.continuity?.pending_stage) $('stage-text').textContent += ' · 正在核对上次中断位置，保留原时限';
+  $('stage-text').title = state.build?.id ? `构建 ${state.build.id} · 源码 ${state.build.source_sha256 || '开发版本'}` : '';
   for (const id of ['frames','matches','clicks']) $(id).textContent = state[id];
   const match = state.last_match;
   $('match').textContent = match ? `${match.name} · ${Math.round(match.score * 100)}%` : state.running ? '正在查找目标…' : '等待开始运行';
   $('device').textContent = `${state.serial} · ${state.resolution.join(' × ')}`;
   $('device-serial').textContent = state.serial; $('device-size').textContent = state.resolution.join(' × ');
   $('device-adb').textContent = state.settings.adb_path;
+  if (!deviceAdbDirty) $('device-adb-path').value = state.settings.adb_path;
   if (!settingsDirty) { $('poll-interval').value = state.settings.poll_interval; $('max-clicks').value = state.settings.max_consecutive_clicks; }
   renderScheduler(); renderFeatures(); renderCustom(); renderEvents(); showNumbers(); route();
   if (state.last_error) notice(state.last_error);
@@ -532,6 +554,57 @@ $('stop').onclick = () => act(() => api('/api/stop',{}));
 $('refresh').onclick = $('refresh-mini').onclick = () => act(async () => { const f = await api('/api/capture'); await loadFrame(f.id); });
 $('settings-form').addEventListener('input', () => { settingsDirty = true; });
 $('settings-form').onsubmit = event => { event.preventDefault(); act(async () => { await api('/api/settings',{poll_interval:Number($('poll-interval').value),max_consecutive_clicks:Number($('max-clicks').value)}); settingsDirty = false; }, '运行设置已保存'); };
+async function scanDevices() {
+  if (deviceScanning || !connected || busy) return;
+  deviceScanning = true;
+  $('device-scan-state').textContent = '正在检测模拟器连接与画面尺寸…';
+  updateControls();
+  try {
+    const result = await api('/api/devices/detect', {adb_path:$('device-adb-path').value});
+    deviceScan = result.result;
+    const previous = $('device-select').value;
+    const options = deviceScan.devices.map(d => {
+      const size = d.resolution ? ` · ${d.resolution.join('×')}` : '';
+      return `<option value="${esc(d.serial)}" ${d.compatible ? '' : 'disabled'}>${esc(d.name)} · ${esc(d.serial)}${size} · ${esc(d.reason)}${d.selected ? '（当前）' : ''}</option>`;
+    });
+    $('device-select').innerHTML = '<option value="">请选择模拟器</option>' + options.join('');
+    const chosen = deviceScan.devices.find(d => d.compatible && d.serial === previous)
+      || deviceScan.devices.find(d => d.compatible && d.selected)
+      || (deviceScan.automatic_available ? deviceScan.devices.find(d => d.compatible) : null);
+    $('device-select').value = chosen?.serial || '';
+    $('device-adb-path').value = deviceScan.adb_path;
+    deviceAdbDirty = true;
+    const count = deviceScan.devices.filter(d => d.compatible).length;
+    $('device-scan-state').textContent = count ? `检测到 ${count} 个可连接实例。${count > 1 ? '请选择要连接的模拟器。' : '连接后仍保持停止，点击开始才运行。'}` : deviceScan.devices.length ? '检测到设备，但尚未就绪或尺寸不匹配；请查看列表中的说明。' : '没有检测到实例。请启动模拟器并开启 ADB 调试后重新检测。';
+  } catch (error) {
+    deviceScan = null;
+    $('device-select').innerHTML = '<option value="">未检测到可连接实例</option>';
+    $('device-scan-state').textContent = error.message;
+  } finally {
+    deviceScanning = false;
+    updateControls();
+  }
+}
+async function connectDevice(serial) {
+  await act(async () => {
+    const result = await api('/api/devices/select', {serial, adb_path:$('device-adb-path').value});
+    generation++;
+    frame = picture = selection = null;
+    $('mini-image').hidden = true;
+    $('mini-image').removeAttribute('src');
+    $('mini-empty').hidden = false;
+    deviceAdbDirty = false;
+    await loadFrame(result.result.frame.id);
+    $('device-scan-state').textContent = `已连接 ${result.result.name}，点击开始后执行任务。`;
+    deviceScan = null;
+    deviceScanStarted = false;
+  }, '模拟器连接已保存');
+}
+$('device-detect').onclick = () => { deviceScanStarted = true; scanDevices(); };
+$('device-adb-path').oninput = () => { deviceAdbDirty = true; deviceScan = null; updateControls(); };
+$('device-select').onchange = updateControls;
+$('device-auto').onclick = () => connectDevice('auto');
+$('device-form').onsubmit = event => { event.preventDefault(); if ($('device-select').value) connectDevice($('device-select').value); };
 $('target-form').onsubmit = event => {
   event.preventDefault();
   act(async () => {

@@ -82,3 +82,5 @@ def retire(root, expected_sha256, *, source):
         released=False))
     archive_and_replace(path, raw, updated, archive, expected_sha256, '交接', 'stone_farm_retry.json')
     return dict(retired=True, sha256=expected_sha256, archive=str(archive), previous_phase=record['phase'])
+
+

@@ -71,6 +71,12 @@ class AdbDevice:
                                          and self.native_capture.capture_pending))
 
     def command(self, *args):
+        sending=(len(args)>=2 and args[:2]==('shell','input'))
+        launching=(len(args)>=3 and args[:3]==('shell','am','start'))
+        stop=getattr(self,'stop',None)
+        if (sending or launching) and stop is not None and stop.is_set():raise InterruptedError('已停止')
+        guard=getattr(self,'input_guard',None)
+        token=guard('launch' if launching else 'adb',args) if guard and (sending or launching) else None
         completed = subprocess.run(
             [self.config["adb_path"], "-s", self.config["serial"], *args],
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -81,14 +87,21 @@ class AdbDevice:
         if completed.returncode or any(line.lower().startswith(('error:', 'adb: error:'))
                                        for line in error.splitlines()):
             raise RuntimeError(error or "ADB 命令失败")
+        notify=getattr(self,'input_issued',None)
+        if notify is not None and token is not None:notify(token)
         return completed.stdout
 
     def touch_fast(self,x,y,captured_at,stopped):
         if self.stop.is_set() or stopped():
             raise InterruptedError('已停止')
         if self.screenshot_transport=='mumu-native' and self.native_capture is not None:
+            guard=getattr(self,'input_guard',None)
+            token=guard('native',('touch',x,y)) if guard is not None else None
             try:
-                return self.native_capture.touch(x,y,self.stop,captured_at,stopped)
+                result=self.native_capture.touch(x,y,self.stop,captured_at,stopped)
+                notify=getattr(self,'input_issued',None)
+                if result is not None and notify is not None and token is not None:notify(token)
+                return result
             except NativeUnavailable as error:
                 # This read/preparation failure issued no contact. Acquire a
                 # new ADB frame before any fallback input, never repeat a DOWN.
@@ -224,3 +237,47 @@ class AdbDevice:
     def stuck_record_add(self, button):
         # Repeated-click detection is handled by the runner, per run.
         pass
+
+def command(self, *args):
+    sending=(len(args)>=2 and args[:2]==('shell','input'))
+    launching=(len(args)>=3 and args[:3]==('shell','am','start'))
+    stop=getattr(self,'stop',None)
+    if (sending or launching) and stop is not None and stop.is_set():raise InterruptedError('已停止')
+    guard=getattr(self,'input_guard',None)
+    token=guard('launch' if launching else 'adb',args) if guard and (sending or launching) else None
+    completed = subprocess.run(
+        [self.config["adb_path"], "-s", self.config["serial"], *args],
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        timeout=20, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    error = completed.stderr.decode("utf-8", "replace").strip()
+    # MuMu's ADB can report a missing device on stderr with exit code zero.
+    if completed.returncode or any(line.lower().startswith(('error:', 'adb: error:'))
+                                   for line in error.splitlines()):
+        raise RuntimeError(error or "ADB 命令失败")
+    notify=getattr(self,'input_issued',None)
+    if notify is not None and token is not None:notify(token)
+    return completed.stdout
+
+AdbDevice.command = command
+
+def touch_fast(self,x,y,captured_at,stopped):
+    if self.stop.is_set() or stopped():
+        raise InterruptedError('已停止')
+    if self.screenshot_transport=='mumu-native' and self.native_capture is not None:
+        guard=getattr(self,'input_guard',None)
+        token=guard('native',('touch',x,y)) if guard is not None else None
+        try:
+            result=self.native_capture.touch(x,y,self.stop,captured_at,stopped)
+            notify=getattr(self,'input_issued',None)
+            if result is not None and notify is not None and token is not None:notify(token)
+            return result
+        except NativeUnavailable as error:
+            # This read/preparation failure issued no contact. Acquire a
+            # new ADB frame before any fallback input, never repeat a DOWN.
+            self._native_failed(error)
+            return None
+    self.command('shell','input','swipe',str(x),str(y),str(x),str(y),'80')
+    return dict(input_transport='adb',hold_ms=80)
+
+AdbDevice.touch_fast = touch_fast

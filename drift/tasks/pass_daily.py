@@ -220,3 +220,5 @@ class PassDaily:
                 # releases the menu owner and schedules the normal retry.
                 self._finish(period)
         return True
+
+

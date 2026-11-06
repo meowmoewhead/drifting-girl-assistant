@@ -132,3 +132,5 @@ class GuildSelectionGuard:
         ready = self.frames >= 3 and now - self.since >= 3 and now - started >= 5
         self.reason = 'unchanged_list_confirmed' if ready else 'confirming_unchanged_list'
         return ready
+
+

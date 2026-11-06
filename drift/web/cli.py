@@ -27,7 +27,7 @@ from pathlib import Path
 import sys
 import time
 
-from drift.core.paths import ROOT, UPSTREAM, VERSION
+from drift.core.paths import ROOT, UPSTREAM, VERSION, ensure_user_config
 from drift.core.util import number
 from drift.core.winruntime import prefer_system_msvc_runtime
 from drift.web.server import CONFIG_MISSING_MESSAGE, MissingConfigApp, make_handler
@@ -37,7 +37,7 @@ __all__ = ["main"]
 
 def main():
     # ``watchdog`` 必须在 argparse 之前分流:它自带 --dry-run / --base-url,与面板参数
-    # 同名冲突；计划任务只把这个子命令交给打包后的 exe（运行设备无需独立 Python）。
+    # 同名冲突;计划任务只把这个子命令交给打包后的 exe(runtime host 没有独立 Python)。
     if sys.argv[1:2] == ["watchdog"]:
         from drift.web.watchdog import main as watchdog_main
         raise SystemExit(watchdog_main(sys.argv[2:]))
@@ -56,6 +56,8 @@ def main():
         from drift.core.maa_engine import framework_check
         print(json.dumps(framework_check(),ensure_ascii=False),flush=True)
         return
+    if args.command == 'serve':
+        ensure_user_config(args.root)
     if args.command == "serve" and not (args.root / "config.json").exists():
         print(CONFIG_MISSING_MESSAGE, flush=True)
         app = MissingConfigApp(args.root)
@@ -112,3 +114,15 @@ def main():
         if app.thread:
             app.thread.join(timeout=22)
         server.server_close()
+
+# Keep legacy task logic; delegate every record read/write to shared storage.
+from drift.core.persistence import ReliablePath as Path
+
+
+# Default to the native window. Explicit serve/diagnose/watchdog remain compatible.
+_desktop_legacy_main = main
+def main():
+    from drift.desktop.entry import dispatch
+    return dispatch(_desktop_legacy_main)
+
+

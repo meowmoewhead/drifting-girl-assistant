@@ -17,7 +17,7 @@ sys.path.insert(0,str(ROOT))
 from app import Clicker
 from digit_ocr import parse_counter
 from features import FEATURE_BY_ID
-from tools.configure_ad_recovery import ENTRIES, NEW_IDS, update
+from dev_tools.configure_ad_recovery import ENTRIES, NEW_IDS, update
 
 
 class AdvertisementRecoveryTests(unittest.TestCase):

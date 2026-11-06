@@ -44,3 +44,5 @@ class PopupCruiseReturn:
             self.frames+=1
         self.last_seen=now
         return self.frames>=3 and now-self.since>=3
+
+

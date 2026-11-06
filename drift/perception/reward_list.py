@@ -80,3 +80,5 @@ class GreenRewardListButton(Button):
         self.progress_key = (index, hashlib.blake2b(progress.tobytes(), digest_size=8).hexdigest())
         self.last_similarity = self.anchor.last_similarity
         return True
+
+

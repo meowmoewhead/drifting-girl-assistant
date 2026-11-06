@@ -89,3 +89,5 @@ class CandidateObservation:
         except Exception as exc:
             # Observability must not become a new reason to stop fishing.
             self.record['logging_error'] = type(exc).__name__
+
+

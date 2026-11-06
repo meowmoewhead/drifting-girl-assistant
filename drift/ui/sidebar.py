@@ -109,3 +109,5 @@ def adapt_sidebar(rule, button):
             or rule.get('scales',[1]) != [1] or rule.get('kind','template') != 'template'):
         return button
     return SidebarLayoutButton(button,rule)
+
+

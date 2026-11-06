@@ -115,3 +115,5 @@ DEPENDENCIES = {
     "mailbox": ("task_popup",),
     "achievements": ("task_popup",),
 }
+
+

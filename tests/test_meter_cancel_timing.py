@@ -272,7 +272,10 @@ class MeterCancelTimingTests(unittest.TestCase):
         self.assertLessEqual(contacts[0][2],.12)
         self.assertFalse(contacts[0][3])
         self.assertEqual(commands,[])
-        self.assertEqual(len(fast),3)  # Outer observation, fresh guard, after-input evidence.
+        # The deployed runner may acquire one final read-only capture while
+        # observing the click limit. Input and its unique evidence stay single.
+        self.assertGreaterEqual(len(fast),3)
+        self.assertLessEqual(len(fast),4)
         self.assertEqual(state['clicks'],1)
         self.assertEqual(state['stop_reason'],'click_limit')
         self.assertIsNone(state['last_error'])

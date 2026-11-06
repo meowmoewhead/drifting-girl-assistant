@@ -16,7 +16,8 @@ from PIL import Image
 from digit_ocr import DigitReader
 from features import feature_states, execution_mode
 from meter_calibration import MeterCalibration
-from tools.configure_meter_calibration import add, RULE
+from drift.tasks.meter_calibration import Path as RecordPath
+from dev_tools.configure_meter_calibration import add, RULE
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,8 +37,8 @@ class MeterCalibrationTests(unittest.TestCase):
         self.events, self.inputs = [], []
         # A real local diagnostic journal must not leak into unrelated tests.
         journal = ROOT/'meter_calibration_state.json'
-        original_is_file = Path.is_file
-        with patch.object(Path,'is_file',lambda p: False if p == journal else original_is_file(p)):
+        original_is_file = RecordPath.is_file
+        with patch.object(RecordPath,'is_file',lambda p: False if p == journal else original_is_file(p)):
             self.controller = MeterCalibration(ROOT, self.reader,
                 lambda *args: self.inputs.append(args) or False,
                 lambda *args: self.inputs.append(args) or True, self.events.append)
@@ -60,9 +61,9 @@ class MeterCalibrationTests(unittest.TestCase):
         """Restore a journal without writing the project's actual saved state."""
         saved = json.dumps(payload).encode('utf-8')
         journal = ROOT / 'meter_calibration_state.json'
-        original_exists, original_read = Path.is_file, Path.read_text
-        with patch.object(Path, 'is_file', lambda p: p == journal or original_exists(p)), \
-             patch.object(Path, 'read_text', lambda p, **kw: saved.decode('utf-8')
+        original_exists, original_read = RecordPath.is_file, RecordPath.read_text
+        with patch.object(RecordPath, 'is_file', lambda p: p == journal or original_exists(p)), \
+             patch.object(RecordPath, 'read_text', lambda p, **kw: saved.decode('utf-8')
                           if p == journal else original_read(p, **kw)), \
              patch('meter_calibration.time.time', return_value=now), \
              patch('meter_calibration.time.monotonic', return_value=monotonic):
@@ -490,10 +491,10 @@ class MeterCalibrationTests(unittest.TestCase):
     def test_restart_retains_attempts_and_deadline_but_requires_new_off_proof(self):
         c=self.pending();c.journal['attempts']=dict(cancel=1,drag=2,start=1);c._save()
         saved=c.path.read_text(encoding='utf-8')
-        original_exists,original_read=Path.is_file,Path.read_text
+        original_exists,original_read=RecordPath.is_file,RecordPath.read_text
         journal=ROOT/'meter_calibration_state.json'
-        with patch.object(Path,'is_file',lambda p: p==journal or original_exists(p)), \
-             patch.object(Path,'read_text',lambda p,**kw: saved if p==journal else original_read(p,**kw)):
+        with patch.object(RecordPath,'is_file',lambda p: p==journal or original_exists(p)), \
+             patch.object(RecordPath,'read_text',lambda p,**kw: saved if p==journal else original_read(p,**kw)):
             restored=MeterCalibration(ROOT,self.reader,lambda *a:False,lambda *a:False,self.events.append)
         self.assertEqual(restored.journal['deadline'],1090)
         self.assertEqual((restored.fishing.cancels,restored.fishing.drags,restored.fishing.starts),(1,2,1))

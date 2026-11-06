@@ -15,6 +15,7 @@ class FishingMeter:
     HOLD_MS = 1500
     DRAG_MS = 900
     IDLE_SECONDS = 3
+    WAKE_SECONDS = 15
     ENDPOINT_SLOP = 8
     MAX_ENDPOINT_SLOP = 1
     MAX_DRAG_OVERSHOOT = 16
@@ -43,6 +44,7 @@ class FishingMeter:
         self.stable, self.key = 0, None
         self.next_action_at = self.since = 0.
         self.drags = self.starts = 0
+        self.wakes = 0
         self.cancels = 0
         # 取消 X 只在抛竿后约 1.5~2 秒内出现(2026-10-23 实测:50 帧/70 秒 0 次,
         # 另一段 40 帧里只有连续 2 帧命中),所以「看见过」要留一个短记忆,
@@ -121,7 +123,7 @@ class FishingMeter:
     def status(self):
         return dict(phase=self.phase, value=self.current, player_level=self.player,
                     target=self.goal, target_mode='player_level', level_gap=self.LEVEL_GAP,
-                    drags=self.drags, starts=self.starts, confirmed_starts=self.confirmed_starts,
+                    drags=self.drags, wakes=self.wakes, starts=self.starts, confirmed_starts=self.confirmed_starts,
                     start_fill_verified=self.start_fill_verified,
                     start_proof=self.start_proof, post_release_frames=self.start_seen,
                     blue_fill=self.filled, dial_state=self.dial_state)
@@ -239,7 +241,7 @@ class FishingMeter:
             return True
         # A newly issued start owns its verification. Its fresh fill must
         # never be cancelled by the older low-meter recovery request.
-        if self.starts or self.start_fill_verified:
+        if self.starts or self.wakes or self.start_fill_verified:
             return self.step(frame)
         if self.blue_fill(frame) and self._saved_low_correction():
             if self.cancels >= 2:
@@ -675,6 +677,16 @@ class FishingMeter:
         return self.cast_data(frame)
 
     def validate(self, action, frame, expected):
+        if action == 'wake':
+            if (not getattr(self, 'allow_sleep_wake', False) or self.starts or self.wakes
+                    or frame.shape[:2] != (1280,720) or self.training.boss_mode(frame)
+                    or not self._main_visible(frame) or not self.world_matches(frame)
+                    or self.at_port(frame) or self.idle_icon(frame) != 'sleep'
+                    or self.busy(frame) or self.real_battle(frame) or self.cancel_button(frame)):
+                return False
+            actual = self.cast_data(frame)
+            return bool(actual is not None and all(actual[key] == expected.get(key)
+                for key in ('context','box','digit_strokes','world_strokes')))
         if action == 'resume_cast':
             actual = self.resume_cast_data(frame)
             return bool(actual is not None and all(actual[key] == expected.get(key)
@@ -682,6 +694,10 @@ class FishingMeter:
         if frame.shape[:2] != (1280,720) or self.training.boss_mode(frame):
             return False
         if action == 'start':
+            if (expected.get('idle_icon') is not None
+                    and self.idle_icon(frame) != expected['idle_icon']):
+                self.validated_start = None
+                return False
             actual = self.start_reading(frame,expected)
             # A bounded, single-frame receipt snapshot, never a reading for
             # another capture. The runtime still uses validate() as its gate.
@@ -768,7 +784,7 @@ class FishingMeter:
         self.start_seen = 0
 
     def confirm_start(self, frame):
-        if self.phase != 'starting':
+        if self.phase not in ('starting', 'waking'):
             return False
         now = time.monotonic()
         if (self.start_anchor is None or self._start_identity(frame) != self.start_anchor
@@ -805,6 +821,26 @@ class FishingMeter:
             self.idle_since = None
             self._reset_start_observation()
             return False
+        if self.phase == 'waking':
+            # A wake tap can start fishing directly. Observe it without another
+            # hold, cancellation or drag. Otherwise require a freshly idle hook
+            # and the normal three-second numeric consensus before the hold.
+            if self.start_anchor is None:
+                self.start_anchor = self._start_identity(frame)
+            if self.confirm_start(frame):
+                return False
+            if (self._start_identity(frame) == self.start_anchor
+                    and self._main_visible(frame) and self.idle_icon(frame) == 'hook'
+                    and not self.busy(frame) and not self.real_battle(frame)):
+                self.phase = 'detect'
+                self.idle_since = now
+                self.stable, self.key = 0, None
+                self._reset_start_observation()
+                self.event('钓鱼计量：单次唤醒后已见灰色鱼钩，重新确认休眠与读数后再长按')
+                return True
+            if now-self.since > self.WAKE_SECONDS:
+                raise MeterWorkflowLimit('单次唤醒Zzz后未确认灰色鱼钩或真实钓鱼，保留已用次数和原截止时间')
+            return True
         if self.phase == 'starting':
             if self.confirm_start(frame):
                 return False
@@ -869,11 +905,28 @@ class FishingMeter:
                 self.since = now
                 self.next_action_at = now+1.5
         else:
+            if getattr(self, 'allow_sleep_wake', False) and self.idle_icon(frame) == 'sleep':
+                if self.wakes or self.starts:
+                    raise MeterWorkflowLimit('本轮Zzz唤醒已用，拒绝重复唤醒或重试已用长按')
+                signature = self.cast_data(frame)
+                if signature is None or signature['context'] != data['context']:
+                    return True
+                result = self.action('wake', {**data, **signature})
+                if result is not False and result is not None:
+                    self.wakes += 1
+                    self.arm_start_observation(frame)
+                    self.phase = 'waking'
+                    self.idle_since = None
+                    self.stable, self.key = 0, None
+                    self.event('钓鱼计量：只唤醒Zzz一次，等待灰色鱼钩或真实填充/战斗，不计启动成功')
+                return True
             if self.phase == 'starting' and now-self.since < 8:
                 return True
             if self.starts >= 3:
                 raise MeterWorkflowLimit('长按开始钓鱼后未确认浅蓝色填充，已停止并保留画面')
-            result = self.action('start', data)
+            expected_start = ({**data, 'idle_icon': self.idle_icon(frame)}
+                              if getattr(self, 'allow_sleep_wake', False) else data)
+            result = self.action('start', expected_start)
             if result is not False and result is not None:
                 self.starts += 1
                 self.arm_start_observation(frame)
@@ -886,3 +939,5 @@ class FishingMeter:
                     self.confirm_start(feedback[-1])
         self.stable, self.key = 0, None
         return True
+
+FishingMeter.WAKE_SECONDS = 15

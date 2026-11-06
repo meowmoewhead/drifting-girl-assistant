@@ -1,7 +1,7 @@
 """The public source package must keep fixture provenance machine independent."""
 from pathlib import Path
 import json,tempfile,unittest
-from tools.verify_release import verify_fixture_metadata
+from deploy.verify_release import verify_fixture_metadata
 
 class FixturePrivacyTests(unittest.TestCase):
     def setUp(self):

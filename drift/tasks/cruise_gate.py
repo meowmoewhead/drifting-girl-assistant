@@ -38,3 +38,5 @@ def cruise_blockers(*, include_setup=True, stage='main', handling_interrupt=Fals
                 meter_active=meter_active,
                 stone_active=_task_active(stone),
                 other_task=any(_task_active(task) for task in tasks))
+
+

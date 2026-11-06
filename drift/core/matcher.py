@@ -187,3 +187,4 @@ def scan_rules(frame, rules, module, matchers, *, load_rule, preview, interrupti
                     candidate = (rule, button, offset)
     return candidate, grace_visible, previous_visible
 
+

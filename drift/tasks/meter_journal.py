@@ -59,3 +59,5 @@ def retire(path, expected_sha256, *, source, reason='', interval=60):
     updated['failure_history'] = [*record.get('failure_history', []), dict(retirement)]
     archive_and_replace(path, raw, updated, archive, expected_sha256, '标尺', 'meter_calibration_retry.json')
     return dict(retired=True, sha256=expected_sha256, archive=str(archive))
+
+

@@ -70,3 +70,5 @@ def verified_on(owner, frame, settings, attempts):
     owner._save()
     owner.event('航巡：已连续确认自动贩卖勾选，其他目标、优先顺序和自动强化保持不变')
     return True
+
+

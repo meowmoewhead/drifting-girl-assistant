@@ -16,7 +16,7 @@ from drift.perception.digit_ocr import DigitReader
 from drift.tasks.pass_daily import PassDaily,PASS_ID
 from drift.tasks.daily import DailySchedule,BEIJING
 from drift.tasks.schedule import TaskSchedule
-from tools.configure_pass_daily import add
+from dev_tools.configure_pass_daily import add
 
 ROOT=Path(__file__).resolve().parents[1]
 

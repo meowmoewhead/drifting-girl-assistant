@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from app import Clicker
 from digit_ocr import DigitReader
-from tools.configure_ad_position import RULE_ID, update
+from dev_tools.configure_ad_position import RULE_ID, update
 
 
 class GrowthAdPositionTests(unittest.TestCase):

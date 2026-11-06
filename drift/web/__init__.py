@@ -14,7 +14,7 @@
     from drift.web.server import make_handler
     from drift.web.cli import main
 
-所以 ``from app import make_handler`` 这类原路径导入、``tools/preview_ui.py``、
+所以 ``from app import make_handler`` 这类原路径导入、``dev_tools/preview_ui.py``、
 以及 ``python app.py serve|diagnose|click-once`` 与 ``mumu-panel.exe`` 打包入口
 都保持不变。静态资源仍从 :data:`drift.core.paths.BUNDLE` 下的 ``web/`` 读取,
 PyInstaller ``--add-data web;web`` 打包后依然找得到。
@@ -29,3 +29,5 @@ from .cli import main  # noqa: F401
 from .server import make_handler  # noqa: F401
 
 __all__ = ["cli", "server", "make_handler", "main"]
+
+

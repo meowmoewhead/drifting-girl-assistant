@@ -15,7 +15,7 @@ from PIL import Image
 
 from app import Clicker
 from meter_calibration import MeterCalibration
-from tools.configure_meter_calibration import RULE
+from dev_tools.configure_meter_calibration import RULE
 from tests import test_meter_calibration as controller_tests
 
 ROOT=Path(__file__).resolve().parents[1]

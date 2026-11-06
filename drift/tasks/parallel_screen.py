@@ -192,3 +192,12 @@ class ParallelScreen:
                 break
             value = candidate
         return value
+
+
+from drift.perception.menu_rank import install as _install_menu_rank
+_install_menu_rank(ParallelScreen)
+del _install_menu_rank
+
+from drift.perception.menu_rank import install as _install_menu_rank
+_install_menu_rank(ParallelScreen)
+del _install_menu_rank

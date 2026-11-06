@@ -30,7 +30,7 @@ The `alas_core` package contains adapted upstream code:
 - `ModuleBase.loop`, `appear`, `appear_then_click`: extracted from upstream. Initialization accepts the adapter's config/device; game dependencies and hierarchy detection are omitted.
 - Logging uses Python's standard logger instead of ALAS's global logging modifications.
 
-`tools/vendor_alas.py` reproduces extraction from `vendor/alas`. Original checksums are in `alas_core/UPSTREAM.json`.
+`dev_tools/vendor_alas.py` reproduces extraction from `vendor/alas`. Original checksums are in `alas_core/UPSTREAM.json`.
 
 `app.py`, its ADB adapter, JSON rules and browser panel provide the standalone integration. This application is distributed under GPL-3.0; the upstream license is included as `LICENSE`. This is an independent adaptation, not an official ALAS distribution. ALAS's Azur Lane tasks, game assets and OCR models are not bundled.
 
@@ -46,7 +46,7 @@ Optional companion fragments also use upstream `Button.match`, in small search w
 
 `digit_ocr.py` runs the English PP-OCRv4 mobile recognition model through ONNX Runtime. Image normalization and CTC decoding follow the model format documented by [RapidOCR](https://github.com/RapidAI/RapidOCR/tree/main/python/rapidocr/ch_ppocr_rec). The numeric-only output filter, confidence gate and application workflow are local integration code.
 
-The model was trained by PaddleOCR/Baidu and converted to ONNX by RapidAI. Its source URL and pinned SHA-256 are recorded in `models/digit-model.json`; `tools/fetch_digit_model.py` downloads that exact model for source builds. Runtime inference is local and has no network requests. This is separate from ALAS's game-specific MXNet OCR models, which are not bundled.
+The model was trained by PaddleOCR/Baidu and converted to ONNX by RapidAI. Its source URL and pinned SHA-256 are recorded in `models/digit-model.json`; `dev_tools/fetch_digit_model.py` downloads that exact model for source builds. Runtime inference is local and has no network requests. This is separate from ALAS's game-specific MXNet OCR models, which are not bundled.
 
 - [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR): Apache-2.0, included as `licenses/PaddleOCR-APACHE-2.0.txt`.
 - [RapidOCR](https://github.com/RapidAI/RapidOCR): Apache-2.0, included as `licenses/RapidOCR-APACHE-2.0.txt`.
@@ -55,7 +55,8 @@ The model was trained by PaddleOCR/Baidu and converted to ONNX by RapidAI. Its s
 ## Windows distribution notices
 
 The public Windows build also contains the Python runtime, NumPy, Pillow,
-OpenCV, ONNX Runtime, MaaFramework and the PyInstaller bootloader. Notices
+OpenCV, ONNX Runtime, MaaFramework, Tcl/Tk and the PyInstaller bootloader. Tcl/Tk's
+license is included in `licenses/Tcl-Tk-license.terms`. Notices
 copied from the installed distributions are preserved under `licenses/bundled/`
 and `licenses/Python-LICENSE.txt`; `licenses/bundled/index.json` records package
 versions, relative notice paths and SHA-256 checksums. The PyInstaller license

@@ -2,8 +2,8 @@
 import json
 from pathlib import Path
 import unittest
-from tools import package_release as release
-from tools.verify_release import verify_source
+from deploy import package_release as release
+from deploy.verify_release import verify_source
 from tests import test_package_release as fixtures
 
 class PublicSourceTests(unittest.TestCase):
@@ -19,7 +19,7 @@ class PublicArchiveTests(unittest.TestCase):
     def test_live_config_is_never_exported(self):
         self.write('config.json',b'{"adb_path":"D:/private-machine/adb.exe","rules":[{"enabled":true}]}')
         with self.archive() as archive:
-            self.assertEqual(archive.read('mumu-clicker/config.json'),(self.root/'config.example.json').read_bytes())
+            self.assertEqual(archive.read('mumu-clicker/config.json'),(self.root/'config/default.json').read_bytes())
             self.assertNotIn(b'private-machine',archive.read('mumu-clicker/config.json'))
 
     def test_no_local_config_is_required_for_public_packaging(self):
@@ -28,7 +28,7 @@ class PublicArchiveTests(unittest.TestCase):
             self.assertIn('mumu-clicker/config.json',archive.namelist())
 
     def test_enabled_example_is_rejected(self):
-        self.write('config.example.json',b'{"rules":[{"enabled":true}]}')
+        self.write('config/default.json',b'{"rules":[{"enabled":true}]}')
         with self.assertRaisesRegex(ValueError,'disabled'):
             release.package_release(self.root)
 

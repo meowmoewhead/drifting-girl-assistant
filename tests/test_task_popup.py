@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app import Clicker
 from features import RECOVERY_RULE_IDS
-from tools.configure_task_popup import update
+from dev_tools.configure_task_popup import update
 from parallel_world import ParallelWorld
 from digit_ocr import NumberReading
 

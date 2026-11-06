@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app import Clicker
 from features import RECOVERY_RULE_IDS
-from tools.configure_achievement_return import CHANGED_FIELDS, CLOSE, FOLD, RETURN, update
+from dev_tools.configure_achievement_return import CHANGED_FIELDS, CLOSE, FOLD, RETURN, update
 
 
 class AchievementReturnTests(unittest.TestCase):

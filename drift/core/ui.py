@@ -126,3 +126,5 @@ class Navigator:
                 buttons.append(button)
             page = page.parent
         return buttons
+
+

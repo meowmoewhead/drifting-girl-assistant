@@ -1,13 +1,14 @@
 """Byte-preserving retirement shared by independent task journals."""
 import json
 from pathlib import Path
+from drift.core.persistence import atomic_write_text, atomic_write_bytes, read_bytes, record_lock
 
 
 def read_record(path, label):
     path = Path(path)
     if not path.exists():
         return None, None
-    raw = path.read_bytes()
+    raw = read_bytes(path)
     record = json.loads(raw.decode('utf-8-sig'))
     if (not isinstance(record, dict) or record.get('version') != 1
             or type(record.get('pending')) is not bool):
@@ -16,13 +17,13 @@ def read_record(path, label):
 
 
 def archive_bytes(path, raw, label):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with path.open('xb') as stream:
-            stream.write(raw)
-    except FileExistsError:
-        if path.read_bytes() != raw:
-            raise RuntimeError(f'{label}记录归档冲突，未清除原记录')
+    path = Path(path)
+    with record_lock(path):
+        if path.exists():
+            if read_bytes(path) != raw:
+                raise RuntimeError(f'{label}记录归档冲突，未清除原记录')
+        else:
+            atomic_write_bytes(path,raw,expected=None)
 
 
 def archive_and_replace(path, raw, updated, archive, digest, label, retry_name):
@@ -36,8 +37,6 @@ def archive_and_replace(path, raw, updated, archive, digest, label, retry_name):
         archive_bytes(archive.with_name(f'{digest}-retry.json'), retry_raw, label)
     if path.read_bytes() != raw:
         raise ValueError(f'归档期间{label}记录已变化，未清除')
-    temporary = path.with_suffix('.retire.tmp')
-    temporary.write_text(json.dumps(updated, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
-    temporary.replace(path)
+    atomic_write_text(path, json.dumps(updated, ensure_ascii=False, indent=2)+'\n', expected=raw)
     if matching and retry_path.exists() and retry_path.read_bytes() == retry_raw:
         retry_path.unlink()

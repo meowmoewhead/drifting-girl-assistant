@@ -45,3 +45,5 @@ def from_rule(rule):
 
 def fingerprint(options):
     return hashlib.sha256(json.dumps(options, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+

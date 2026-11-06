@@ -5,7 +5,7 @@ all hard-stop guards pass. Restart requests are persisted before POST because a
 lost response does not prove that the panel rejected the start.
 
 Lives under ``drift`` so the packaged ``mumu-panel.exe watchdog`` can run it on
-the target device, where no standalone Python exists. ``tools/run_watchdog.py`` stays as a
+the runtime host, where no standalone Python exists. ``dev_tools/run_watchdog.py`` stays as a
 compatibility re-export for the test suite.
 """
 import argparse
@@ -116,12 +116,8 @@ def read_history(path):
 
 
 def save_history(path, data):
-    temporary = path.with_suffix('.tmp')
-    with temporary.open('w', encoding='utf-8') as output:
-        json.dump(data, output, ensure_ascii=False)
-        output.flush()
-        os.fsync(output.fileno())
-    temporary.replace(path)
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(path, json.dumps(data, ensure_ascii=False))
 
 
 def main(argv=None, *, log_dir=None, fetcher=None, poster=None, clock=None):
@@ -170,5 +166,18 @@ def main(argv=None, *, log_dir=None, fetcher=None, poster=None, clock=None):
     return exit_code
 
 
+from drift.core.persistence import ReliablePath as Path
+
 if __name__ == '__main__':
     raise SystemExit(main())
+
+# Keep legacy task logic; delegate every record read/write to shared storage.
+
+def save_history(path, data):
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(path, json.dumps(data, ensure_ascii=False))
+
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

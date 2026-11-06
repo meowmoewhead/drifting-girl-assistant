@@ -247,9 +247,6 @@ class RestaurantRunnerResilienceTests(unittest.TestCase):
         # Execute the actual nested function with fake collaborators. run(), ADB,
         # frame capture and the engine are never started by this harness.
         import drift.runtime as runtime_module
-        tree = ast.parse((ROOT/'drift/runtime.py').read_text(encoding='utf-8-sig'))
-        function = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)
-                        and n.name == 'step_restaurant')
         self.app = SimpleNamespace(lock=threading.RLock(), state={'events':[]},
                                    task_schedule=Mock(), stop_event=Mock(), restaurant_failures=0)
         self.app.event = lambda message:self.app.state['events'].append({'message':message})
@@ -265,14 +262,14 @@ class RestaurantRunnerResilienceTests(unittest.TestCase):
         self.scope = dict(vars(runtime_module), self=self.app, restaurant=self.task,
                           runtime=SimpleNamespace(call=lambda label, fn, *a, **kw:fn(*a, **kw)),
                           st=self.st, stop_on_main=False)
-        exec(compile(ast.Module(body=[function], type_ignores=[]), '<step_restaurant>', 'exec'), self.scope)
-        self.step = self.scope['step_restaurant']
+        from drift.runtime_tasks import build_services
+        self.step = build_services(lambda:self.scope,vars(runtime_module))['step_restaurant']
 
     def test_runtime_error_retires_schedules_backoff_and_keeps_runner_alive(self):
         self.assertIs(self.step(object()), False)
         self.task.abandon.assert_called_once()
         self.app.task_schedule.finish.assert_called_once_with(
-            'restaurant_upgrade', 259200, success=False, retry_seconds=1800)
+            'restaurant_upgrade', 259200, success=False, retry_seconds=1800,controller=self.task)
         self.assertEqual(self.app.state['restaurant_upgrade'], {'pending':False, 'phase':'idle'})
         self.assertIn('餐品强化：本轮中止，30 分钟后重试，运行继续（offline failure）',
                       [e['message'] for e in self.app.state['events']])
@@ -330,16 +327,26 @@ class RestaurantRunnerResilienceTests(unittest.TestCase):
         self.task.done = False
         self.step(object())
         self.app.task_schedule.finish.assert_called_once_with(
-            'restaurant_upgrade', 259200, success=False, retry_seconds=1800)
+            'restaurant_upgrade', 259200, success=False, retry_seconds=1800,controller=self.task)
+        self.task.done = None
+
+    def test_incomplete_cleanup_retries_without_waiting_the_full_interval(self):
+        self.task.step.side_effect = None
+        self.task.step.return_value = False
+        self.task.journal = dict(failure=dict(reason='feed_wait 阶段确认超时'))
+        self.task.done = False
+        self.step(object())
+        self.app.task_schedule.finish.assert_called_once_with(
+            'restaurant_upgrade', 259200, success=False, retry_seconds=1800,controller=self.task)
         self.task.done = None
 
     def test_finished_run_keeps_the_configured_interval(self):
         self.task.step.side_effect = None
         self.task.step.return_value = False
-        self.task.done = False
+        self.task.done = True
         self.step(object())
         self.app.task_schedule.finish.assert_called_once_with(
-            'restaurant_upgrade', 259200, success=False)
+            'restaurant_upgrade', 259200, success=True,controller=self.task)
         self.task.done = None
 
     def test_non_runtime_exception_is_not_swallowed(self):

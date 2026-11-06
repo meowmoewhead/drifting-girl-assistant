@@ -9,7 +9,7 @@
   <a class="brand" href="#overview" aria-label="漂流助手首页"><span class="brand-mark" data-icon="sail"></span><span><strong>漂流助手</strong><small>DRIFTING GIRL ASSISTANT</small></span></a>
   <div class="instance-box" aria-label="运行实例">
     <span class="instance-icon" id="instance-icon" data-state="off"></span>
-    <div><strong>漂流少女</strong><small>MuMu 模拟器 · 本机运行</small></div>
+    <div><strong>漂流少女</strong><small>MuMu 模拟器</small></div>
     <span id="connection" class="connection" data-state="unknown"><i></i>连接中</span>
   </div>
   <nav aria-label="主导航">
@@ -47,7 +47,7 @@
             <button id="stop" class="button off" disabled><span data-icon="stop"></span>停止</button>
           </div>
         </div>
-        <p id="pending" class="pending" role="status" hidden>开关已保存，当前流程结束、返回主画面后生效。</p>
+        <p id="pending" class="pending" role="status" hidden>参数和开关已保存，当前流程结束、返回主画面后生效。</p>
       </section>
 
       <div class="log-bar"><h2>日志</h2><label class="scroll-toggle"><input type="checkbox" id="log-scroll" checked>自动滚动</label><a href="#logs" class="log-more">完整日志 ↗</a></div>
@@ -82,11 +82,11 @@
     </section>
     <section id="page-logs" class="page" hidden>
       <div class="page-heading"><div><div class="eyebrow">运行日志</div><h1>运行日志</h1><p>最近 80 条，自动更新。</p></div></div>
-      <section class="panel"><div class="section-heading"><h2>日志</h2><label class="scroll-toggle"><input type="checkbox" id="log-scroll-full" checked>自动滚动</label></div><div id="logs" class="log-pane tall" role="log"></div><p class="muted">完整日志同时保存在程序目录的 logs/clicker.log。</p></section>
+      <section class="panel"><div class="section-heading"><h2>日志</h2><label class="scroll-toggle"><input type="checkbox" id="log-scroll-full" checked>自动滚动</label></div><div id="logs" class="log-pane tall" role="log"></div><p class="muted">完整日志同时保存在本机的 logs/clicker.log。</p></section>
     </section>
     <section id="page-settings" class="page" hidden>
-      <div class="page-heading"><div><div class="eyebrow">运行设置</div><h1>运行设置</h1><p>停止运行后修改，保存后用于下一次运行。</p></div></div>
-      <div class="settings-layout"><section class="panel"><h2>运行参数</h2><form id="settings-form"><label for="poll-interval">识别间隔 / 秒</label><input id="poll-interval" type="number" required min="0.1" max="60" step="0.1"><p class="field-help">每轮截图与识别的最小周期，已用处理时间会扣除；处理较慢时实际周期相应增加。</p><label for="max-clicks">同一目标重复点击上限</label><input id="max-clicks" type="number" required min="1" max="10000"><p class="field-help">画面始终不变化时，到达此次数自动停止。</p><button id="save-settings" class="button primary form-submit" type="submit">保存运行设置</button></form></section><section class="panel"><h2>设备连接</h2><dl class="device-info"><dt>运行主机</dt><dd>本机</dd><dt>安卓实例</dt><dd id="device-serial">—</dd><dt>画面尺寸</dt><dd id="device-size">—</dd><dt>ADB 路径</dt><dd id="device-adb" class="mono">—</dd></dl><div class="info-line"><span data-icon="info"></span><p>打开助手后保持停止。点击“开始”才会操作模拟器；“识别预览”仅检查画面。</p></div></section></div>
+      <div class="page-heading"><div><div class="eyebrow">运行设置</div><h1>运行设置</h1><p>运行参数支持热修改，保存后下一轮检查使用新值；切换模拟器仍需先停止。</p></div></div>
+      <div class="settings-layout"><section class="panel"><h2>运行参数</h2><form id="settings-form"><label for="poll-interval">识别间隔 / 秒</label><input id="poll-interval" type="number" required min="0.1" max="60" step="0.1"><p class="field-help">每轮截图与识别的最小周期，已用处理时间会扣除；处理较慢时实际周期相应增加。</p><label for="max-clicks">同一目标重复点击上限</label><input id="max-clicks" type="number" required min="1" max="10000"><p class="field-help">画面始终不变化时，到达此次数自动停止。</p><button id="save-settings" class="button primary form-submit" type="submit">保存运行设置</button></form></section><section class="panel device-panel"><h2>连接模拟器</h2><p class="muted">检测运行助手这台电脑上的安卓实例，选择要连接的窗口。</p><form id="device-form"><label for="device-adb-path">ADB 程序路径</label><input id="device-adb-path" type="text" autocomplete="off" placeholder="可留空自动查找 adb.exe"><div class="device-actions"><button id="device-detect" class="button" type="button"><span data-icon="scan"></span>检测模拟器</button><button id="device-auto" class="button" type="button">自动选唯一实例</button></div><label for="device-select">可连接的模拟器</label><select id="device-select"><option value="">请先检测模拟器</option></select><p id="device-scan-state" class="field-help" role="status">进入此页后自动检测；多个实例时请手动选择。</p><button id="device-connect" class="button primary form-submit" type="submit">连接所选模拟器</button></form><dl class="device-info"><dt>当前实例</dt><dd id="device-serial">—</dd><dt>画面尺寸</dt><dd id="device-size">—</dd><dt>当前 ADB</dt><dd id="device-adb" class="mono">—</dd></dl><div class="info-line"><span data-icon="info"></span><p>停止脚本后可切换。各实例保留自己的任务记录；连接和检测只读取设备信息与画面，点击“开始”后才执行任务。</p></div></section></div>
     </section>
     <footer class="main-footer"><span>漂流助手 <span id="app-version" class="app-version" hidden></span></span><span>让日常收取，简单一点。</span></footer>
   </main>

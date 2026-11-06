@@ -11,7 +11,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tools.verify_event_potion import PREFIX, STEPS, inspect_rule, replay
+from dev_tools.verify_event_potion import PREFIX, STEPS, inspect_rule, replay
 
 
 def overlaps(first, second):

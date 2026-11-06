@@ -231,31 +231,32 @@ class GuildReturnHomeTests(unittest.TestCase):
         self.assertEqual(self.saved()['farm_origin'],FARM)
         self.assertNotEqual(self.saved()['settings'],SETTINGS)
 
-    def test_unknown_origin_uses_farm_but_waits_for_recognizable_screen(self):
+    def test_unknown_origin_waits_without_reserving_old_farm(self):
         c=self.c
         c.journal['farm_origin']=deepcopy(FARM)
         c.origin_screen.return_value=None
         self.confirm(due=True)
-        self.assertTrue(c.active)
-        self.assertIsNone(c.journal['origin'])
-        self.assertEqual(c.journal['target'],FARM)
+        self.assertFalse(c.active)
+        self.assertNotIn('origin',c.journal)
+        self.assertNotIn('target',c.journal)
         self.assertEqual(self.inputs,[])
         c.origin_screen.return_value=deepcopy(GUILD)
-        self.confirm()
+        self.confirm(due=True)
         self.assertEqual(c.journal['origin'],GUILD)
-        self.assertEqual(c.phase,'snapshot_open')
+        self.assertEqual(c.phase,'guild_at')
 
-    def test_unknown_origin_with_open_panel_continues_collection(self):
+    def test_unowned_open_panel_does_not_create_a_new_round_trip(self):
         c=self.c
         c.journal['farm_origin']=deepcopy(FARM)
         c.origin_screen.return_value=None
         c.visual.panel.return_value=True
         self.confirm(due=True)
-        self.assertEqual(c.phase,'tasks')
+        self.assertEqual(c.phase,'idle')
         c.visual.task_page.return_value=True
         self.tick()
-        self.assertEqual(c.phase,'collect')
-        self.assertEqual(self.saved()['target'],FARM)
+        self.assertFalse(c.active)
+        self.assertEqual(c.journal['farm_origin'],FARM)
+        self.assertEqual(self.inputs,[])
 
     def test_missing_or_invalid_farm_never_invents_a_destination(self):
         for farm in (None,dict(FARM,rank=40),dict(FARM,route=None),dict(FARM,stage=None)):
@@ -519,7 +520,7 @@ class GuildReturnHomeTests(unittest.TestCase):
         self.assertEqual(self.saved()['farm_origin'],FARM)
         self.assertEqual(self.saved()['attempts']['enter-confirm'],3)
 
-    def test_failed_arrival_retry_recovers_visible_dialog_without_stop_dead_end(self):
+    def test_failed_arrival_unknown_dialog_does_not_renew_spent_inputs(self):
         self.activate('arrive')
         self.c.journal['attempts']['enter-confirm']=3
         self.now=self.c.journal['phase_deadline']
@@ -531,13 +532,10 @@ class GuildReturnHomeTests(unittest.TestCase):
         self.confirm(due=True)
         deadlines={key:self.saved()[key] for key in ('deadline','phase_deadline')}
         self.confirm()
-        self.assertEqual(self.c.phase,'arrive')
+        self.assertEqual(self.c.phase,'idle')
         self.assertEqual(self.inputs,[])
         self.assertEqual({key:self.saved()[key] for key in deadlines},deadlines)
-        self.c=self.controller()
-        self.c.view._fixed.return_value=(208,787)
-        self.confirm()
-        self.assertEqual(self.inputs,['enter-confirm'])
+        self.assertEqual(self.saved()['attempts']['enter-confirm'],3)
         self.assertEqual(self.saved()['farm_origin'],FARM)
         self.assertEqual({key:self.saved()[key] for key in deadlines},deadlines)
 

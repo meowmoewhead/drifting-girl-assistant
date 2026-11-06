@@ -91,3 +91,9 @@ class BossInputEvidence:
         except queue.Full:
             return
         self.thread.join(2)
+
+# Keep legacy task logic; delegate every record read/write to shared storage.
+from drift.core.persistence import ReliablePath as Path
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

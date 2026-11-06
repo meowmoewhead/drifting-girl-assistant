@@ -47,8 +47,8 @@ class RestaurantUpgrade:
     LIMIT=7200
     STALL_LIMIT=3
     # 开菜单、停航、关菜单及取原画面共用此上限，不随输入或识别失败续期。
-    STOP_ORIGIN_LIMIT=20
-    STOP_ENTRY_LIMIT=5
+    STOP_ORIGIN_LIMIT=90
+    STOP_ENTRY_LIMIT=90
     MENU_CLOSE_LIMIT=3
     # 恢复原航巡的总上限：owned 阶段不能无限期挡住标尺校准等其它任务。
     RESTORE_LIMIT=60
@@ -87,12 +87,19 @@ class RestaurantUpgrade:
     def status(self):
         return dict(phase=self.phase,pending=self.active,hold=self.hold,
             upgraded=self.journal.get('upgraded',0),submitted=self.journal.get('submitted',0),
-            checked=len(self.journal.get('visited',[])),categories=self.journal.get('categories',[]),
+            checked=self._checked_unique(),checked_entries=len(self.journal.get('visited',[])),
+            categories=self.journal.get('categories',[]),incomplete_categories=self.journal.get('incomplete_categories',[]),
             skipped=self.journal.get('skipped',[]),deadline=self.journal.get('deadline'),
             origin={k:v for k,v in self.journal.get('origin',{}).items() if k not in ('header','place')},interval_seconds=self.interval,
             failure=self.journal.get('failure'),last_failure=self.journal.get('last_failure'),
             retirement=self.journal.get('retirement'),cleanup_deadline=self.journal.get('cleanup_deadline'),
-            attempts=self.journal.get('attempts',{}))
+            attempts=self.journal.get('attempts',{}),order='left_to_right_complete_one',
+            order_hold=getattr(self,'order_hold',None),
+            current_dish={k:v for k,v in self.journal.get('card',{}).items() if k!='art'})
+
+    def _checked_unique(self):
+        from drift.tasks.restaurant_list import count
+        return count(self)
 
     def _save(self):
         tmp=self.path.with_suffix('.json.tmp')
@@ -124,6 +131,19 @@ class RestaurantUpgrade:
     def header(frame):
         return [pack(frame[y:Y,x:X]) for x,y,X,Y in ((71,9,136,59),(13,45,68,72))]
 
+    @staticmethod
+    def context_key(context):
+        if not context:return None
+        key=(context['parallel'],tuple(context['header']),context['route'],
+             context.get('at_restaurant'))
+        if 'place' in context:
+            # Animated highlights/ellipsis change PNG bytes; only the fixed
+            # dark location strokes establish identity, including on startup.
+            strokes=unpack(context['place']).min(axis=2)<70
+            if int(strokes.sum())<30:return None
+            key+=(hashlib.sha256(strokes.tobytes()).hexdigest(),)
+        return key
+
     def same_world(self,frame):
         origin=self.journal.get('origin',self.journal.get('startup',{}))
         if frame.shape!=(1280,720,3) or self.view._parallel(frame)!=origin.get('parallel'):return False
@@ -141,11 +161,18 @@ class RestaurantUpgrade:
         return bool(self.visual.find(frame,'location')
                     and self.fishing._main_visible(frame) and not self.bag.moving(frame))
 
-    def start_screen(self,frame):
+    def ordinary_world(self,frame):
+        # Resource/RAID encounters temporarily display the ordinary RANK.
+        # Only a real normal-world arrival entry may start this navigation.
+        return bool(self.at_restaurant(frame) or self.guild.point(frame,'g-icon')
+                    or self.view._observatory(frame))
+
+    def start_screen(self,frame,*,observe_battle=False):
         # World/RANK and the route can be confirmed while sailing; the place cannot.
         # Unknown cruise readings wait for evidence in stop; only a positively
         # running cruise may open the context menu. The map finds the restaurant.
-        if not self.fishing._main_visible(frame) or self.view._battle(frame):return None
+        if (not self.fishing._main_visible(frame)
+                or (self.view._battle(frame) and not observe_battle)):return None
         route=self.sailing.running(frame)
         parallel=self.view._parallel(frame)
         if parallel:
@@ -153,13 +180,25 @@ class RestaurantUpgrade:
             # RANK never blocks the cookbook: the world can sit at any RANK
             # and the restaurant stays reachable from the map.
             if not s or s['completion'] or self.view.training.boss_mode(frame):return None
+        elif not self.ordinary_world(frame):return None
         return dict(parallel=parallel,header=self.header(frame),route=route)
 
-    def origin_screen(self,frame,*,startup=None):
+    def panel_start_screen(self,frame):
+        # A finished failed run may leave the known restaurant container open.
+        # Admit a NEW due round from that UI; never revive its expired journal.
+        if (getattr(frame,'shape',None)!=(1280,720,3)
+                or not self.visual.panel(frame) or self.visual.detail(frame)
+                or not self.visual.find(frame,'location')
+                or not self.view._off_icon(frame) or self.sailing.running(frame) is True
+                or self.sailing.menu(frame) or self.bag.moving(frame)
+                or self.view._battle(frame)):return None
+        return dict(parallel=self.view._parallel(frame),header=self.header(frame),route=False)
+
+    def origin_screen(self,frame,*,startup=None,observe_battle=False):
         # 移动中不取原画面：地点像素会变。停航巡后本函数会被逐帧重试，
         # 只有确实取不到时才由 stop 阶段超时归档退出。
         if self.bag.moving(frame):return None
-        origin=self.start_screen(frame) if startup is None else startup
+        origin=self.start_screen(frame,observe_battle=observe_battle) if startup is None else startup
         if origin is None:return None
         return dict(**origin,at_restaurant=self.at_restaurant(frame),place=pack(frame[12:36,286:434]))
 
@@ -194,10 +233,15 @@ class RestaurantUpgrade:
                      self.journal.get('started_at',self.journal.get('origin_deadline',now)-self.STOP_ORIGIN_LIMIT))
             deadline=self.journal.get('stop_entry_deadline',started+self.STOP_ENTRY_LIMIT)
             if (now<=deadline and frame is not None and self.same_world(frame)
-                    and (self.at_restaurant(frame) or self.sailing.menu(frame) or self.map_ready(frame))):
+                    and (self.at_restaurant(frame) or self.sailing.menu(frame) or self.map_ready(frame)
+                         # 与巡航设置相同：入口点后航巡已停且不在移动中，也算入口生效。
+                         or (not self.bag.moving(frame)
+                             and self.route_off(frame,self.sailing.running(frame))))):
                 self.journal['stop_entry_confirmed']=True;self._save()
             elif now>=deadline:
-                return self.abandon('入口(233,45)未打开航巡菜单，画面语义不符',frame=frame)
+                # 误开地图/面板时 _stop 会先关再继续；仍停在航巡主画面则放弃本轮，稍后重试。
+                reason='移动中航巡入口无响应，本轮放弃稍后重试' if (frame is not None and self.bag.moving(frame)) else '入口(233,45)未打开航巡菜单，画面语义不符'
+                return self.abandon(reason,frame=frame)
         deadline=self.journal.get('origin_deadline')
         if deadline is None:
             self.journal['origin_deadline']=min(self.journal['phase_deadline'],
@@ -362,7 +406,9 @@ class RestaurantUpgrade:
         if attempts.get(kind,0)>=self.input_limit(kind):return False
         attempts[kind]=attempts.get(kind,0)+1
         if kind=='stop':
-            self.journal.update(resume_route=True,stop_entry_deadline=self.clock()+self.STOP_ENTRY_LIMIT)
+            self.journal.update(resume_route=True,stop_entry_deadline=min(
+                self.journal.get('origin_deadline',self.clock()+self.STOP_ENTRY_LIMIT),
+                self.clock()+self.STOP_ENTRY_LIMIT))
         self.journal['last_input']=dict(kind=kind,state='reserved',at=self.clock())
         self._save();return True
 
@@ -394,7 +440,10 @@ class RestaurantUpgrade:
                 'cleanup-settings-close','restore-open','restore-start',
                 'map-open:origin','map-select:origin','map-close:origin','scan:origin')
             if k not in permitted:return False
-        if k=='stop':return (self.phase=='stop' and self.start_screen(frame) is not None
+        if k=='stop':return (self.phase=='stop' and self.enabled()
+                            and self.fishing._main_visible(frame) and not self.view._battle(frame)
+                            and not self.view.training.boss_mode(frame)
+                            and (self.view._parallel(frame) or self.ordinary_world(frame))
                             and not self.sailing.menu(frame) and not self.at_restaurant(frame)
                             and self.sailing.running(frame) is True and p==(233,45))
         if k in ('stop-toggle','stop-close'):
@@ -437,11 +486,17 @@ class RestaurantUpgrade:
         if k=='panel-close':return self.visual.panel(frame) and not self.visual.detail(frame) and p==self.visual.point(frame,'panel-close')
         if k.startswith(('scroll:','align:','next:','dish:')):
             if self.visual.category(frame)!=self.journal.get('category'):return False
+            if k.startswith(('scroll:','align:','dish:')) and 'list_key' in a:
+                from drift.tasks.restaurant_list import fresh_list
+                if not fresh_list(self,a,frame):return False
             if k.startswith('next:'):return p==self.visual.point(frame,'next')
             if k.startswith('dish:'):
                 art=unpack(a['art'])
-                return self.enabled() and any(c['point']==p and c['level']==a['level']<20
-                    and self.visual.art_matches(c['art'],art) for c in self.visual.cards(frame))
+                card=next((c for c in self._ordered_cards(frame)
+                           if not self._exhausted_card(c) and not self._visited(c) and c['level']!=20),None)
+                return bool(self.enabled() and card is not None and card['level'] is not None
+                    and card['point']==p and card['level']==a['level']<20
+                    and self.visual.art_matches(card['art'],art))
             return not self.visual.detail(frame)
         if k.startswith(('feed:','upgrade:')):
             v=self.visual.detail_values(frame)
@@ -569,9 +624,10 @@ class RestaurantUpgrade:
         self._scan_frames=None
 
     def _finish(self,success,*,message=None):
-        self.done=bool(success and not self.journal.get('failure'));self.phase='idle'
+        self.done=bool(success and not self.journal.get('failure') and not self.journal.get('incomplete_categories'));self.phase='idle'
         self.journal.update(pending=False,phase='idle',finished_at=self.clock(),success=self.done)
-        self._save();self.event(message or '餐品强化：本轮结束，已验证升级 '+str(self.journal.get('upgraded',0))+' 级')
+        label='本轮完成' if self.done else '本轮未完成，保留失败记录'
+        self._save();self.event(message or f'餐品强化：{label}，已验证升级 '+str(self.journal.get('upgraded',0))+' 级')
 
     def _skip(self,reason,*,exhausted=False):
         self.journal['skipped'].append(dict(identity=self.journal.get('dish_identity'),
@@ -596,23 +652,8 @@ class RestaurantUpgrade:
             self._set('detail',300);self._save()
 
     def _category_exhausted(self):
-        # Prove coverage of all nine slots, including cards already at Lv20.
-        # Exhausting just the visible subset cannot prove the unseen list empty;
-        # short/partially readable lists still require the bounded end scan.
-        category=self.journal['category']
-        exhausted=set(self.journal.get('exhausted_dishes',
-            [s['identity'] for s in self.journal['skipped'] if s.get('exhausted') and s.get('identity')]))
-        identities={s['identity'] for s in self.journal['skipped']
-                    if s.get('category')==category and s.get('exhausted') is True
-                    and s.get('identity') in exhausted}
-        maxed=set()
-        for card in self.journal.get('visited',[]):
-            if card['category']!=category:continue
-            identity=card.get('identity')
-            if card['level']<20 and identity not in exhausted:return False
-            if identity:identities.add(identity)
-            elif card['level']==20:maxed.add(card['art'])
-        return len(identities)+len(maxed)>=9
+        from drift.tasks.restaurant_list import exhausted
+        return exhausted(self)
 
     def _category_stats(self):
         return self.journal.setdefault('category_stats',{}).setdefault(
@@ -620,6 +661,10 @@ class RestaurantUpgrade:
 
     def _complete_category(self):
         category=self.journal['category']
+        if not self._category_exhausted():
+            self.order_hold='尚未覆盖九种餐品，继续有界扫描'
+            self._set('list',1200)
+            return
         if category not in self.journal['categories']:
             self.journal['categories'].append(category)
             stats=self._category_stats()
@@ -629,6 +674,10 @@ class RestaurantUpgrade:
     def _visited(self,card):
         return any(self.visual.art_matches(card['art'],unpack(v['art']))
                    for v in self.journal.get('visited',[]) if v['category']==self.journal['category'])
+
+    def _ordered_cards(self,frame):
+        return sorted(self.visual.cards(frame,strict_order=True),key=lambda card:card['point'][0])
+
 
     def _exhausted_card(self,card):
         exhausted=self.journal.get('exhausted_dishes',[])
@@ -682,7 +731,9 @@ class RestaurantUpgrade:
         if close:
             if self._stop_context_closed(frame):
                 if close['restaurant']:self._open_at_restaurant(frame)
-                else:self.journal.pop('stop_context_close');self._save()
+                else:
+                    # Closing an unexpected page does not undo a spent contact.
+                    self.journal.pop('stop_context_close',None);self._save()
             return
         run=self.sailing.running(frame);menu=self.sailing.menu(frame)
         attempts=self.journal['attempts']
@@ -706,15 +757,19 @@ class RestaurantUpgrade:
                                          restaurant=bool(opened and not toggled and not closed))
             return
         if opened and not toggled and not closed:
-            # 入口只点一次；独立的五秒确认期限在每帧世界/输入门禁之前检查。
-            self._confirmed(None,frame);return
+            # 入口点后：若航巡已停（与巡航设置同一点位的常见结果），不要死等菜单。
+            # 菜单/地图/餐馆语义仍由 _stop_origin_expired 的入口确认负责。
+            if not (self.route_off(frame,run) and not self.bag.moving(frame)):
+                self._confirmed(None,frame);return
         if not opened and run is True:
-            self._confirmed(None,frame)
+            # 与巡航设置一致：先连续确认仍在跑，再点入口；移动中也可点，但需稳定帧。
+            if not self._confirmed(('stop-ready',run,bool(self.bag.moving(frame))),frame):
+                return
             self._act('stop',(233,45),frame);return
         # 按钮若自行收起菜单，不在主画面盲点红 X；仍需完整静止证据。
-        origin=self.origin_screen(frame) if self.route_off(frame,run) else None
-        key=tuple((k,str(v)) for k,v in origin.items()) if origin else None
-        if self._confirmed(key,frame,3) and origin:
+        origin=self.origin_screen(frame,observe_battle=True) if self.route_off(frame,run) else None
+        key=self.context_key(origin)
+        if self._confirmed(key,frame,3) and origin and not self.view._battle(frame):
             self.journal['resume_route']=self._stop_resume()
             self.journal['origin']=origin
             if self.route_was_running():self._set('settings_open')
@@ -735,13 +790,17 @@ class RestaurantUpgrade:
         if getattr(self,'_check_startup',False) and self.retire_expired_on_start(frame):return self.active
         if not self.active:
             if not due or not self.enabled():return False
-            startup=self.start_screen(frame)
-            origin=(self.origin_screen(frame,startup=startup)
+            # Read-only identity may span ordinary fishing. Input validation
+            # still requires its own new, non-battle frame. Never take a BOSS.
+            panel_start=self.panel_start_screen(frame)
+            startup=panel_start or self.start_screen(frame,observe_battle=True)
+            origin=(dict(**panel_start,at_restaurant=True,place=pack(frame[12:36,286:434]))
+                    if panel_start else self.origin_screen(frame,startup=startup)
                     if startup and startup['route'] is False else None)
             # 航巡读数未知也先接管：origin 要等停航巡后画面稳定才能取。
             context=startup if startup and startup['route'] is not False else origin
-            key=tuple((k,str(v)) for k,v in context.items()) if context else None
-            if not self._confirmed(key,frame,3):return False
+            key=self.context_key(context)
+            if not self._confirmed(key,frame,3) or self.view._battle(frame):return False
             if self.path.exists():
                 raw=self.path.read_bytes();archive_bytes(self.root/'logs/restaurant-history'/(hashlib.sha256(raw).hexdigest()+'.json'),raw,'餐品强化')
             scan_hint=self.journal.get('scan_hint')
@@ -752,9 +811,12 @@ class RestaurantUpgrade:
                 exhausted_dishes=[],dish_upgrades={},category_stats={},stall=0)
             if scan_hint is not None:self.journal['scan_hint']=scan_hint
             if origin is not None:self.journal['origin']=origin
-            self._set('stop',45);return True
+            self._set('open' if panel_start else 'stop',self.STOP_ORIGIN_LIMIT);return True
         if self._stop_origin_expired(frame) or self._restore_expired(frame):return self.active
-        if not self.allowed() and not self._begin_cleanup('执行窗口到期'):return self.active
+        if not self.allowed():
+            reason=('执行窗口到期' if self.clock()>=self.execution_deadline()
+                    else f'{self.phase} 阶段确认超时')
+            if not self._begin_cleanup(reason):return self.active
         if not self.enabled() and not self.journal.get('cleanup_deadline'):
             if not self._begin_cleanup('用户关闭功能'):return self.active
         if self.clock()<self.next_at:return True
@@ -770,7 +832,8 @@ class RestaurantUpgrade:
             elif self.sailing.menu(frame):
                 value=self.settings(frame)
                 if value and ('settings' not in self.journal or value==self.journal['settings']):
-                    self.journal['settings']=value;self._save()
+                    if 'settings' not in self.journal:
+                        self.journal['settings']=value;self._save()
                     self._act('cleanup-settings-close',MENU_CLOSE,frame)
             elif self.fishing._main_visible(frame):
                 origin=self.journal.get('origin',{});run=self.sailing.running(frame)
@@ -842,41 +905,8 @@ class RestaurantUpgrade:
                 elif category in self.journal['categories']:self._set('category_next')
                 else:self._set('align')
         elif phase in ('align','list'):
-            if self.visual.category(frame)!=self.journal.get('category'):return True
-            category=self.journal['category'];key=self.visual.list_key(frame)
-            previous=self.journal.get('previous_list')
-            unchanged=(previous is not None and float(cv2.matchTemplate(key,unpack(previous)[:,:,0],
-                       cv2.TM_CCOEFF_NORMED)[0,0])>=.995)
-            if phase=='align':
-                if unchanged or self.journal['aligns']>=4:
-                    self.journal['previous_list']=None;self._set('list',1200);return True
-                if self._confirmed(('align',category),frame):
-                    if self._act('align:'+str(category),(160,400),frame,swipe=[560,400,500]):
-                        self.journal.update(previous_list=pack(key),aligns=self.journal['aligns']+1);self._save()
-                return True
-            for card in self.visual.cards(frame):
-                if self._exhausted_card(card) or self._visited(card):continue
-                if card['level']==20:
-                    self.journal['visited'].append(dict(category=category,art=pack(card['art']),level=20))
-                    self.journal.update(scrolls=0,previous_list=None);unchanged=False;self._save();continue
-                art=pack(card['art']);identity=hashlib.sha256(card['art'].tobytes()).hexdigest()[:16]
-                if self._confirmed(('dish',category,identity,card['level']),frame):
-                    if self._act('dish:'+str(category)+':'+identity,card['point'],frame,art=art,level=card['level']):
-                        self.journal.update(card=dict(art=art,level=card['level']),feed_counts={},blocked_ingredients=[],
-                            stall=0,scrolls=0,previous_list=None)
-                        self.journal.pop('dish_identity',None)
-                        self._set('detail',300)
-                return True
-            if not self._confirmed(('list',category),frame):return True
-            if self._category_exhausted() or unchanged or self.journal['scrolls']>=5:
-                count=sum(v['category']==category for v in self.journal['visited'])
-                if count<9:
-                    self.journal['skipped'].append(dict(category=category,reason=f'只读清{count}/9张卡片；未知卡片未点击'))
-                self._complete_category();return True
-            # Five scrolls without a newly visited card; progress opens a new
-            # bounded budget instead of accumulating five across the category.
-            if self._act(f'scroll:{category}:{len(self.journal["visited"])}',(560,400),frame,swipe=[160,400,500]):
-                self.journal.update(previous_list=pack(key),scrolls=self.journal['scrolls']+1);self._save()
+            from drift.tasks.restaurant_list import step_list
+            return step_list(self,frame)
         elif phase=='detail':
             if not self.enabled():self._skip('功能已关闭');return True
             if self.visual.max_detail(frame) is True:
@@ -950,6 +980,12 @@ class RestaurantUpgrade:
                 upgraded=self._category_stats()['upgraded']
                 if v['identity'] not in upgraded:upgraded.append(v['identity'])
                 self.journal['stall']=0
+                # Only an independently verified new level starts its own four
+                # ingredient checks. All old per-level reservations stay saved.
+                if isinstance(self.journal.get('card'),dict):
+                    self.journal['card']['level']=v['level']
+                self.journal['feed_counts']={}
+                self.journal['blocked_ingredients']=[]
                 self.event(f"餐品强化：实际Lv{before['level']}→Lv{v['level']}，继续检查该餐品")
                 if maxed:
                     self.journal['card']['level']=20
@@ -968,7 +1004,8 @@ class RestaurantUpgrade:
                 if self._category_exhausted():self._complete_category()
                 else:self._set('list',1200)
         elif phase=='category_next':
-            remaining={i for i,name in enumerate(CATEGORIES) if name in self.targets} - set(self.journal['categories'])
+            incomplete={v['category'] for v in self.journal.get('incomplete_categories',[])}
+            remaining={i for i,name in enumerate(CATEGORIES) if name in self.targets} - set(self.journal['categories']) - incomplete
             if not remaining or not self.enabled():self._set('close');return True
             category=self.visual.category(frame)
             if category is not None and category!=self.journal['category']:self._set('atlas')
@@ -999,3 +1036,15 @@ class RestaurantUpgrade:
                 if self._confirmed('settings-restored',frame) and self._act('restore-start',(360,873),frame):
                     self._set('restore_verify',180)
         return self.active
+
+# Shared reliability layer; retain all other deployed methods.
+def _save(self):
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2) + '\n')
+
+RestaurantUpgrade._save = _save
+
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

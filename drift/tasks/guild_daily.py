@@ -242,9 +242,8 @@ class GuildDaily:
                     farm_restored_at=self.journal.get('farm_restored_at'),attempts=self.journal.get('attempts',{}))
 
     def _save(self):
-        tmp=self.path.with_suffix('.json.tmp')
-        tmp.write_text(json.dumps(self.journal,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-        tmp.replace(self.path)
+        from drift.core.persistence import atomic_write_text
+        atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2) + '\n')
 
     def retire_expired_on_start(self):
         if not self.active or not self.path.is_file():return False
@@ -729,17 +728,16 @@ class GuildDaily:
                 origin=dict(parallel=False,stage=None,rank=None,route=False)
             else:
                 origin=self.origin_screen(frame)
-                if self.reject_reason:
+                if self.reject_reason or origin is None:
                     self._confirmed(None,frame);return False
             previous=deepcopy(self.journal)
             farm=deepcopy(self.journal.get('farm_origin'))
             restored_at=self.journal.get('farm_restored_at')
             # Legacy journals with an unrestored farm also owe the original activity.
             resume_pending=self.journal.get('resume_pending',self.valid_farm_origin(farm) and restored_at is None)
-            refresh=(not self.collection_only and self.valid_farm_origin(origin)
-                     and (not self.valid_farm_origin(farm) or restored_at is not None or not resume_pending
-                          or ((origin['stage'],origin['rank'])!=(farm['stage'],farm['rank']) and origin['route'] is True
-                              and origin.get('fishing') is True)))
+            from drift.core.continuity import departure_refresh
+            refresh=(not self.collection_only and departure_refresh(origin,farm,
+                valid=self.valid_farm_origin,restored_at=restored_at,resume_pending=resume_pending))
             if origin and origin.get('parallel') and not self.valid_farm_origin(origin):
                 self._confirmed(None,frame);return False
             if refresh:
@@ -816,6 +814,8 @@ class GuildDaily:
                 origin=self.origin_screen(frame)
                 if origin is None:
                     self._confirmed(None,frame);return True
+                from drift.core.continuity import reconcile_late_departure
+                reconcile_late_departure(self.journal,origin,valid=self.valid_farm_origin)
                 self.journal['origin']=origin;self._save()
             if not self.same_origin(frame,target=origin):return True
             route=self.sailing.running(frame)
@@ -1097,3 +1097,21 @@ class GuildDaily:
         self.hold='地图仍打开，等待停航和固定地点连续确认后关闭'
         if self._confirmed(key,frame) and self._click('map-close',(668,1187),frame):
             self.hold=None
+
+# Keep legacy task logic; delegate every record read/write to shared storage.
+from drift.core.persistence import ReliablePath as Path
+
+# Shared reliability layer; retain all other deployed methods.
+def _save(self):
+    from drift.core.persistence import atomic_write_text
+    atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2) + '\n')
+
+GuildDaily._save = _save
+
+from drift.tasks.guild_continuity import install as _install_departure_guard
+_install_departure_guard(GuildDaily)
+del _install_departure_guard
+
+
+# Module-local compatibility for every authoritative record read/write.
+from drift.core.persistence import ReliablePath as Path

@@ -14,7 +14,7 @@ FEATURES = (
          rules=(), enabled=False),
     dict(id="restaurant_upgrade", name="餐品强化", icon="growth", category="日常收取",
          description="定时前往当前世界的餐馆，在料理图鉴中长按交付四种食材，交满后确认强化永久效果。可只强化指定类别。不会制作或食用料理。",
-         summary="按所选类别连续强化 · 四种食材 · 满级或缺料跳过",
+         summary="从左到右逐个强化 · 四种食材 · 满级或缺料后继续下一个",
          steps=["等待当前事务结束，保存原地点和航巡设置", "在当前世界前往餐馆并打开料理图鉴",
                 "依次检查九类已解锁餐品，可只强化指定类别，跳过未选类别和满级", "长按缺少的食材并核对实际交付数量，食材不足跳过",
                 "四项交满后确认强化，核对升级后继续该餐品，直到满级或无法继续交付", "关闭窗口并恢复原地点或原航巡，记录下次执行时间"],
@@ -252,7 +252,7 @@ def feature_states(config, schedules=None, executions=None):
         if feature['id'] == 'restaurant_upgrade' and 'targets' in entry:
             result[-1]['targets'] = list(entry['targets'])
         if feature['id'] == 'restaurant_upgrade':
-            result[-1]['summary'] = f"当前间隔{_duration(entry.get('interval', 259200))} · 按所选类别连续强化"
+            result[-1]['summary'] = f"当前间隔{_duration(entry.get('interval', 259200))} · 按所选类别从左到右，逐个强化"
         if feature['id'] == 'equipment_upgrade':
             from drift.tasks.equipment_upgrade import EquipmentUpgrade
             seconds = EquipmentUpgrade.HOLD_SECONDS
@@ -281,3 +281,5 @@ def feature_states(config, schedules=None, executions=None):
 # 只读预留表:feature id → 计划中的任务类路径(将来"一功能一类"用)。
 # 目前全部留空,且**没有任何现有逻辑读取本表**;填值前请勿在别处引用。
 TASK_CLASSES: dict[str, str] = {feature["id"]: "" for feature in FEATURES}
+
+

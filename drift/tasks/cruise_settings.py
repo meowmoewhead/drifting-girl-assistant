@@ -259,6 +259,7 @@ class CruiseSettings:
         self.deadline=None
         self.done=False
         self.retry_at=0
+        self.stop_issued=False
         self.ticket_before=None
         self.fish_key=self.fish_since=self.fish_seen_at=None
         self.fish_frames=0
@@ -378,11 +379,46 @@ class CruiseSettings:
             return False
         return self.click(action,*point,1500 if action=='fish-start' else self.HOLD_MS if action=='tickets' else 40)
 
+    def _continue_after_rank_advance(self, frame, context, route, now):
+        # A catch can finish after AUTO stops but before its settings open.
+        # Only adopt the next RANK while finishing this controller's own stop.
+        scene=context['scene']
+        if (self.state not in ('stop','open') or not self.stop_issued
+                or self.journal.get('fishing_start_requested')
+                or type(self.scene[0]) is not int
+                or scene!=(self.scene[0],self.scene[1]+1) or route is True):
+            return False
+
+        menu=context['menu']
+        if menu:
+            stopped=(self.journal['attempts'].get('open')==1 and self.view.values(frame) is not None)
+        else:
+            stopped=route is False and self.view.safe_main(frame)
+        if not stopped:
+            self.key=None;self.seen=0
+            self.hold='RANK已推进，等候当前停航画面'
+            return True
+        if not self._seen(('rank-after-stop',scene,menu)):
+            self.hold='RANK已推进，连续核对当前停航画面'
+            return True
+
+        original=self.journal.get('rank_after_stop',{}).get('original_scene',self.scene)
+        self.scene=scene
+        self.journal.update(scene=scene,rank_after_stop=dict(
+            original_scene=original,scene=scene,confirmed_at=now))
+        self._save()
+        self.hold='已确认新RANK停航，继续本轮巡航设置'
+        self.event(f'巡航设置：停航后RANK {original[1]}→{scene[1]}，连续确认后继续；原截止和次数保留')
+        self._set('menu' if menu else 'open')
+        return True
+
     def _end(self, success, reason):
         now=self.clock()
         snapshot={k:self.journal.get(k) for k in ('policy','deadline','attempts','started_at','scene')}
         snapshot.update({k:self.journal.get(k) for k in
                          ('fishing_start_requested','fishing_start_scope','fishing_start_verified')})
+        if 'rank_after_stop' in self.journal:
+            snapshot['rank_after_stop']=self.journal['rank_after_stop']
         snapshot.update(success=success,reason=reason,ended_at=now)
         with self.path.with_suffix('.history.jsonl').open('a',encoding='utf-8') as out:
             out.write(json.dumps(snapshot,ensure_ascii=False)+'\n')
@@ -396,6 +432,7 @@ class CruiseSettings:
         self.hold=reason
         self.event('巡航设置：'+reason)
         self.retry_at=now+self.interval
+        self.stop_issued=False
         self._set('idle')
         self.deadline=None
 
@@ -427,10 +464,13 @@ class CruiseSettings:
             return self.busy
         self.input_context=context
         scene=context['scene']
+        menu=context['menu'];route=self.view.owner.sailing.running(frame)
         if self.busy and scene!=self.scene and not (self.state=='verify' and scene[0]==self.scene[0]):
+            if self._continue_after_rank_advance(frame,context,route,now):return True
             self._end(False,'世界或RANK变化，结束本轮输入')
             return False
-        menu=context['menu'];route=self.view.owner.sailing.running(frame)
+        if self.key and self.key[0]=='rank-after-stop':
+            self.key=None;self.seen=0
         idle_probe=getattr(self.view,'fishing_idle',None)
         evidence_probe=getattr(self.view,'fishing_evidence',None)
         idle=idle_probe(frame,context) if callable(idle_probe) else None
@@ -466,6 +506,7 @@ class CruiseSettings:
             if not self._seen(('begin',scene,menu,route)):return False
             self.scene=scene
             self.deadline=now+self.LIMIT
+            self.journal.pop('rank_after_stop',None)
             self.journal.update(pending=True,policy=self.policy,scene=scene,deadline=self.deadline,
                                 started_at=now,attempts={},fishing_start_requested=startup,
                                 fishing_start_scope=scope if startup else None,fishing_start_verified=False)
@@ -476,7 +517,7 @@ class CruiseSettings:
                 if self._seen(('off',scene)):
                     self._set('fish_idle' if self.journal.get('fishing_start_requested') else 'open')
             elif route is True and self._seen(('running',scene)):
-                self._input('stop')
+                if self._input('stop'):self.stop_issued=True
             return True
         if self.state=='fish_idle':
             if route is not False:return True
@@ -571,221 +612,3 @@ class CruiseSettings:
 
 # Keep legacy task logic; delegate every record read/write to shared storage.
 from drift.core.persistence import ReliablePath as Path
-
-# Shared reliability layer; retain all other deployed methods.
-def _save(self):
-    from drift.core.persistence import atomic_write_text
-    atomic_write_text(self.path, json.dumps(self.journal, ensure_ascii=False, indent=2))
-
-CruiseSettings._save = _save
-
-
-
-# Module-local compatibility for every authoritative record read/write.
-from drift.core.persistence import ReliablePath as Path
-
-# Bounded long-action budgets; preserve all other deployed methods.
-
-CruiseSettings.TICKET_CONFIRM_SECONDS = 10
-
-CruiseSettings.ROUTE_RESERVE_SECONDS = 20
-
-def allowed(self, action):
-    if not self.busy or self.deadline is None or self.clock()>=self.deadline:
-        return False
-    if (action=='tickets' and self.deadline-self.clock()
-            < self.HOLD_MS/1000+self.TICKET_CONFIRM_SECONDS+self.ROUTE_RESERVE_SECONDS):
-        return False
-    limit=self.MAX_HOLDS if action=='tickets' else 1
-    return self.journal.get('attempts',{}).get(action,0)<limit
-
-CruiseSettings.allowed = allowed
-
-def _input(self, action):
-    point={'stop':OPEN_AT,'open':OPEN_AT,'start':START_AT,'close':CLOSE_AT,
-           'auto_sale':SALE_AT,'auto_upgrade':UPGRADE_AT,'tickets':TICKET_AT,
-           'fish-start':(360,1010)}.get(action)
-    if action in TARGET_NAMES:point=(TARGET_X[action],TARGET_Y)
-    if not self.allowed(action):
-        if (action=='tickets' and self.deadline is not None and self.deadline-self.clock()
-                < self.HOLD_MS/1000+self.TICKET_CONFIRM_SECONDS+self.ROUTE_RESERVE_SECONDS):
-            self.hold='剩余时间不足以补票并核对票数，本轮先恢复航巡；下次按实际票数检查'
-            self.event('巡航设置：'+self.hold)
-        else:
-            self.hold='已用完本轮 '+action+' 输入次数，等待画面确认'
-        return False
-    return self.click(action,*point,1500 if action=='fish-start' else self.HOLD_MS if action=='tickets' else 40)
-
-CruiseSettings._input = _input
-
-def step(self, frame):
-    if frame is self.last_frame:return self.busy
-    self.last_frame=frame
-    now=self.clock()
-    if self.busy and now>=self.deadline:
-        self._end(False,'本轮设置窗口到期，保留输入记录，稍后重查')
-        return False
-    if self.state=='fish_verify' and now>=self.journal.get('fishing_verify_deadline',self.deadline):
-        self._end(False,'开局长按后未确认实际钓鱼，保留已用次数，不重复长按')
-        return False
-    context=self.view.observe_setup(frame)
-    late_observation=(self.state=='idle' and self.journal.get('fishing_blocked_scope'))
-    if context is None and (self.state=='fish_verify' or late_observation):
-        observe=getattr(self.view,'observe_fishing',None)
-        observed_scene=self.scene or tuple(self.journal.get('scene') or ())
-        if callable(observe) and observed_scene:context=observe(frame,observed_scene)
-    if context is None:
-        self.key=None;self.seen=0
-        self._fishing_proof(None,now)
-        if self.busy:
-            self.hold='等待当前设置页的世界、阶段和RANK复核；未使用缓存数字'
-            probe=getattr(self.view.owner,'menu_rank_probe',None)
-            if probe and now-getattr(self,'unknown_logged_at',float('-inf'))>=30:
-                self.unknown_logged_at=now
-                self.event('巡航设置等待：'+self.hold+'；'+str(probe))
-        return self.busy
-    self.input_context=context
-    scene=context['scene']
-    if self.busy and scene!=self.scene and not (self.state=='verify' and scene[0]==self.scene[0]):
-        self._end(False,'世界或RANK变化，结束本轮输入')
-        return False
-    menu=context['menu'];route=self.view.owner.sailing.running(frame)
-    idle_probe=getattr(self.view,'fishing_idle',None)
-    evidence_probe=getattr(self.view,'fishing_evidence',None)
-    idle=idle_probe(frame,context) if callable(idle_probe) else None
-    evidence=bool(evidence_probe(frame,context)) if callable(evidence_probe) else False
-    scope=self.view.fishing_scope(frame,context) if callable(getattr(self.view,'fishing_scope',None)) else None
-    if self.state in ('fish_idle','fish_verify') and scope!=self.journal.get('fishing_start_scope'):
-        self._end(False,'开局钓鱼地点变化，保留次数并结束本轮输入')
-        return False
-    fish_ready=self._fishing_proof(('idle',idle,route) if idle else
-        ('active',scope,route) if evidence else None,now)
-    if evidence and fish_ready and self.journal.get('fishing_blocked_scope')==scope:
-        self.journal.pop('fishing_blocked_scope')
-        self.journal['fishing_late_observed_at']=now
-        self._save()
-        self.retry_at=now
-        self.event('开局钓鱼：只读连续新图确认已有实际钓鱼，保留旧失败、截止和次数；后续仅核对原航巡设置')
-    if self.busy and self.clock()>=self.deadline-5 and menu:
-        # Close only while the original budget is still valid; never grant a new input window.
-        if self._input('close'):
-            self._end(False,'设置未能完成，已关闭菜单，保留原输入记录')
-        return True
-    if self.state=='idle':
-        startup=bool(idle and fish_ready and scope!=self.journal.get('fishing_blocked_scope'))
-        if idle and not fish_ready:return False
-        if now<self.retry_at and not startup:return False
-        # Only recheck an established running route for a new policy or a due ticket audit.
-        applied=self.journal.get('applied_policy')==self.policy
-        same_world=(self.journal.get('applied_scene') or [None])[0]==scene[0]
-        due=(self.options['auto_sale'] and self.options['ticket_min']>0
-             and now-self.journal.get('checked_at',0)>=self.interval)
-        if applied and same_world and route is True and not due and not startup:return False
-        if not menu and (route is None or not self.view.safe_main(frame)):return False
-        if not self._seen(('begin',scene,menu,route)):return False
-        self.scene=scene
-        self.deadline=now+self.LIMIT
-        self.journal.update(pending=True,policy=self.policy,scene=scene,deadline=self.deadline,
-                            started_at=now,attempts={},fishing_start_requested=startup,
-                            fishing_start_scope=scope if startup else None,fishing_start_verified=False)
-        self._save()
-        self._set('menu' if menu else 'stop' if route else 'fish_idle' if startup else 'open')
-    if self.state=='stop':
-        if route is False:
-            if self._seen(('off',scene)):
-                self._set('fish_idle' if self.journal.get('fishing_start_requested') else 'open')
-        elif route is True and self._seen(('running',scene)):
-            self._input('stop')
-        return True
-    if self.state=='fish_idle':
-        if route is not False:return True
-        if evidence:
-            self.journal['fishing_verify_deadline']=min(self.deadline,self.clock()+30)
-            self._save()
-            self._set('fish_verify');return True
-        if not idle or not fish_ready:return True
-        read=getattr(self.view,'start_reading',None)
-        data=(read(frame) if callable(read) else self.view.owner.fishing.measure(frame,remember=False))
-        if (data is None or type(data.get('value')) is not int or not 1<=data['value']<=10000
-                or type(data.get('player')) is not int or not 1<=data['player']<=10000
-                or data.get('low') is not None and data['value']<data['low']
-                or data.get('high') is not None and data['value']>data['high']):
-            self.hold='沿用当前标尺启动前，等待读清选值及角色等级；不会拖动标尺'
-            return True
-        guard=self.view.fishing_guard(frame)
-        if guard is None:return True
-        self.input_context['fishing_guard']=guard
-        self.journal['fishing_start_reading']={k:data[k] for k in ('player','value','low','high')}
-        self._save()
-        if self._input('fish-start'):
-            self.journal['fishing_verify_deadline']=min(self.deadline,self.clock()+30)
-            self._save();self._set('fish_verify')
-        return True
-    if self.state=='fish_verify':
-        if evidence and fish_ready and route is False:
-            self.journal['fishing_start_verified']=True
-            self._save();self._set('open')
-            self.event('开局钓鱼：长按后连续新图确认真实填充或战斗，继续原航巡设置；未调整标尺')
-        elif now>=self.journal.get('fishing_verify_deadline',self.deadline):
-            self._end(False,'开局长按后未确认实际钓鱼，保留已用次数，不重复长按')
-        return True
-    if self.state=='open':
-        if menu:self._set('menu')
-        elif route is False and self._seen(('open',scene)):
-            self._input('open')
-        return True
-    if self.state=='menu':
-        if not menu:return True
-        values=self.view.values(frame)
-        if values is None:return True
-        if not self._seen(('menu',json.dumps(values,sort_keys=True))):return True
-        for name in TARGET_NAMES:
-            if values['targets'][name] is not self.options['targets'][name]:
-                if self._input(name):self.key=None
-                return True
-        for name in ('auto_sale','auto_upgrade'):
-            if values[name] is not self.options[name]:
-                if self._input(name):self.key=None
-                return True
-        self._set('tickets' if self.options['auto_sale'] and self.options['ticket_min']>0 else 'start')
-    if self.state=='tickets':
-        if menu:
-            count=self.view.tickets(frame)
-            if count is None:
-                if not self._seen(('tickets-unknown',)):return True
-                self.hold='售卖券数字未读清，本轮不购买，继续原航巡'
-                self._set('start');return True
-            if not self._seen(('tickets',count)):return True
-            self.journal['tickets']=count;self._save()
-            if count<self.options['ticket_min']:
-                self.ticket_before=count
-                self.input_context['ticket_ink']=self.view.ticket_ink(frame)
-                self.input_context['ticket_count']=count
-                if self._input('tickets'):self._set('ticket_verify')
-                elif not self.allowed('tickets'):self._set('start')
-                return True
-            self._set('start')
-        else:return True
-    if self.state=='ticket_verify':
-        if not menu:return True
-        count=self.view.tickets(frame)
-        if count is not None and count>self.ticket_before and self._seen(('increase',count)):
-            self.journal['tickets']=count;self._save()
-            self.event(f'自动贩卖券：{self.ticket_before} → {count}，继续核对阈值')
-            self._set('menu')
-        return True
-    if self.state=='start':
-        if not menu:return True
-        values=self.view.values(frame)
-        if values!=self.view.wanted(self.options):return True
-        if self._seen(('start',json.dumps(values,sort_keys=True))) and self._input('start'):
-            self._set('verify')
-        return True
-    if self.state=='verify':
-        # RANK can naturally advance once cruise has started. Only the world must match.
-        if route is True and self._seen(('verified',scene)):
-            self._end(True,'目标、自动贩卖和自动强化已核对，连续确认航巡运行')
-        return True
-    return self.busy
-
-CruiseSettings.step = step

@@ -40,14 +40,15 @@ class ContinuousStopTests(unittest.TestCase):
         action.update(continuous_stop=True,cancel_context=context)
         return action
 
-    def test_real_task_dots_and_warning_can_stop_continuous_casting(self):
-        for frame in (self.dots,self.bite):
-            with self.subTest(warning=frame is self.bite):
+    def test_lower_handoff_stops_only_during_real_three_dot_preparation(self):
+        for frame, early in ((self.dots, True), (self.bite, False)):
+            with self.subTest(early=early):
                 action = self.prepare(frame)
                 self.assertTrue(self.w.training.boss_mode(frame))
                 self.assertFalse(self.w._battle(frame))
                 self.assertTrue(self.w.continuous_preparation(frame))
-                self.assertTrue(self.w.validate_portal(action,frame))
+                self.assertEqual(self.w.continuous_preparation(frame, early_only=True), early)
+                self.assertEqual(self.w.validate_portal(action, frame), early)
                 self.assertIsNone(self.w.cancel_context(frame))
 
     def test_actual_battle_only_anchors_observation_and_never_authorizes_input(self):
@@ -210,6 +211,7 @@ class ContinuousStopTests(unittest.TestCase):
             issued_inputs=[dict(kind='lower-boss-abandon',input_id='a'*32),
                            dict(kind='lower-boss-abandon-menu',input_id='b'*32)])
         self.w.journal['return_deadline']=self.now-1
+        self.w.journal.pop('stop_fishing_deadline',None)  # Legacy saved handoff.
         self.w.journal.pop('continuous_cast_stop',None)
         self.w._save()
         (self.path.parent/'config.json').write_text(json.dumps(

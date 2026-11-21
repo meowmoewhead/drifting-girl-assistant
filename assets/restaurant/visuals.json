@@ -125,6 +125,16 @@
   ],
   "threshold": 0.94
  },
+ "materials-storage-title": {
+  "file": "materials-storage-title.png",
+  "area": [
+   32,
+   846,
+   151,
+   892
+  ],
+  "threshold": 0.96
+ },
  "detail-book": {
   "file": "detail-book.png",
   "area": [

@@ -180,11 +180,7 @@ class PopupRaidReturnTests(unittest.TestCase):
             def stuck_record_add(self, button): pass
         with tempfile.TemporaryDirectory(prefix='popup-raid-') as directory:
             root = Path(directory)
-            paths = {p for r in rules for p in [r['asset'], *r.get('asset_variants', [])]}
-            paths.add('assets/raid/waiting.png')
-            for path in paths:
-                (root/path).parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(ROOT/path, root/path)
+            shutil.copytree(ROOT/'assets',root/'assets')
             (root/'config.json').write_text(json.dumps(config), encoding='utf-8')
             app = Clicker(root, Device)
             try:

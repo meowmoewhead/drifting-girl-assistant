@@ -15,6 +15,8 @@ def list_devices(app, data):
         raise ValueError("ADB 路径必须为文字")
     with app.lock:
         config = deepcopy(app.config)
+        if not app.running():
+            return discovery.discover(config, adb_path=data.get("adb_path"), attach_local=True)
     return discovery.discover(config, adb_path=data.get("adb_path"))
 
 
@@ -34,7 +36,7 @@ def select_device(app, data):
             raise ValueError("设备正在截图，请稍后再切换")
         try:
             config = deepcopy(app.config)
-            result = discovery.discover(config, adb_path=data.get("adb_path"))
+            result = discovery.discover(config, adb_path=data.get("adb_path"), attach_local=True)
             selected = discovery.choose(result, data["serial"])
             image = discovery.verify_frame(result["adb_path"], selected["serial"], config["resolution"])
             unchanged = selected["serial"] == config["serial"] and result["adb_path"] == config["adb_path"]

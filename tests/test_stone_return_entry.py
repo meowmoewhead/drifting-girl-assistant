@@ -75,6 +75,40 @@ class ReturnEntryTests(unittest.TestCase):
         self.w.journal['return_deadline']=self.now-1
         self.assertFalse(self.w.validate_portal(action,frame))
 
+    def test_late_lower_return_has_a_fixed_reserve_without_extra_cancel_time(self):
+        self.begin()
+        start = self.w.journal['started_at']
+        self.assertEqual(self.w.journal['stop_fishing_deadline'],start+180)
+        self.assertEqual(self.w.journal['return_deadline'],start+225)
+        self.now = start+10
+        self.w._set('stop_fishing',180)
+        self.now = start+182
+        with self.assertRaisesRegex(RuntimeError,'停钓超过原截止'):
+            self.w.step(self.shifted())
+        cancel=self.action('handoff-cancel',(690,1090))
+        self.assertFalse(self.w.reserve_input(cancel))
+        self.w._set('return',180)
+        self.w.off_verified=self.w.fishing_stopped=True
+        frame=self.shifted()
+        self.assertTrue(self.w.validate_portal(self.action('return-request',(677,758),frame),frame))
+        self.w._set('return_confirm',180)
+        self.w._set('return',180)
+        self.assertEqual(self.w.journal['return_deadline'],start+225)
+        self.now = start+226
+        self.assertFalse(self.w.reserve_input(self.action('return-request',(677,758),frame)))
+
+    def test_return_confirm_header_binds_dark_ink_not_dimming_edge(self):
+        self.prepare_return()
+        self.w._set('return_confirm')
+        frame=base.image('tests/fixtures/parallel/rank40-return-confirm.png')
+        edge=frame.copy()
+        y,x=12,286
+        frame[y,x]=59
+        edge[y,x]=61
+        self.assertEqual(self.w.signature(frame),self.w.signature(edge))
+        edge[y,x]=20
+        self.assertNotEqual(self.w.signature(frame),self.w.signature(edge))
+
     def test_missing_icon_logs_reason_without_changing_window_or_input_count(self):
         frame=self.shifted();self.prepare_return()
         frame[727:790,643:711]=0
@@ -94,7 +128,7 @@ class ReturnEntryTests(unittest.TestCase):
             issued_inputs=[dict(kind='stop',input_id='old-stop'),
                            dict(kind='handoff-cancel',input_id='old-cancel')],
             off_verified_at=self.now,fishing_stopped_at=self.now)
-        self.now+=181;self.w._save()
+        self.now=self.w.journal['return_deadline']+1;self.w._save()
         (self.path.parent/'config.json').write_text(json.dumps(dict(rules=[
             dict(id='driftinggirl_stone_farm',enabled=True)])),encoding='utf-8')
         raw=self.path.read_bytes()
@@ -119,7 +153,7 @@ class ReturnEntryTests(unittest.TestCase):
         for key in ('started_at','attempts','issued_inputs','cycles','handoffs'):
             self.assertEqual(self.w.journal[key],old[key],key)
         self.assertEqual(self.w.journal['return_entry_previous_deadlines'],
-                         {k:old[k] for k in ('deadline','phase_deadline','return_deadline')})
+                         {k:old[k] for k in ('deadline','phase_deadline','return_deadline','stop_fishing_deadline')})
         self.assertEqual(self.w.journal['return_deadline']-self.w.journal['return_entry_repair_started_at'],180)
         self.assertEqual(self.w.journal['return_entry_repair_runs'],1)
         # Even this separately approved repair cannot replenish a used cancel.

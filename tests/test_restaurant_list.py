@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -34,6 +35,26 @@ class RestaurantListTests(unittest.TestCase):
         self.assertFalse(self.task._category_exhausted())
         self.task._complete_category()
         self.assertEqual(self.task.journal['categories'],[])
+
+    def test_resampled_overlap_does_not_complete_with_seven_dishes(self):
+        record = json.loads((FIXTURES/'coverage-eight.json').read_text(encoding='utf-8'))
+        self.task.journal.update(record)
+        self.task.visual.art_matches.side_effect = RestaurantVisual.art_matches
+        artwork = [group['art'] for group in scan.groups(self.task, 0)[:7]]
+        self.task.journal['visited'] = [
+            dict(category=0, level=20, art=pack(art)) for art in artwork
+        ]
+        transform = np.float32([[1, 0, 1.625], [0, 1, 0]])
+        cards = []
+        for x, art in zip((180, 300), artwork[2:4]):
+            shifted = cv2.warpAffine(art, transform, (art.shape[1], art.shape[0]),
+                                     borderMode=cv2.BORDER_REPLICATE)
+            cards.append(dict(point=(x, 398), level=20, art=shifted))
+        self.list_phase(cards)
+        self.cycle()
+        self.assertEqual(len(self.task.journal['visited']), 7)
+        self.assertEqual(self.task.journal['categories'], [])
+        self.assertEqual([action['kind'] for action in self.issued], ['scroll:0:7'])
 
     def test_real_inertia_frame_resets_stability_before_scanning(self):
         moving=np.asarray(Image.open(FIXTURES/'moving.png').convert('RGB'))

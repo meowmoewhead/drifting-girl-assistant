@@ -52,7 +52,7 @@ py -3.14 -m venv .venv
 输出位于 `release/`：
 
 - `mumu-panel.exe`
-- `mumu-clicker-0.2.0-win64.zip`
+- `mumu-clicker-0.2.1-win64.zip`
 - `build-report.json`
 
 便携包内 `config.json` 始终来自 `config/default.json`，本机的配置、状态、截图和日志不会成为发布输入。所有规则引用的模板变体都必须存在，不会为了缩减体积删除配置仍引用的活动图片。

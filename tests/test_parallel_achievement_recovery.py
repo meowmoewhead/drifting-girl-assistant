@@ -13,6 +13,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
+MAP_ASSETS = {'assets/parallel/map-close.png', 'assets/task-popup/map-legend.png'}
 sys.path.insert(0, str(ROOT))
 from app import Clicker
 from dev_tools.configure_parallel_achievement_recovery import ENTRY_ID, update
@@ -96,7 +97,7 @@ class ParallelAchievementRecoveryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(prefix='parallel-crown-') as folder:
             root = Path(folder)
-            assets = {rule['asset'] for rule in config['rules']}
+            assets = {rule['asset'] for rule in config['rules']} | MAP_ASSETS
             assets.update(path for rule in config['rules'] for path in rule.get('asset_variants', []))
             for path in assets:
                 (root / path).parent.mkdir(parents=True, exist_ok=True)
@@ -186,6 +187,12 @@ class ParallelAchievementRecoveryTests(unittest.TestCase):
                 elif scenario == 'unknown':
                     self.image = np.zeros_like(frames['entry_failure'])
                     return self.image
+                elif scenario == 'repeat' and len(self.taps) == 3 and self.phase_frames > 8:
+                    # Both the closed and already-expanded entry are visible
+                    # during the cooldown. The latter stays visible at expiry.
+                    if self.phase_frames == 18:
+                        clock[0] += 300
+                    name = 'menu'
                 elif len(self.taps) == 1 or scenario == 'repeat':
                     name = 'active_boss' if self.phase_frames <= 4 else 'entry_failure'
                     if self.phase_frames == 1:
@@ -200,6 +207,8 @@ class ParallelAchievementRecoveryTests(unittest.TestCase):
 
             def click(self, button):
                 assert not np.array_equal(self.image, frames['active_boss']), 'Do not tap during recovery'
+                if scenario == 'repeat' and len(self.taps) == 3:
+                    assert self.phase_frames >= 18, 'Both crown entries must wait for the recovery window'
                 self.taps.append(button.name.removeprefix('driftinggirl_achievements_'))
                 self.phase_frames = 0
 
@@ -208,7 +217,7 @@ class ParallelAchievementRecoveryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(prefix='parallel-crown-entry-') as folder:
             root = Path(folder)
-            assets = {r['asset'] for r in config['rules']}
+            assets = {r['asset'] for r in config['rules']} | MAP_ASSETS
             assets.update(p for r in config['rules'] for p in r.get('asset_variants', []))
             for path in assets:
                 (root/path).parent.mkdir(parents=True, exist_ok=True)
@@ -217,8 +226,8 @@ class ParallelAchievementRecoveryTests(unittest.TestCase):
             app = Clicker(root, Device)
             try:
                 with patch('app.time', SimpleNamespace(monotonic=lambda: clock[0])):
-                    app.start(preview=False, max_clicks=3 if scenario == 'retry' else None,
-                              timeout=300)
+                    app.start(preview=False, max_clicks={'retry': 3, 'repeat': 4}.get(scenario),
+                              timeout=600 if scenario == 'repeat' else 300)
                     app.thread.join(12)
                     self.assertFalse(app.running(), 'Entry replay did not finish')
                 return deepcopy(app.state), list(app.device.taps), list(app.events)
@@ -238,11 +247,15 @@ class ParallelAchievementRecoveryTests(unittest.TestCase):
         self.assertEqual(taps, ['open', 'open', 'crown'])
         self.assertTrue(any('平行世界入口被打断后恢复主画面' in e['message'] for e in events))
 
-    def test_entry_recovery_is_bounded_and_unknown_screen_still_stops(self):
-        state, taps, _ = self.replay_entry('repeat')
-        self.assertIn('五分钟内已恢复三次', state['last_error'])
+    def test_repeated_interruptions_cool_down_both_entries_then_resume(self):
+        state, taps, events = self.replay_entry('repeat')
+        self.assertIsNone(state['last_error'])
+        self.assertEqual(state['stop_reason'], 'click_limit')
         self.assertEqual(state['recoveries'], 3)
-        self.assertEqual(taps, ['open']*4)
+        self.assertEqual(taps, ['open']*3 + ['crown'])
+        self.assertEqual(sum('两种入口暂停至恢复窗口到期' in e['message'] for e in events), 1)
+
+    def test_unknown_screen_and_expired_entry_still_stop(self):
         for scenario in ('unknown', 'expired'):
             with self.subTest(scenario=scenario):
                 state, taps, _ = self.replay_entry(scenario)

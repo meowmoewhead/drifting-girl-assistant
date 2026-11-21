@@ -1,12 +1,45 @@
 """RAID 甩杆辅助：2026-10-22 更新后，"点击开始"进入战斗场地时 BOSS 不再自动出现，
 需要再点一次屏幕、让角色甩杆才会开打。此前流程会在 raid_battle 里干等结果。
 
-本类只做一件事：进入 raid_battle 后，如果确认还没有真实战斗（血条/沙漏/交叉武器），
-在延迟后点一次屏幕；最多两次，间隔 15 秒；一旦 real_battle 成立就立即放手。
+进入 raid_battle 后，若仍没有 RAID 战斗血条和沙漏，延迟后尝试抛竿；
+最多两次，间隔 15 秒。识别到战斗即停止补点。
 """
 from __future__ import annotations
 
+from pathlib import Path
 import time
+
+import cv2
+import numpy as np
+
+
+class RaidBattleHud:
+    """Identify the fixed RAID battle HUD independently of the dimmed footer."""
+    ANCHORS = ((473,93,500,118),(292,164,326,174),(365,230,444,238))
+
+    def __init__(self, root):
+        source = cv2.imread(str(Path(root)/'assets/raid/battle.png'))
+        if source is None:
+            raise RuntimeError('RAID 战斗模板缺失')
+        source = cv2.cvtColor(source,cv2.COLOR_BGR2RGB)
+        # The hidden-players eye and the bevel on the two health bars are
+        # fixed. Exclude the boss, health fill, level and countdown digits.
+        self.templates = [source[y:Y,x:X].copy() for x,y,X,Y in self.ANCHORS]
+        x,y,X,Y = 471,136,493,159
+        self.timer = source[y:Y,x:X].copy()
+
+    @staticmethod
+    def _matches(source, template, minimum):
+        score = cv2.minMaxLoc(cv2.matchTemplate(source,template,cv2.TM_CCOEFF_NORMED))[1]
+        return bool(np.isfinite(score) and score >= minimum)
+
+    def visible(self, frame):
+        if frame.shape != (1280,720,3):
+            return False
+        for (x,y,X,Y), template in zip(self.ANCHORS, self.templates):
+            if not self._matches(frame[y-2:Y+3,x-2:X+3],template,.95):
+                return False
+        return self._matches(frame[125:165,188:610],self.timer,.94)
 
 
 class RaidCastAssist:
@@ -42,15 +75,19 @@ class RaidCastAssist:
         if reason:
             self.hold = reason
 
+    def observe_battle(self, frame):
+        if not self.battle(frame):
+            return False
+        if self.armed:
+            self.event('RAID：已识别战斗血条与沙漏，停止补点')
+            self.clear('RAID：战斗已在进行')
+        return True
+
     def step(self, frame):
         """返回 True 表示这一帧刚发出一次点击（调用方应跳过其它输入）。"""
         if not self.armed:
             return False
-        if self.battle(frame):
-            # 战斗已经在跑（BOSS 自己出现，或上一次点击已生效）
-            if self.taps:
-                self.event('RAID：甩杆后确认战斗已开始，不再补点')
-            self.clear('RAID：战斗已在进行')
+        if self.observe_battle(frame):
             return False
         now = self.clock()
         if self.due is None or now < self.due:

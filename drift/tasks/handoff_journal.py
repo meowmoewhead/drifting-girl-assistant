@@ -33,15 +33,24 @@ def read_record(root):
     return path, raw, record
 
 
+def stop_fishing_deadline(record):
+    return min(record.get('return_deadline',float('inf')),
+               record.get('stop_fishing_deadline',float('inf')))
+
+
 def expiry(record, now):
     if not record or not record['pending']:
         return []
     fields = ['deadline', 'phase_deadline']
-    if str(record.get('phase', '')).startswith('first_'):
-        fields.append('first_observation_deadline' if record.get('phase') == 'first_verify'
-                      and 'first_observation_deadline' in record else 'first_deadline')
+    phase = record.get('phase', '')
+    if str(phase).startswith('first_'):
+        field = {'first_verify':'first_observation_deadline', 'first_close':'first_travel_deadline',
+                 'first_idle':'first_cast_deadline'}.get(phase,'first_deadline')
+        fields.append(field if field in record else 'first_deadline')
     if record.get('phase') in ('stop_fishing', 'return', 'return_confirm'):
         fields.append('return_deadline')
+    if record.get('phase') == 'stop_fishing' and 'stop_fishing_deadline' in record:
+        fields.append('stop_fishing_deadline')
     for key in fields:
         value = record.get(key)
         if type(value) not in (int, float) or not math.isfinite(value):

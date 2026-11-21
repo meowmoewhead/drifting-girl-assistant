@@ -10,6 +10,7 @@ CLOSES = {
     'achievements': {'driftinggirl_achievements_close', 'driftinggirl_achievements_fold'},
     'mailbox': {'driftinggirl_mailbox_close', 'driftinggirl_mailbox_limit_close'},
     'event_potion': {'driftinggirl_event_potion_close'},
+    'guild_entry': set(),
 }
 RETURNS = {
     'achievements': {'driftinggirl_achievements_return', 'driftinggirl_achievements_recover',
@@ -18,6 +19,7 @@ RETURNS = {
                 'driftinggirl_mailbox_recover', 'driftinggirl_mailbox_battle_recover',
                 'driftinggirl_mailbox_parallel_battle_recover'},
     'event_potion': {'driftinggirl_event_potion_return'},
+    'guild_entry': {'driftinggirl_guild_return'},
 }
 
 
@@ -90,7 +92,9 @@ def apply_policy(rule):
     rule = dict(rule)
     # Explicit UI/custom configuration wins. Daily claim/bonus flags already
     # exist; the initial shop-open wait was the uncovered stopping boundary.
-    safe = (rule.get('id') == 'driftinggirl_daily_open'
+    guild_entry = (rule.get('id') == 'driftinggirl_guild_open'
+                   and rule.get('next_stage') == 'guild_special')
+    safe = (rule.get('id') == 'driftinggirl_daily_open' or guild_entry
             or str(rule.get('id', '')).startswith(PREFIXES))
     # Closing an already open window has its own input budget and deadline.
     # Skipping a reward must not buy another attempt at a missed close/fold.
@@ -103,7 +107,8 @@ def apply_policy(rule):
 
 class OptionalCleanup:
     def __init__(self, stage, now, *, original_deadline=None, original_trigger=None):
-        self.family = next((n for n in CLOSES if stage.startswith(n)), None)
+        self.family = ('guild_entry' if stage == 'guild_special' else
+                       next((n for n in CLOSES if stage.startswith(n)), None))
         if self.family is None:
             raise ValueError('此步骤不支持安全跳过')
         self.stage = 'optional_cleanup'
@@ -263,7 +268,11 @@ class OptionalCleanup:
         self.attempts[rid] = self.attempts.get(rid, 0)+1
         self.reset_input_proof()
 
-    def observe_return(self, frame, matchers, now):
+    def reset_return_proof(self):
+        self.key = self.since = self.last_frame = None
+        self.frames = 0
+
+    def observe_return(self, frame, matchers, now, *, native_fishing=None):
         if now >= self.deadline or frame.shape != (1280,720,3):
             return False
         # Footer templates can also be visible below the expanded sidebar.
@@ -277,6 +286,8 @@ class OptionalCleanup:
             if not blockers.issubset(matchers):
                 self.key = self.since = self.last_frame = None; self.frames = 0
                 return False
+        elif self.family == 'guild_entry':
+            blockers = {'driftinggirl_guild_special', 'driftinggirl_guild_close'}
         blockers |= {r['id'] for r, _, _ in self.actions or []}
         for name in blockers:
             item = matchers.get(name)
@@ -285,6 +296,12 @@ class OptionalCleanup:
                 if (event_potion or r.get('enabled')) and b.match(frame, offset=o, similarity=r['threshold']):
                     self.key = self.since = self.last_frame = None; self.frames = 0
                     return False
+        if self.family == 'guild_entry' and native_fishing is not None:
+            # Native AUTO may hide the shop icon while fishing. A full
+            # native context can prove return without opening the shop again.
+            context = native_fishing(frame)
+            if context is not None:
+                return self._observe_return_key(('guild_native', context), frame, now)
         if not event_potion and float((frame[1147:1168,558:585].min(axis=2)>=140).mean()) < .55:
             self.key = self.since = self.last_frame = None; self.frames = 0
             return False
@@ -310,9 +327,11 @@ class OptionalCleanup:
             cyan = (world[:,:,1]>=100)&(world[:,:,1]>world[:,:,0]+15)&(world[:,:,2]>world[:,:,0]+15)
             if int(rank.sum()) >= 50:
                 key = matched, rank.tobytes(), cyan.tobytes()
+        return self._observe_return_key(key, frame, now)
+
+    def _observe_return_key(self, key, frame, now):
         if key is None:
-            self.key = self.since = self.last_frame = None
-            self.frames = 0
+            self.reset_return_proof()
             return False
         if frame is self.last_frame:
             return False

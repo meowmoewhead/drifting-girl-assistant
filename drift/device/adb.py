@@ -15,8 +15,10 @@ import time
 import cv2
 import numpy as np
 
+from drift.core.exceptions import DeviceUnavailable
 from drift.core.util import rectangle
 from drift.device import native as native_transport
+from drift.device.discovery import loopback_port, run_adb
 from drift.device.native import MuMuCapture, NativeUnavailable
 
 # 历史补丁位置:AdbDevice 原与 MuMuCapture 同住 app 命名空间,测试用
@@ -51,6 +53,29 @@ class AdbDevice:
         self.native_recoveries = 0
         self.native_last_error = None
         self.screenshot_transport = 'adb'
+        self.adb_connect_after = 0.
+
+    def ensure_online(self):
+        """Check the saved ADB transport before the worker starts using it."""
+        if self.stop.is_set():
+            raise InterruptedError('已停止')
+        with self.io_lock:
+            try:
+                state = self.command('get-state').strip()
+            except DeviceUnavailable:
+                serial = self.config['serial']
+                if loopback_port(serial) is None or time.monotonic() < self.adb_connect_after:
+                    raise
+                if self.stop.is_set():
+                    raise InterruptedError('已停止')
+                self.adb_connect_after = time.monotonic() + 5
+                try:
+                    run_adb([self.config['adb_path'], 'connect', serial], timeout=2)
+                except ValueError:
+                    pass
+                state = self.command('get-state').strip()
+        if state != b'device':
+            raise DeviceUnavailable('已选模拟器的 ADB 尚未就绪')
 
     def _native_failed(self, error):
         self.native_disabled = True
@@ -245,12 +270,36 @@ def command(self, *args):
     if (sending or launching) and stop is not None and stop.is_set():raise InterruptedError('已停止')
     guard=getattr(self,'input_guard',None)
     token=guard('launch' if launching else 'adb',args) if guard and (sending or launching) else None
-    completed = subprocess.run(
-        [self.config["adb_path"], "-s", self.config["serial"], *args],
-        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        timeout=20, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-    )
+    state_probe = args == ('get-state',)
+    try:
+        completed = subprocess.run(
+            [self.config["adb_path"], "-s", self.config["serial"], *args],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=5 if state_probe else 20,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except subprocess.TimeoutExpired as exc:
+        if state_probe:
+            raise DeviceUnavailable('已选模拟器的 ADB 状态检查超时') from exc
+        raise
     error = completed.stderr.decode("utf-8", "replace").strip()
+    activity_probe = args == ('shell', 'dumpsys', 'activity', 'activities')
+    if activity_probe or launching:
+        # This response proves Android did not dispatch the start intent.
+        # A lost connection during an input has no such guarantee.
+        activity_errors = {"can't find service: activity", "cmd: can't find service: activity"}
+        response = completed.stdout[:1024].decode('utf-8', 'replace')
+        for line in (*error.splitlines(), *response.splitlines()):
+            if line.strip().casefold() in activity_errors:
+                raise DeviceUnavailable(line.strip())
+    if (state_probe or args[:2] == ('exec-out', 'screencap') or activity_probe
+            or args == ('shell', 'ps', '-A', '-o', 'NAME')):
+        for line in error.splitlines():
+            failure = (line.strip().casefold().removeprefix('adb.exe: ')
+                       .removeprefix('adb: ').removeprefix('error: '))
+            if failure in ('closed', 'device offline', 'no devices/emulators found', 'device not found',
+                           f"device '{self.config['serial'].casefold()}' not found"):
+                raise DeviceUnavailable(line.strip())
     # MuMu's ADB can report a missing device on stderr with exit code zero.
     if completed.returncode or any(line.lower().startswith(('error:', 'adb: error:'))
                                    for line in error.splitlines()):

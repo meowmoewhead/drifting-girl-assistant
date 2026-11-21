@@ -60,6 +60,30 @@ class FirstResultContinuityTests(unittest.TestCase):
                 self.assertEqual(self.w.observe_first_cast(frame.copy()),expected)
         self.assertEqual(self.actions,[])
 
+    def test_next_rank_after_issued_cast_confirms_the_new_destination(self):
+        frame,old=self.prepare()
+        other_location=base.image('tests/fixtures/stone-first-combat/lowered-battle.png')
+        frame[12:34,286:434]=other_location[12:34,286:434]
+        self.assertNotEqual(self.w.signature(frame)[-1],old['first_signature'][-1])
+        self.assertIsNotNone(self.w._first_result_screen(frame))
+        for index in range(3):
+            self.assertEqual(self.observe(frame),index==2)
+        self.assertEqual(self.w.journal['first_cast_verified_rank'],1)
+        self.assertEqual(self.w.phase,'route_open')
+        for key in ('deadline','first_deadline','first_signature','attempts','issued_inputs'):
+            self.assertEqual(self.w.journal[key],old[key])
+        self.assertEqual(self.actions,[])
+
+    def test_changed_location_cannot_vote_for_unissued_or_same_rank_cast(self):
+        frame,old=self.prepare()
+        other_location=base.image('tests/fixtures/stone-first-combat/lowered-battle.png')
+        frame[12:34,286:434]=other_location[12:34,286:434]
+        self.w.journal['issued_inputs']=[]
+        self.assertIsNone(self.w._first_result_context(frame,self.w.screen(frame)))
+        self.w.journal['issued_inputs']=old['issued_inputs']
+        self.assertIsNone(self.w._first_result_context(frame,{**self.w.screen(frame),'rank':0}))
+        self.assertEqual(self.actions,[])
+
     def test_known_popup_dark_changed_world_rank_location_and_running_reset_votes(self):
         frame,_=self.prepare()
         popup=base.image('tests/fixtures/stone-first-result/popup-20261017.png')

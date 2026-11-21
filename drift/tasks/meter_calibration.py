@@ -621,6 +621,12 @@ class MeterCalibration:
             self.journal['deadline'] = time.time() + self.LIMIT
             self.journal['window_restarted_at'] = time.time()
             self._save()
+        if phase == 'idle' and not self.active and not self.awaiting_recovery:
+            # A released workflow no longer owns the saved RANK. Keep its
+            # journal and range cache, and read the next candidate on its own
+            # confirmed world and RANK.
+            self.world.rank = None
+            self.world.training.state = dict(mode='idle', fishing_meter_limits=self.fishing.range_cache)
         self.phase = phase
         self.key = self.seen_at = None
         self.seen = 0

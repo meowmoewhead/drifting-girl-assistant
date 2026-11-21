@@ -69,6 +69,49 @@ class DiscoveryTests(unittest.TestCase):
         self.assertFalse(result["devices"][0]["compatible"])
         self.assertIn("超时", result["devices"][0]["reason"])
 
+    def test_missing_mumu_device_is_found_at_the_manager_reported_port(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            adb = str(Path(tmp) / "adb.exe")
+            Path(adb).with_name("MuMuManager.exe").touch()
+            seen = []
+            endpoint = "127.0.0.1:16384"
+            def run(argv, **kwargs):
+                args = argv[1:]
+                seen.append(args)
+                if args == ["devices", "-l"]:
+                    return f"{endpoint} device model:PGBM10".encode() if ["connect", endpoint] in seen else b""
+                if args == ["info", "-v", "all"]:
+                    return json.dumps({
+                        "0": {"name": "MuMu", "adb_host_ip": "127.0.0.1", "adb_port": 16384,
+                              "is_android_started": True, "is_process_started": True},
+                        "1": {"adb_host_ip": "192.0.2.1", "adb_port": 16416},
+                        "2": {"adb_host_ip": "127.0.0.1", "adb_port": 16448, "is_android_started": False},
+                    }).encode()
+                if args == ["connect", endpoint]:
+                    return b"connected"
+                self.assertEqual(args, ["-s", endpoint, "shell", "wm", "size"])
+                return b"Physical size: 720x1280"
+            scan = discovery.discover(self.config, attach_local=True, runner=run, finder=lambda _: adb)
+            self.assertEqual(discovery.choose(scan, "auto")["serial"], endpoint)
+            self.assertEqual(scan["current_serial"], "emulator-5554")
+            self.assertEqual([args for args in seen if args[0] == "connect"], [["connect", endpoint]])
+
+    def test_existing_online_alias_is_kept_without_attaching_another_transport(self):
+        with patch.object(discovery, "mumu_endpoints", return_value={"127.0.0.1:16384": "MuMu"}):
+            runner = Mock(side_effect=[b"emulator-5554 device", b"Physical size: 720x1280"])
+            scan = discovery.discover(self.config, attach_local=True, runner=runner, finder=lambda p: p)
+        self.assertEqual(discovery.choose(scan, "auto")["serial"], "emulator-5554")
+        self.assertEqual(runner.call_count, 2)
+
+    def test_saved_loopback_is_attached_and_verified_without_guessing_a_port(self):
+        config = dict(self.config, serial="localhost:16416")
+        runner = Mock(side_effect=[b"emulator-5554 offline", b"connected",
+                                   b"localhost:16416 device", b"Physical size: 720x1280"])
+        with patch.object(discovery, "mumu_endpoints", return_value={"127.0.0.1:16416": "MuMu"}):
+            scan = discovery.discover(config, attach_local=True, runner=runner, finder=lambda p: p)
+        self.assertEqual(discovery.choose(scan, "auto")["serial"], "localhost:16416")
+        self.assertEqual(runner.call_args_list[1].args[0], ["adb.exe", "connect", "localhost:16416"])
+
     def test_new_screenshot_is_required_and_resolution_rechecked(self):
         out = BytesIO(); Image.new("RGB", (720, 1280)).save(out, format="PNG")
         runner = Mock(return_value=out.getvalue())

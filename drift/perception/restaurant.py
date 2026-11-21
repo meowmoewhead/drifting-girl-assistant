@@ -84,7 +84,8 @@ class RestaurantVisual:
 
     def panel(self,frame):
         return bool(self.find(frame,'panel-close') and self.find(frame,'atlas-tab')
-                    and self.find(frame,'ingredients-title'))
+                    and (self.find(frame,'ingredients-title')
+                         or self.find(frame,'materials-storage-title')))
 
     def atlas(self,frame):
         return bool(self.panel(frame) and not self.detail(frame) and self.find(frame,'atlas-title')
@@ -186,7 +187,18 @@ class RestaurantVisual:
     def art_matches(left,right):
         if left is None or right is None or left.shape!=right.shape:return False
         score=float(cv2.matchTemplate(left,right,cv2.TM_CCOEFF_NORMED)[0,0])
-        return bool(np.isfinite(score) and score>=.92)
+        if np.isfinite(score) and score>=.92:
+            return True
+
+        # Scrolling can shift the artwork crop and change its subpixel sampling.
+        # Smooth both crops and require stronger agreement within two pixels.
+        margin = 2
+        if left.shape[1] <= 2 * margin:
+            return False
+        source = cv2.GaussianBlur(left, (3, 3), .8)
+        template = cv2.GaussianBlur(right, (3, 3), .8)[:, margin:-margin]
+        scores = cv2.matchTemplate(source, template, cv2.TM_CCOEFF_NORMED)
+        return bool(np.any(np.isfinite(scores) & (scores >= .95)))
 
     @staticmethod
     def list_key(frame):

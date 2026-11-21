@@ -98,18 +98,21 @@ class FirstCombatTests(unittest.TestCase):
             self.w._first_step(image.copy())
         self.assertEqual(click.call_count, 1)
         self.assertEqual(self.w.phase, 'first_verify')
-        self.assertEqual(self.w.journal['first_observation_deadline'], self.now + 15)
-        self.assertEqual(self.w.journal['phase_deadline'], self.now + 15)
+        self.assertEqual(self.w.journal['first_observation_deadline'], self.now + 30)
+        self.assertEqual(self.w.journal['phase_deadline'], self.now + 30)
         for key in ('deadline', 'first_deadline', 'attempts', 'issued_inputs'):
             self.assertEqual(self.w.journal[key], original[key])
-        self.now += 5
+        # Nov 13: Sea God was first detected 13.70s after the issued cast.
+        # Three seconds of fresh proof could not fit in the original 15s.
+        self.now += 13.7
         self.assertTrue(self.w.input_allowed())  # Read-only workflow is alive.
         for kind in StoneFarm.INPUT_LIMITS:
             action=dict(kind=kind,phase='first_verify',signature=self.w.signature(image),x=360,y=1010)
             self.assertFalse(self.w.validate_portal(action, image), kind)
-        for _ in range(3):
-            self.now += 1.6
-            self.w.observe_first_cast(image.copy())
+        self.assertFalse(self.w.observe_first_cast(image.copy()))
+        for delay, expected in ((1.6,False),(1.6,True)):
+            self.now += delay
+            self.assertEqual(self.w.observe_first_cast(image.copy()), expected)
         self.assertEqual(self.w.phase, 'route_open')
         self.assertEqual(self.actions, [])
 

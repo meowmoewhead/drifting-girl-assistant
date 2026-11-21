@@ -70,6 +70,69 @@ async function api(path, data) {
   if (!response.ok) throw Error(body.error || '请求失败');
   return body;
 }
+const parameterSaves = new Map();
+let savingParameters = false;
+async function saveParameters() {
+  if (savingParameters) return;
+  savingParameters = true;
+  try {
+    while (parameterSaves.size) {
+      const [key, request] = parameterSaves.entries().next().value;
+      parameterSaves.delete(key);
+      request.started = true;
+      generation++;
+      try {
+        await api(request.path, request.data);
+        await refreshStatus();
+        request.saved();
+      } catch (error) {
+        request.failed();
+        notice('自动保存失败：' + error.message);
+      }
+    }
+  } finally {
+    savingParameters = false;
+  }
+}
+function autoSaveForm(form, key, path, build, dirty, saved) {
+  let timer = null, revision = 0, latest = null;
+  const commit = () => {
+    clearTimeout(timer);
+    if (!form.checkValidity()) {
+      notice('请补全参数，填写有效值后自动保存。');
+      return;
+    }
+    let data;
+    try { data = build(); }
+    catch (error) { notice(error.message); return; }
+    const signature = JSON.stringify(data);
+    if (latest && latest.signature === signature) {
+      latest.revision = revision;
+      if (latest.complete && form.isConnected) saved();
+      return;
+    }
+    const request = {path, data, signature, revision, saved: () => {
+      request.complete = true;
+      if (form.isConnected && request.revision === revision) saved();
+    }, failed: () => {
+      if (latest === request) latest = null;
+    }};
+    latest = request;
+    parameterSaves.set(key, request);
+    saveParameters();
+  };
+  form.addEventListener('input', event => {
+    revision++;
+    dirty();
+    if (latest && !latest.started && !latest.complete) latest = null;
+    parameterSaves.delete(key);
+    clearTimeout(timer);
+    if (event.target.type === 'checkbox' || event.target.tagName === 'SELECT') commit();
+    else timer = setTimeout(commit, 600);
+  });
+  form.addEventListener('change', commit);
+  form.onsubmit = event => { event.preventDefault(); commit(); };
+}
 async function act(fn, success) {
   if (busy) return;
   busy = true; generation++; notice(''); updateControls();
@@ -157,11 +220,12 @@ function renderGroup(group) {
   if (groupId !== group.id) {
     groupId = group.id; portalDirty = false;
     const list = groupFeatures(group).filter(f => group.id !== 'stone' || !['stone_farm','parallel_world'].includes(f.id));
-    const mode = group.id === 'stone' ? `<section class="panel"><h2>次元石循环模式</h2><form id="portal-mode-form"><label for="portal-mode">运行模式</label><select id="portal-mode"><option value="stone">降阶刷最后BOSS</option><option value="legacy">旧版任务练级</option><option value="off">关闭次元石循环</option></select><p id="portal-mode-state" class="detail-note" role="status"></p><button class="button primary" type="submit">保存循环模式</button><p class="field-help">停止脚本后可切换。只切换循环方式，返回平行世界和武器强化使用各自开关；进度、截止时间和已用次数保留。</p></form><div class="mode-links"><a href="#task/stone_farm">降阶流程与记录</a><a href="#task/parallel_world">旧版任务练级设置</a></div></section>` : '';
+    const mode = group.id === 'stone' ? `<section class="panel"><h2>次元石循环模式</h2><form id="portal-mode-form"><label for="portal-mode">运行模式</label><select id="portal-mode"><option value="stone">降阶刷最后BOSS</option><option value="legacy">旧版任务练级</option><option value="off">关闭次元石循环</option></select><p id="portal-mode-state" class="detail-note" role="status"></p><p class="field-help">停止脚本后可切换。只切换循环方式，返回平行世界和武器强化使用各自开关；进度、截止时间和已用次数保留。</p></form><div class="mode-links"><a href="#task/stone_farm">降阶流程与记录</a><a href="#task/parallel_world">旧版任务练级设置</a></div></section>` : '';
     $('group-detail').innerHTML = `<div class="page-heading"><div><div class="eyebrow">任务设置</div><h1>${esc(group.name)}</h1><p>${esc(group.description)}</p></div><a class="button" href="#overview">返回总览</a></div>${mode}<div class="task-rows">${list.map(taskRow).join('')}</div><p class="field-help">各子项独立保存开关和记录；实时任务按条件触发，定时与每日任务各自安排下次执行。</p>`;
     if ($('portal-mode-form')) {
-      $('portal-mode').onchange = () => { portalDirty = true; };
-      $('portal-mode-form').onsubmit = event => { event.preventDefault(); const mode=$('portal-mode').value; act(async () => { await api('/api/portal-mode',{mode}); portalDirty=false; },'循环模式已保存'); };
+      const modeInput = $('portal-mode');
+      autoSaveForm($('portal-mode-form'), 'portal-mode', '/api/portal-mode',
+        () => ({mode: modeInput.value}), () => { portalDirty = true; }, () => { portalDirty = false; });
     }
   }
   if ($('portal-mode-form') && group.id === 'stone') {
@@ -264,9 +328,10 @@ function cruiseFields(feature) {
   const check = (id, label, value) => `<label class="cruise-check"><input type="checkbox" id="${id}" ${value ? 'checked' : ''}>${label}</label>`;
   return `<fieldset class="cruise-section"><legend>巡航</legend>${check('cruise-enabled','管理游戏巡航',c.enabled)}<div class="cruise-grid">${[['pearl','珍珠'],['material','技能（天赋材料）'],['amber','琥珀'],['gem','蓝色宝石'],['boss','BOSS']].map(([key,label])=>check('cruise-target-'+key,label,c.targets[key])).join('')}</div><div class="cruise-grid">${check('cruise-sale','游戏自动贩卖',c.auto_sale)}${check('cruise-upgrade','游戏自动强化',c.auto_upgrade)}</div><label for="cruise-ticket-min">自动贩卖券低于此数量时补票</label><input type="number" id="cruise-ticket-min" min="0" max="9999" step="1" value="${c.ticket_min}" required><p class="field-help">启用巡航管理及游戏自动贩卖时检查；0表示不补票。用药水长按＋号补充，每次核对数量；保持游戏当前的目的地优先顺序。</p></fieldset><fieldset class="cruise-section"><legend>巡航系技能</legend>${check('cruise-skills-enabled','管理平行世界技能',s.enabled)}<div class="cruise-skill-table"><span>技能</span><span>自动续</span><span>技能强化</span>${[['fishing','钓鱼加速'],['movement','移动加速'],['time','时间加速']].map(([key,label])=>`<span>${label}</span>${check('skill-'+key+'-auto',label+'自动续',s[key].auto)}${check('skill-'+key+'-enhance',label+'强化',s[key].enhance)}`).join('')}</div>${check('cruise-growth','经验buff：仅用技能点购买',s.growth_points)}<p class="field-help">50%成长加速，200技能点/小时。已有加速或有效购买记录时不重复购买。</p></fieldset><p id="cruise-apply-state" class="detail-note" role="status"></p>`;
 }
-function readCruiseFields() {
-  const on = id => $(id).checked;
-  return {cruise:{enabled:on('cruise-enabled'),targets:Object.fromEntries(['pearl','material','amber','gem','boss'].map(k=>[k,on('cruise-target-'+k)])),auto_sale:on('cruise-sale'),auto_upgrade:on('cruise-upgrade'),ticket_min:Number($('cruise-ticket-min').value)},skills:{enabled:on('cruise-skills-enabled'),...Object.fromEntries(['fishing','movement','time'].map(k=>[k,{auto:on('skill-'+k+'-auto'),enhance:on('skill-'+k+'-enhance')}])),growth_points:on('cruise-growth')}};
+function readCruiseFields(form) {
+  const field = id => form.querySelector('#' + id);
+  const on = id => field(id).checked;
+  return {cruise:{enabled:on('cruise-enabled'),targets:Object.fromEntries(['pearl','material','amber','gem','boss'].map(k=>[k,on('cruise-target-'+k)])),auto_sale:on('cruise-sale'),auto_upgrade:on('cruise-upgrade'),ticket_min:Number(field('cruise-ticket-min').value)},skills:{enabled:on('cruise-skills-enabled'),...Object.fromEntries(['fishing','movement','time'].map(k=>[k,{auto:on('skill-'+k+'-auto'),enhance:on('skill-'+k+'-enhance')}])),growth_points:on('cruise-growth')}};
 }
 function renderDetail(feature) {
   if (feature.id === 'return_parallel') {
@@ -282,8 +347,9 @@ function renderDetail(feature) {
     const restaurantEffects = {'干货':'鱼饼获得量', '炖煮':'鱼竿攻击力', '生鱼片':'鱼叉塔攻击力', '油炸':'大炮攻击力', '炒饭':'机关炮塔攻击力', '面食':'魔法石攻击力', '寿司':'鲸鱼攻击力', '汤':'琥珀/海蓝宝/次元石获得量', '烧烤':'经验值获得量'};
     const restaurantLabel = name => name ? `${name}（${restaurantEffects[name] || ''}）` : '全部';
     const restaurantSelection = feature.targets?.length === restaurantCategories.length ? '' : (feature.targets?.[0] ?? '');
+    const secondsPerUnit = feature.id === 'restaurant_upgrade' ? 3600 : 1;
     const restaurantTargets = feature.id === 'restaurant_upgrade' ? `<label for="restaurant-targets">强化类别</label><select id="restaurant-targets" name="targets" style="width:100%;padding:10px 12px;border:1px solid #dce4e9;border-radius:6px;background:#fff;color:#536b7a;font-size:13px">${['', ...restaurantCategories].map(name => `<option value="${name}" ${name === restaurantSelection ? 'selected' : ''}>${restaurantLabel(name)}</option>`).join('')}</select><p class="field-help">选择“全部”时检查九类已解锁餐品，选择单一类别时只检查该类。材料充足可连续升多级；无法继续交付或满级时换下一种，结束后恢复原活动。</p>${feature.targets?.length > 1 && restaurantSelection ? '<p class="field-help">原设置包含多个类别，当前显示首个类别；保存后仅强化下拉选中的类别。</p>' : ''}` : '';
-    $('feature-detail').innerHTML = `<div class="page-heading"><div><div class="eyebrow">${esc(feature.category)} · ${executionKind(feature)}</div><h1>${esc(feature.name)}</h1><p>${esc(feature.description)}</p></div><a class="button" href="#overview">返回任务组</a></div><div class="detail-layout"><div><section class="panel"><div class="feature-enable"><span class="feature-icon ${esc(feature.id)}">${icon(feature.icon)}</span><div><h2>启用${esc(feature.name)}</h2><p>开关即时保存，独立控制本项流程。</p></div>${toggleMarkup(feature)}</div><div class="detail-note">${esc(featureNote(feature))}</div>${feature.schedule ? '<p class="detail-note" id="daily-schedule" role="status"></p>' : ''}</section><section class="panel"><h2>功能参数</h2><form id="feature-form" class="parameter-form"><label for="feature-interval">${feature.schedule ? '未完成时重试间隔 / 秒' : '再次触发间隔 / 秒'}</label><input id="feature-interval" type="number" min="0.2" max="3600" step="0.1" required><p class="field-help">${feature.schedule ? '完成后等待下个周期的领取时间；未完成时按保存间隔重试。' : '完成操作后，至少等待此间隔才再次触发同一入口。'}</p>${feature.id === 'mana' ? '<label for="mana-threshold">法力低于此值时补充</label><input id="mana-threshold" type="number" min="1" max="100" required><p class="field-help">默认 25。数字读取不清晰时不会使用药水。</p>' : ''}${restaurantTargets}${cruiseFields(feature)}${feature.daily_limit ? `<label>游戏每日领取上限</label><p class="detail-note">${feature.daily_limit} 次 · 以游戏显示计数为准</p>` : ''}<button class="button primary form-submit" id="save-feature" type="submit">保存功能参数</button><p id="parameter-apply-state" class="detail-note" role="status"></p><p class="field-help">支持运行中保存；当前任务完成并返回主画面后应用，原截止时间、已用次数和购买记录保留。</p></form></section></div><section class="panel"><h2>执行流程</h2><ol class="steps">${feature.steps.map(step => `<li>${esc(step)}</li>`).join('')}</ol><details><summary>查看 ${feature.rules.length} 条识别规则</summary><div id="detail-rules"></div></details></section></div>`;
+    $('feature-detail').innerHTML = `<div class="page-heading"><div><div class="eyebrow">${esc(feature.category)} · ${executionKind(feature)}</div><h1>${esc(feature.name)}</h1><p>${esc(feature.description)}</p></div><a class="button" href="#overview">返回任务组</a></div><div class="detail-layout"><div><section class="panel"><div class="feature-enable"><span class="feature-icon ${esc(feature.id)}">${icon(feature.icon)}</span><div><h2>启用${esc(feature.name)}</h2><p>开关即时保存，独立控制本项流程。</p></div>${toggleMarkup(feature)}</div><div class="detail-note">${esc(featureNote(feature))}</div>${feature.schedule ? '<p class="detail-note" id="daily-schedule" role="status"></p>' : ''}</section><section class="panel"><h2>功能参数</h2><form id="feature-form" class="parameter-form"><label for="feature-interval">${feature.schedule ? '未完成时重试间隔 / 秒' : '再次触发间隔 / 秒'}</label><input id="feature-interval" type="number" min="0.2" max="3600" step="0.1" required><p class="field-help">${feature.schedule ? '完成后等待下个周期的领取时间；未完成时按保存间隔重试。' : '完成操作后，至少等待此间隔才再次触发同一入口。'}</p>${feature.id === 'mana' ? '<label for="mana-threshold">法力低于此值时补充</label><input id="mana-threshold" type="number" min="1" max="100" required><p class="field-help">默认 25。数字读取不清晰时不会使用药水。</p>' : ''}${restaurantTargets}${cruiseFields(feature)}${feature.daily_limit ? `<label>游戏每日领取上限</label><p class="detail-note">${feature.daily_limit} 次 · 以游戏显示计数为准</p>` : ''}<p id="parameter-apply-state" class="detail-note" role="status"></p><p class="field-help">修改后自动保存；当前任务完成并返回主画面后应用新参数。</p></form></section></div><section class="panel"><h2>执行流程</h2><ol class="steps">${feature.steps.map(step => `<li>${esc(step)}</li>`).join('')}</ol><details><summary>查看 ${feature.rules.length} 条识别规则</summary><div id="detail-rules"></div></details></section></div>`;
     const realtime = feature.execution?.mode === 'realtime';
     if (feature.id === 'stone_farm') {
       $('feature-form').closest('.panel').insertAdjacentHTML('beforebegin', '<section class="panel"><h2>交接记录</h2><p id="stone-record-state" class="detail-note" role="status"></p><button class="button" id="stone-clear" type="button">清除交接记录</button><p class="field-help">停止脚本后可清除。原记录先归档，保留输入次数；只解除本次交接占用，不操作游戏或自动重做同一交接。过期交接在下次开始时自动归档。</p></section>');
@@ -293,7 +359,7 @@ function renderDetail(feature) {
       $('feature-form').closest('.panel').insertAdjacentHTML('beforebegin', '<section class="panel"><h2>标尺记录</h2><p id="meter-record-state" class="detail-note" role="status"></p><button class="button" id="meter-clear" type="button">清除标尺记录</button><p class="field-help">停止脚本后可清除。原记录先归档，保留截止时间、输入次数和范围缓存。清除不操作游戏，不追加输入；重新启动后只读核对实际钓鱼和原航巡恢复，再按间隔检测。过期执行在下次开始时自动归档。</p></section>');
       $('meter-clear').onclick = () => act(() => api('/api/meter-clear', {sha256: state.meter_record.sha256}), '标尺执行已归档，将只读核对恢复状态');
     }
-    $('feature-form').closest('.panel').insertAdjacentHTML('beforebegin', `<section class="panel schedule-panel"><h2>${executionKind(feature)}</h2><p id="task-next-run" class="detail-note" role="status"></p>${realtime ? '<p class="field-help">持续检测当前画面，条件满足时处理；防重复间隔只限制再次触发，不设置下次开启日期。</p>' : '<form id="schedule-form"><label for="task-next-time">下次开启时间 / 北京时间</label><input id="task-next-time" type="datetime-local" step="1" required><p class="field-help">时间到后仍须满足画面条件；下次开启时间和完成记录在重启后保留。</p><div class="schedule-actions"><button class="button primary" type="submit">保存时间</button><button class="button" id="task-ready" type="button">设为可执行</button></div><p class="field-help">运行中可修改未在执行的任务；不会打开已关闭的任务或重置正在进行的任务。</p></form>'}</section>`);
+    $('feature-form').closest('.panel').insertAdjacentHTML('beforebegin', `<section class="panel schedule-panel"><h2>${executionKind(feature)}</h2><p id="task-next-run" class="detail-note" role="status"></p>${realtime ? '<p class="field-help">持续检测当前画面，条件满足时处理；防重复间隔只限制再次触发，不设置下次开启日期。</p>' : '<form id="schedule-form"><label for="task-next-time">下次开启时间 / 北京时间</label><input id="task-next-time" type="datetime-local" step="1" required><p class="field-help">时间到后仍须满足画面条件；下次开启时间和完成记录在重启后保留。</p><div class="schedule-actions"><button class="button" id="task-ready" type="button">设为可执行</button></div><p class="field-help">运行中可修改未在执行的任务；不会打开已关闭的任务或重置正在进行的任务。</p></form>'}</section>`);
     if (realtime) {
       document.querySelector('label[for="feature-interval"]').textContent = '防止重复触发间隔 / 秒';
       $('feature-interval').nextElementSibling.textContent = '持续检测触发条件；本次处理后，至少等待此间隔才再次触发同一入口。';
@@ -309,7 +375,10 @@ function renderDetail(feature) {
     } else if (!feature.schedule) {
       document.querySelector('label[for="feature-interval"]').textContent = '完成后间隔 / 秒';
       if (feature.id === 'restaurant_upgrade') {
-        $('feature-interval').max = '259200';
+        document.querySelector('label[for="feature-interval"]').textContent = '完成后间隔 / 小时';
+        $('feature-interval').min = String(0.2 / secondsPerUnit);
+        $('feature-interval').max = String(259200 / secondsPerUnit);
+        $('feature-interval').step = 'any';
         $('feature-interval').nextElementSibling.textContent = '当前值见上方输入框。本轮结束并恢复原活动后开始计时；材料充足时可在同一轮连续强化。';
       }
     }
@@ -319,35 +388,39 @@ function renderDetail(feature) {
     }
     if ($('schedule-form')) {
       if (!scheduleDirty) $('task-next-time').value = timeInputValue(feature.schedule?.next_run || feature.execution?.next_run) || timeInputValue(new Date());
-      $('schedule-form').addEventListener('input', () => { scheduleDirty = true; });
-      $('schedule-form').onsubmit = event => { event.preventDefault(); act(async () => { await api('/api/tasks/schedule', {id: feature.id, next_run: new Date($('task-next-time').value + '+08:00').toISOString()}); scheduleDirty = false; }, '下次开启时间已保存'); };
+      const timeInput = $('task-next-time');
+      autoSaveForm($('schedule-form'), 'schedule/' + feature.id, '/api/tasks/schedule',
+        () => ({id: feature.id, next_run: new Date(timeInput.value + '+08:00').toISOString()}),
+        () => { scheduleDirty = true; }, () => { scheduleDirty = false; });
       $('task-ready').onclick = () => act(async () => { await api('/api/tasks/schedule', {id: feature.id, next_run: new Date(Date.now()).toISOString()}); scheduleDirty = false; }, '已设为可执行');
     }
-    $('feature-form').addEventListener('input', () => { detailDirty = true; });
     const interval = $('feature-interval');
     if (feature.id === 'parallel_skills') {
       document.querySelector('label[for="feature-interval"]').textContent = '定期技能与补票检查间隔 / 秒';
       interval.nextElementSibling.textContent = '保存新设置会立即排队同步；定期检查按此间隔执行，补票检查最短60秒。';
     }
-    interval.value = feature.interval ?? 1;
-    interval.addEventListener('input', () => { detailDirty = true; });
-    if ($('restaurant-targets')) $('restaurant-targets').addEventListener('change', () => { detailDirty = true; });
-    if ($('mana-threshold')) { $('mana-threshold').value = feature.mana_threshold ?? 25; $('mana-threshold').addEventListener('input', () => { detailDirty = true; }); }
-    $('feature-form').onsubmit = event => {
-      event.preventDefault();
-      const data = {id: feature.id, interval: Number(interval.value)};
-      if ($('mana-threshold')) data.mana_threshold = Number($('mana-threshold').value);
+    const savedInterval = Number(feature.interval ?? 1);
+    const displayedInterval = savedInterval / secondsPerUnit;
+    interval.value = displayedInterval;
+    if ($('mana-threshold')) $('mana-threshold').value = feature.mana_threshold ?? 25;
+    const form = $('feature-form');
+    const manaInput = $('mana-threshold'), restaurantInput = $('restaurant-targets');
+    autoSaveForm(form, 'task/' + feature.id, '/api/features/change', () => {
+      const enteredInterval = Number(interval.value);
+      const data = {id: feature.id, interval: enteredInterval === displayedInterval
+        ? savedInterval : enteredInterval * secondsPerUnit};
+      if (manaInput) data.mana_threshold = Number(manaInput.value);
       if (feature.id === 'parallel_world' && feature.training) data.training = feature.training;
-      if (feature.id === 'parallel_skills') { if ($('cruise-enabled')) data.cruise_settings = readCruiseFields(); else data.growth_points = feature.growth_points; }
+      if (feature.id === 'parallel_skills') { if (form.querySelector('#cruise-enabled')) data.cruise_settings = readCruiseFields(form); else data.growth_points = feature.growth_points; }
       if (feature.id === 'restaurant_upgrade') {
-        const target = $('restaurant-targets').value;
+        const target = restaurantInput.value;
         data.targets = target ? [target] : [];
       }
-      act(async () => { await api('/api/features/change', data); detailDirty = false; }, '功能参数已保存，当前任务结束后应用');
-    };
+      return data;
+    }, () => { detailDirty = true; }, () => { detailDirty = false; });
   }
   if ($('parameter-apply-state')) {
-    $('parameter-apply-state').textContent = detailDirty ? '有未保存的修改，点击保存后应用。' : state.settings_pending ? '新参数已保存，等待当前任务结束并返回主画面后应用。' : '当前参数已生效。';
+    $('parameter-apply-state').textContent = detailDirty ? '正在自动保存修改…' : state.settings_pending ? '新参数已保存，等待当前任务结束并返回主画面后应用。' : '当前参数已生效。';
   }
   if ($('cruise-apply-state')) {
     $('cruise-apply-state').textContent = state.settings_pending ? '新设置已保存，等待当前操作结束后同步。' : state.cruise_setup?.hold || '保存后在下一个安全画面核对游戏设置。';
@@ -552,8 +625,9 @@ $('run').onclick = () => act(() => api('/api/start',{preview:false}));
 $('preview').onclick = () => act(() => api('/api/start',{preview:true}));
 $('stop').onclick = () => act(() => api('/api/stop',{}));
 $('refresh').onclick = $('refresh-mini').onclick = () => act(async () => { const f = await api('/api/capture'); await loadFrame(f.id); });
-$('settings-form').addEventListener('input', () => { settingsDirty = true; });
-$('settings-form').onsubmit = event => { event.preventDefault(); act(async () => { await api('/api/settings',{poll_interval:Number($('poll-interval').value),max_consecutive_clicks:Number($('max-clicks').value)}); settingsDirty = false; }, '运行设置已保存'); };
+autoSaveForm($('settings-form'), 'settings', '/api/settings',
+  () => ({poll_interval:Number($('poll-interval').value),max_consecutive_clicks:Number($('max-clicks').value)}),
+  () => { settingsDirty = true; }, () => { settingsDirty = false; });
 async function scanDevices() {
   if (deviceScanning || !connected || busy) return;
   deviceScanning = true;

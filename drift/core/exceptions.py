@@ -41,6 +41,10 @@ class DeviceError(DriftError):
     """模拟器连接、截图、输入失败。"""
 
 
+class DeviceUnavailable(DeviceError):
+    """截图或状态读取暂不可用，或 Android 明确拒绝启动。"""
+
+
 class RuleError(DriftError):
     """识别规则配置不合法。"""
 

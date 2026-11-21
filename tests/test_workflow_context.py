@@ -71,6 +71,30 @@ class WorkflowTests(unittest.TestCase):
             self.assertFalse(ctx.reconcile_stage(loop,rules,module,object(),str(i)))
         self.assertEqual(loop.stage,'main')
 
+    def test_expired_guild_cleanup_keeps_one_receipt_per_action_across_restart(self):
+        budget = {'stage_deadline_epoch':90., 'consecutive':4, 'daily_attempt':['guild_shop','period']}
+        self.ctx.capture({}, stage='guild_material', budget=budget)
+        original = self.ctx.path.read_bytes()
+        ctx = WorkflowContext(self.temp.name,'serial',wall=lambda:self.now,monotonic=lambda:self.mono)
+        self.assertTrue(ctx.expired_guild_shop())
+        self.assertTrue(ctx.reserve_guild_cleanup('notice', 'r40', 140.))
+        self.assertFalse(ctx.reserve_guild_cleanup('purchase', 'other', 140.))
+        ctx = WorkflowContext(self.temp.name,'serial',wall=lambda:self.now,monotonic=lambda:self.mono)
+        self.assertFalse(ctx.reserve_guild_cleanup('notice', 'second', 160.))
+        self.assertTrue(ctx.reserve_guild_cleanup('close', 'guild-list', 160.))
+        self.assertEqual(ctx.guild_cleanup_record()['deadline'], 140.)
+        self.assertEqual(ctx.data['stage']['budget'], budget)
+        self.assertFalse(ctx.reserve_guild_cleanup('close', 'repeat', 160.))
+        archived = list((Path(self.temp.name)/'logs/workflow-context-retired').glob('*.json'))
+        self.assertIn(original, [p.read_bytes() for p in archived])
+
+    def test_guild_cleanup_cannot_replay_a_previous_close_or_touch_an_unexpired_step(self):
+        for stage, deadline in (('guild_material', 140.), ('guild_return', 90.), ('mailbox_close',90.)):
+            with self.subTest(stage=stage):
+                self.ctx.capture({}, stage=stage, budget={'stage_deadline_epoch':deadline})
+                ctx = WorkflowContext(self.temp.name,'serial',wall=lambda:self.now,monotonic=lambda:self.mono)
+                self.assertFalse(ctx.reserve_guild_cleanup('close', 'scene', 140.))
+
     def test_authority_record_is_never_replaced_by_context_snapshot(self):
         source={'version':1,'pending':True,'deadline':150,'attempts':{'confirm':1},'phase':'verify'}
         task=NS(active=True,phase='verify',journal=source)

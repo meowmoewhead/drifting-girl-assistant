@@ -40,6 +40,9 @@ class StoneFarm(ParallelScreen):
     START_STAGE, FINAL_STAGE, HANDOFF_RANK = 9, 8, 39
     TARGET_VALUES = (True, False, True, True, True)
     LIMIT = 600
+    STOP_FISHING_SECONDS = 180
+    RETURN_RESERVE_SECONDS = 45
+    FIRST_RESULT_SECONDS = 30
     PHASES = {'idle', 'completion', 'stop', 'stop_fishing', 'return', 'return_confirm',
               'original', 'npc', 'manager', 'lower_confirm', 'lower_verify',
               'close_confirm', 'closed', 'search', 'new_gate', 'panel_close',
@@ -101,6 +104,10 @@ class StoneFarm(ParallelScreen):
                         or not np.isfinite(saved['phase_deadline'])
                         or not isinstance(saved.get('return_deadline'), (int,float))
                         or not np.isfinite(saved['return_deadline'])
+                        or 'stop_fishing_deadline' in saved and (
+                            type(saved['stop_fishing_deadline']) not in (int,float)
+                            or not np.isfinite(saved['stop_fishing_deadline'])
+                            or saved['stop_fishing_deadline'] > saved['return_deadline'])
                         or not isinstance(saved.get('attempts'), dict)
                         or any(k not in self.INPUT_LIMITS or type(v) is not int or v < 0
                                or v > self.INPUT_LIMITS[k] for k,v in saved['attempts'].items()))):
@@ -156,6 +163,7 @@ class StoneFarm(ParallelScreen):
         self.selected_first_map_core = self._load('assets/stone-farm/selected-first-map-skull-core.png')
         self.lower_map_core = self._load('assets/stone-farm/lower-map-skull-core.png')
         self.lower_map_bone = self._load('assets/stone-farm/lower-map-skull-bone.png')
+        self.selected_lower_map = self._load('assets/stone-farm/lower-map-skull-selected.png')
         self.world.assets['success-check'] = self._load('assets/training/success-check.png')
         self.native_entry_auto_label = self._load('assets/stone-farm/native-entry-auto-label.png')
         # The swirl moves; only the metal frame and its four corners are stable.
@@ -180,6 +188,8 @@ class StoneFarm(ParallelScreen):
         self.hold = None
         self.return_probe = None
         self.return_wait_logged_at = None
+        self.return_wait_reason = None
+        self.return_recovery_frame = None
         self.menu_key = None
         self.meter_context = None
         self.first_idle_key = None
@@ -191,8 +201,14 @@ class StoneFarm(ParallelScreen):
         self.retry = None
         if self.retry_path.is_file():
             request = json.loads(self.retry_path.read_text(encoding='utf-8-sig'))
-            if (self.active and request.get('failed_sha256') == hashlib.sha256(self.path.read_bytes()).hexdigest()
+            confirm_restore = (request.get('mode') == 'return_confirm_restore'
+                               and request.get('allow_return_confirm_restore') is True
+                               and request.get('receipt_sha256') is not None
+                               and time.time() < request.get('expires_at',0))
+            if ((self.active or confirm_restore) and self.path.is_file()
+                    and request.get('failed_sha256') == hashlib.sha256(self.path.read_bytes()).hexdigest()
                     and (request.get('allow_ordinary_cancel') is True
+                         or confirm_restore
                          or request.get('mode') == 'observed_lower_restore'
                          and request.get('allow_observed_lower_restore') is True
                          or request.get('mode') == 'observed_cycle_restore'
@@ -204,7 +220,8 @@ class StoneFarm(ParallelScreen):
                       allow_continuous_cancel=False, allow_post_start_restore=False,
                       allow_first_result_restore=False, allow_manual_rank_progress=False,
                       allow_observed_lower_restore=False, allow_observed_cycle_restore=False,
-                       allow_return_entry_restore=False, allow_map_target_repair=False):
+                       allow_return_entry_restore=False, allow_map_target_repair=False,
+                       allow_return_confirm_restore=False):
         """Explicit one-run approval, without resetting the failed journal."""
         root = Path(root)
         config = json.loads((root/'config.json').read_text(encoding='utf-8-sig'))
@@ -213,10 +230,24 @@ class StoneFarm(ParallelScreen):
         raw = (root/'stone_farm_state.json').read_bytes()
         digest = hashlib.sha256(raw).hexdigest()
         journal = json.loads(raw.decode('utf-8-sig'))
+        if allow_return_confirm_restore is True:
+            receipt = StoneFarm._return_confirm_receipt(root,journal)
+            if (digest != failed_sha256 or receipt is None
+                    or any((allow_boss_abandon,allow_boss_abandon_menu,allow_continuous_cancel,
+                            allow_post_start_restore,allow_first_result_restore,allow_manual_rank_progress,
+                            allow_observed_lower_restore,allow_observed_cycle_restore,allow_return_entry_restore,
+                            allow_map_target_repair))):
+                raise ValueError('只可接续已确认的返回弹窗，且原返回确认未占用任何输入次数')
+            now = time.time()
+            return StoneFarm._write_retry(root,dict(mode='return_confirm_restore',failed_sha256=digest,
+                approved_at=now,expires_at=now+120,allow_return_confirm_restore=True,
+                allow_ordinary_cancel=False,receipt_sha256=receipt))
         pair = StoneFarm.stage_pair(journal)
         upper_stage, lower_stage = pair or (None, None)
+        return_limit = (handoff_journal.stop_fishing_deadline(journal) if journal.get('phase') == 'stop_fishing'
+                        else journal.get('return_deadline',float('inf')))
         returned_failure = (journal.get('phase') in ('stop_fishing','return','return_confirm')
-                            and (time.time() > journal.get('return_deadline',float('inf'))
+                            and (time.time() > return_limit
                                  or journal.get('attempts',{}).get('return-request',0) >= StoneFarm.INPUT_LIMITS['return-request']))
         route_failure = (journal.get('phase') == 'route_menu'
                          and journal.get('verified_gate_stage') == journal.get('to_stage')
@@ -418,7 +449,7 @@ class StoneFarm(ParallelScreen):
         if (type(allow_boss_abandon) is not bool or allow_boss_abandon and not (
                 lower and journal.get('from_stage') == 9 and journal.get('to_stage') == 8
                 and returned_failure and journal.get('phase') == 'stop_fishing'
-                and time.time() > journal.get('return_deadline',float('inf'))
+                and time.time() > return_limit
                 and not journal.get('attempts',{}).get('lower-boss-abandon'))):
             raise ValueError('放弃BOSS仅限已核对的9阶RANK39停钓超时，且本场尚未尝试放弃')
         menu_receipt = StoneFarm._boss_abandon_receipt(root,journal) if allow_boss_abandon_menu else None
@@ -426,7 +457,7 @@ class StoneFarm(ParallelScreen):
                 not allow_boss_abandon and lower and returned_failure
                 and journal.get('from_stage') == 9 and journal.get('to_stage') == 8
                 and journal.get('phase') == 'stop_fishing'
-                and time.time() > journal.get('return_deadline',float('inf'))
+                and time.time() > return_limit
                 and journal.get('allow_boss_abandon') is True
                 and journal.get('attempts',{}).get('lower-boss-abandon') == 1
                 and not journal.get('attempts',{}).get('lower-boss-abandon-menu')
@@ -479,10 +510,68 @@ class StoneFarm(ParallelScreen):
         if allow_observed_cycle_restore:
             request.update(mode='observed_cycle_restore',allow_observed_cycle_restore=True,
                            allow_ordinary_cancel=False,expires_at=time.time()+60)
-        path = root/'stone_farm_retry.json'
+        return StoneFarm._write_retry(root,request)
+
+    @staticmethod
+    def _write_retry(root, request):
         from drift.core.persistence import atomic_write_text
-        atomic_write_text(path, json.dumps(request, indent=2) + '\n')
+        atomic_write_text(root/'stone_farm_retry.json', json.dumps(request, indent=2) + '\n')
         return request
+
+    @staticmethod
+    def _return_confirm_receipt(root, journal):
+        """Bind an unused confirmation to the exact expired return request."""
+        if (journal.get('reason') != 'lower' or journal.get('rank') != 39
+                or journal.get('entry_rank') != 39 or StoneFarm.stage_pair(journal) is None
+                or journal.get('return_confirm_restore_runs')):
+            return None
+        phase = journal.get('phase')
+        if not journal.get('pending'):
+            retired = journal.get('retirement') or {}
+            digest = retired.get('sha256','')
+            if (phase != 'idle' or retired.get('previous_phase') != 'return_confirm'
+                    or retired.get('released') is not False or not re.fullmatch('[0-9a-f]{64}',digest)):
+                return None
+            raw, prior = read_record(root/'logs/stone-farm-retired'/f'{digest}.json','交接')
+            if (raw is None or hashlib.sha256(raw).hexdigest() != digest
+                    or not prior['pending'] or prior.get('phase') != 'return_confirm'
+                    or any(prior.get(k) != journal.get(k) for k in
+                           ('reason','rank','from_stage','to_stage','entry_rank','deadline','return_deadline',
+                            'phase_deadline','attempts','issued_inputs','off_verified_at','fishing_stopped_at'))):
+                return None
+        elif phase != 'return_confirm':
+            return None
+        times = [journal.get(k) for k in ('off_verified_at','fishing_stopped_at','return_deadline')]
+        if (any(type(t) not in (int,float) or not np.isfinite(t) for t in times)
+                or not times[0] <= times[1] <= times[2] < time.time()):
+            return None
+        counts = journal.get('attempts') or {}
+        issued = journal.get('issued_inputs') or []
+        if (not issued or counts.get('return-request') != 1
+                or any(n and k not in ('stop','handoff-cancel','return-request') for k,n in counts.items())
+                or any(entry.get('kind') not in ('stop','handoff-cancel','return-request') for entry in issued)
+                or issued[-1].get('kind') != 'return-request'):
+            return None
+        request = issued[-1]
+        identifier = request.get('input_id','')
+        frame_id = request.get('frame_id','')
+        at = request.get('time')
+        if (not re.fullmatch('[0-9a-f]{32}',identifier) or not re.fullmatch('[0-9a-f]{32}',frame_id)
+                or type(at) not in (int,float) or not times[1] <= at <= times[2]):
+            return None
+        path = root/'logs/portal-input'/f'input-{identifier}.json'
+        if not path.is_file() or path.stat().st_size > 16384:
+            return None
+        raw = path.read_bytes()
+        receipt = json.loads(raw.decode('utf-8-sig'))
+        age = receipt.get('capture_age_ms')
+        if (receipt.get('kind') != 'return-request' or receipt.get('controller') != 'stone_farm'
+                or receipt.get('rank') != 39 or receipt.get('input_id') != identifier
+                or receipt.get('frame_id') != frame_id or receipt.get('input_begin_time') != at
+                or receipt.get('input_transport') != request.get('transport')
+                or type(age) not in (int,float) or not 0 <= age <= 120):
+            return None
+        return hashlib.sha256(raw).hexdigest()
 
     @staticmethod
     def _boss_abandon_receipt(root, journal):
@@ -532,7 +621,8 @@ class StoneFarm(ParallelScreen):
 
     @property
     def active(self):
-        return self.journal['pending']
+        return (self.journal['pending']
+                or (getattr(self,'retry',None) or {}).get('mode') == 'return_confirm_restore')
 
     @property
     def completed_rank_40(self):
@@ -747,7 +837,7 @@ class StoneFarm(ParallelScreen):
         self.last_seen = now
         return self.seen >= 3 and now-self.since >= seconds
 
-    def signature(self, frame):
+    def signature(self, frame, *, return_prompt=False):
         # Deep fixed text only. No sea, moving countdown or meter animation.
         parts = []
         for x,y,X,Y in ((71,9,136,59), (80,9,130,59), (13,45,68,72)):
@@ -762,9 +852,9 @@ class StoneFarm(ParallelScreen):
                    & (crop[:,:,2]-crop[:,:,0]>=15)
                    & (crop.max(axis=2)>=threshold))
             parts.append(ink.tobytes().hex())
-        # The complete AUTO settings panel dims the header: five antialiased
-        # edge pixels flicker across 60 while its solid letter cores stay put.
-        cutoff = 35 if self.phase == 'route_menu' else 60
+        # The AUTO panel and return dialog dim the header. The dark cores
+        # keep the location stable when antialiased edge pixels flicker.
+        cutoff = 35 if return_prompt or self.phase in ('route_menu','return_confirm') else 60
         parts.append((frame[12:34,286:434].max(axis=2)<cutoff).tobytes().hex())
         return parts
 
@@ -842,11 +932,15 @@ class StoneFarm(ParallelScreen):
         return (current is not None and self.signature(frame) == action.get('signature')
                 and current == action.get('cancel_context'))
 
-    def continuous_preparation(self, frame):
+    def continuous_preparation(self, frame, *, early_only=False):
         # The blood-bar X only abandons the current fish. This separate fish
         # silhouette plus orange X stops continuous fishing before combat.
-        if (self._battle(frame) or self.fishing.at_port(frame)
-                or not self.fishing.cast_preparation(frame,allow_fill=True,allow_task=True)):
+        if self._battle(frame) or self.fishing.at_port(frame):
+            return False
+        # On lower-stage handoffs, the warning can outlast the useful cancel
+        # window. Wait for the earlier three dots before reserving a touch.
+        preparation = self.fishing.waiting_cast if early_only else self.fishing.cast_preparation
+        if not preparation(frame, allow_fill=True, allow_task=True):
             return False
         scores = cv2.matchTemplate(frame[1052:1124,663:720],self.cast_stop_fish,
                                   cv2.TM_CCOEFF_NORMED,mask=self.cast_stop_mask)
@@ -1052,9 +1146,58 @@ class StoneFarm(ParallelScreen):
     def _report_return_wait(self, reason):
         self.hold = reason
         now = time.monotonic()
-        if self.return_wait_logged_at is None or now-self.return_wait_logged_at >= 15:
+        if reason != self.return_wait_reason or self.return_wait_logged_at is None or now-self.return_wait_logged_at >= 15:
             self.return_wait_logged_at = now
+            self.return_wait_reason = reason
             self.event('次元石返回等待：'+reason)
+
+    def _return_dialog_ready(self, frame):
+        return (frame.shape == (1280,720,3) and self._parallel(frame)
+                and not self._map(frame) and self._off_icon(frame)
+                and (self.fishing.idle_icon(frame,main_known=True) is not None
+                     or self.fishing.at_port(frame,main_known=True))
+                and not self.fishing.blue_fill(frame,main_known=True) and not self._battle(frame)
+                and self._fixed(frame,'return-question',(223,556,506,629),.95)
+                and self._fixed(frame,'continue',(63,741,356,834),.96)
+                and float((frame[480:510,150:180].max(axis=2)>=210).mean()) >= .8)
+
+    def _restore_return_confirmation(self, frame):
+        if frame is self.return_recovery_frame:
+            return True
+        self.return_recovery_frame = frame
+        ready = (self._return_dialog_ready(frame)
+                 and self._stage(frame) == self.journal['from_stage']
+                 and self._rank_value(frame) == self.journal['rank'])
+        key = ('return-confirm-restore',self.signature(frame,return_prompt=True)) if ready else None
+        if not self._confirmed(key):
+            self.hold = '等待三张新截图确认同一返回弹窗、实际阶段与RANK及停航停钓'
+            return True
+        approval = self.retry
+        raw, record = read_record(self.path,'交接')
+        if (raw is None or hashlib.sha256(raw).hexdigest() != approval['failed_sha256']
+                or self._return_confirm_receipt(self.path.parent,record) != approval['receipt_sha256']):
+            raise RuntimeError('返回请求回执或归档记录已变化，未接续')
+        now = time.time()
+        if not self.enabled() or not self.observed_restore_allowed() or now >= approval['expires_at']:
+            raise RuntimeError('本次返回确认接续已停止或过期，原失败记录保留')
+        previous = {k:record[k] for k in ('deadline','phase_deadline','return_deadline','stop_fishing_deadline')
+                    if k in record}
+        updated = dict(record,pending=True,phase='return_confirm',deadline=now+self.LIMIT,
+                      phase_deadline=now+self.RETURN_RESERVE_SECONDS,return_deadline=now+self.RETURN_RESERVE_SECONDS,
+                      phase_started_at=now,allow_ordinary_cancel=False,continuous_cast_stop=False,
+                      return_confirm_restore_runs=1,return_confirm_previous_deadlines=previous,
+                      return_confirm_scene_signature=key[1],
+                      previous_failed_sha256=approval['failed_sha256'],retry_approved_at=approval['approved_at'],
+                      return_request_receipt_sha256=approval['receipt_sha256'])
+        updated.pop('stop_fishing_deadline',None)
+        archive = self.path.parent/'logs/stone-farm-failed'/f'{approval["failed_sha256"]}.json'
+        archive_and_replace(self.path,raw,updated,archive,approval['failed_sha256'],'交接','stone_farm_retry.json')
+        self.journal,self.phase,self.retry = updated,'return_confirm',None
+        self.off_verified = self.fishing_stopped = True
+        self.rank,self.current_stage = record['rank'],record['from_stage']
+        self._confirmed(None)
+        self.event('次元石：连续新图确认原返回弹窗；旧窗口和输入已保留，本次仅允许一次尚未使用的返回确认')
+        return True
 
     def _expected(self, frame, *, entry=False):
         screen = self.screen(frame)
@@ -1251,6 +1394,31 @@ class StoneFarm(ParallelScreen):
             if not 20<=x<700 or not 175<=y<1115:
                 return None
             area=(max(20,x-40),max(175,y-40),min(700,x+40),min(1115,y+40))
+            # The portrait may still be far from the destination. In that
+            # case re-find the full skull at the receipted point on this frame.
+            full = self.assets['map-boss']
+            h,w = full.shape[:2]
+            top,left = y-h//2,x-w//2
+            crop = frame[top:top+h,left:left+w]
+            score = cv2.matchTemplate(crop,full,cv2.TM_CCOEFF_NORMED)[0,0]
+            jaw = np.s_[27:33,4:29]
+            jaw_score = cv2.matchTemplate(crop[jaw],full[jaw],cv2.TM_CCOEFF_NORMED)[0,0]
+            if score >= .90 and jaw_score >= .85:
+                return x,y,float(score)
+            if lowered and self.journal.get('first_unselected') and self.phase == 'first_close':
+                # After arrival the portrait obscures the left forehead and
+                # lower teeth. Match the exposed right eye and red jaw
+                # separately, only at a selection already issued this run.
+                eye = np.s_[5:26,21:30]
+                jaw = np.s_[28:33,8:28]
+                scores = [float(cv2.matchTemplate(crop[part],self.selected_lower_map[part],
+                                 cv2.TM_CCOEFF_NORMED)[0,0]) for part in (eye,jaw)]
+                jaw_rgb = crop[jaw].astype(np.int16)
+                red = ((jaw_rgb[:,:,0] >= 130) & (jaw_rgb[:,:,0] > 1.4*jaw_rgb[:,:,1])
+                       & (jaw_rgb[:,:,0] > 1.4*jaw_rgb[:,:,2]))
+                if (all(np.isfinite(value) and value >= .97 for value in scores)
+                        and int(red.sum()) >= 30 and int((crop[eye].min(axis=2)>=170).sum()) >= 40):
+                    return x,y,min(scores)
         left,top,right,bottom=area
         for template,parts in variants:
             mask = np.zeros(template.shape[:2],np.uint8)
@@ -1350,7 +1518,6 @@ class StoneFarm(ParallelScreen):
                               self.journal['first_deadline'])-time.time()))
             return True
         if phase == 'first_close':
-            self.report_first_close_wait('核对已选任务地图、停止AUTO及当前世界/RANK')
             if self.journal.get('first_unselected'):
                 # Selecting the first destination intentionally changes the
                 # header. Rebind it only to the issued selection and the same
@@ -1363,13 +1530,8 @@ class StoneFarm(ParallelScreen):
                         clicked = self._click('first-close',668,1187,'任务抛竿恢复：关闭已重新选择的任务地图',frame)
                         self.report_first_close_wait('已发送关图，等待真实主画面' if clicked else
                             '关图输入前的新截图守卫拒绝：世界/RANK/停航/已选任务/截止之一未满足')
-                    if not ready and time.monotonic()-getattr(self,'first_map_wait_logged_at',float('-inf')) >= 5:
-                        self.first_map_wait_logged_at=time.monotonic()
-                        self.first_close_wait_reason = self.first_selected_map_reason
-                        remaining=min(self.journal['deadline'],self.journal['phase_deadline'],
-                                      self.journal['first_deadline'])-time.time()
-                        self.event(f'首任务关图等待：{self.first_selected_map_reason}，'
-                                   f'剩余{max(0,remaining):.1f}秒；不追加选点或抛竿')
+                    else:
+                        self.report_first_close_wait(self.first_selected_map_reason)
                 else:
                     self.report_first_close_wait('地图未识别；等待已选地点的真实钓鱼、停航空闲或到达证明')
                     issued = {a.get('kind') for a in self.journal.get('issued_inputs',[])}
@@ -1407,6 +1569,8 @@ class StoneFarm(ParallelScreen):
             elif self._first_idle(frame) is not None:
                 self.first_idle_key = None
                 self._set('first_idle',15)
+            else:
+                self.report_first_close_wait('核对已选任务地图、停止AUTO及当前世界/RANK')
             return True
         if phase == 'first_idle':
             key = self._first_idle(frame)
@@ -1419,13 +1583,12 @@ class StoneFarm(ParallelScreen):
                 self.first_idle_key = None
                 self.key = None
                 if kind == 'first-cast':
-                    # A cast actually issued inside its fixed input window
-                    # gets its own read-only 15s
-                    # observation, still capped by the original overall limit.
-                    # Old journals never acquire this on restart or timeout.
+                    # Allow preparation and three seconds of result proof
+                    # within the original handoff limit. Only an issued new
+                    # cast sets this read-only deadline.
                     self.journal['first_observation_deadline'] = min(
-                        self.journal['deadline'], time.time()+15)
-                    self._set('first_verify',15)
+                        self.journal['deadline'], time.time()+self.FIRST_RESULT_SECONDS)
+                    self._set('first_verify',self.FIRST_RESULT_SECONDS)
                 else:
                     # Start the existing 15-second wake verification at the
                     # actual wake input. The total first-task deadline stays
@@ -1552,11 +1715,22 @@ class StoneFarm(ParallelScreen):
         rank = screen['rank'] if screen else self._rank_value(frame)
         stage = screen['stage'] if screen else self._stage(frame)
         location = self.signature(frame)[-1]
+        entry_rank = self.journal['entry_rank']
         for reason,valid in (('stage',stage == self.journal['to_stage']),
-                ('rank',rank in (self.journal['entry_rank'],self.journal['entry_rank']+1)),
-                ('location',location == saved[-1])):
+                ('rank',rank in (entry_rank,entry_rank+1))):
             if not valid:
                 self.first_result_context_reason = reason
+                return None
+        if location != saved[-1]:
+            # The game can change destination as the issued cast advances RANK.
+            # Vote on the new fixed location under the same stopped-route guards.
+            advanced = (screen is not None and rank == entry_rank+1
+                        and self.journal.get('first_selected_rank') == entry_rank
+                        and self.journal.get('attempts', {}).get('first-cast') == 1
+                        and any(a.get('kind') == 'first-cast' for a in self.journal.get('issued_inputs', [])))
+            if (not advanced or int((frame[12:34,286:434].max(axis=2)<60).sum()) < 24
+                    or self._no_destination(frame)):
+                self.first_result_context_reason = 'location'
                 return None
         self.first_result_context_reason = 'verified'
         return stage,rank,location
@@ -1644,6 +1818,9 @@ class StoneFarm(ParallelScreen):
             return ('选择当前任务；最近等待：'
                     + (getattr(self,'first_select_wait_reason',None) or '本次尚未取得有效新图')
                     + '；保留原输入次数，不续期')
+        if self.phase == 'first_verify':
+            return (f'首竿结果有效帧={self.seen}，最近上下文={getattr(self,"first_result_context_reason",None)}，'
+                    f'结果检查={getattr(self,"first_result_checks",None)}；保留原输入次数，不续期')
         if self.phase != 'first_close':
             return '保留原输入次数，不续期'
         used = self.journal.get('attempts',{}).get('first-close',0)
@@ -1658,7 +1835,7 @@ class StoneFarm(ParallelScreen):
         if now-getattr(self,'first_close_report_at',float('-inf')) >= 5:
             self.first_close_report_at = now
             remaining = min(self.journal['deadline'], self.journal['phase_deadline'],
-                            self.journal.get('first_deadline',0))-time.time()
+                            self._first_phase_limit(self.phase))-time.time()
             self.event(self._first_close_diagnostic()+f'；剩余{max(0,remaining):.1f}秒')
 
     def meter_frame_allowed(self, frame):
@@ -1711,6 +1888,14 @@ class StoneFarm(ParallelScreen):
             return False
         name = action['kind']
         counts = self.journal.setdefault('attempts', {})
+        if name.startswith('return-') and time.time() > self.journal['return_deadline']:
+            return False
+        if name in ('handoff-cancel','lower-boss-abandon','lower-boss-abandon-menu'):
+            if time.time() > handoff_journal.stop_fishing_deadline(self.journal):
+                return False
+        if (self.journal.get('return_confirm_restore_runs') and name.startswith('return-')
+                and (name != 'return-confirm' or counts.get(name,0))):
+            return False
         if name not in self.INPUT_LIMITS or counts.get(name, 0) >= self.INPUT_LIMITS[name]:
             raise RuntimeError('次元石降阶操作达到上限，已停止并保留交接记录：'+name)
         counts[name] = counts.get(name, 0)+1
@@ -1751,21 +1936,26 @@ class StoneFarm(ParallelScreen):
         self.next_at = time.monotonic()+1.5
         return result is not False
 
-    def _begin(self, screen):
+    def _begin(self, screen, *, reserve_return_time=True):
         lower = screen['rank'] == 39 and 2 <= screen['stage'] <= 99
         if not lower and not (screen['rank'] == 40 and 1 <= screen['stage'] < 99):
             raise ValueError('次元石交接须有实际RANK39降阶或RANK40通关阶段')
         now = time.time()
+        stop_cutoff = now+self.STOP_FISHING_SECONDS
+        split_window = lower and reserve_return_time
         self.journal = dict(version=1, pending=True, reason='lower' if lower else 'cycle',
             rank=screen['rank'], from_stage=screen['stage'],
             to_stage=screen['stage']-1 if lower else screen['stage']+1,
             entry_rank=39 if lower else 0, started_at=now, deadline=now+self.LIMIT,
-            phase='completion' if screen['completion'] else 'stop', phase_deadline=now+180,
-            return_deadline=now+180, attempts={}, inputs=[],
+            phase='completion' if screen['completion'] else 'stop', phase_deadline=stop_cutoff,
+            return_deadline=stop_cutoff+(self.RETURN_RESERVE_SECONDS if split_window else 0), attempts={}, inputs=[],
             allow_ordinary_cancel=True,continuous_cast_stop=True,
             rank40_verified=not lower, gate_closed=False,
             cycles=self.journal.get('cycles',0), handoffs=self.journal.get('handoffs',0),
             recoveries=self.journal.get('recoveries',0))
+        if split_window:
+            self.journal['stop_fishing_deadline'] = stop_cutoff
+        self.return_wait_logged_at = self.return_wait_reason = None
         self.START_STAGE, self.FINAL_STAGE = self.stage_pair(self.journal)
         self.rank = screen['rank']
         self.phase = self.journal['phase']
@@ -1796,15 +1986,16 @@ class StoneFarm(ParallelScreen):
         if kind == 'handoff-cancel':
             continuous = action.get('continuous_stop') is True and self.continuous_cancel_allowed
             return (self.phase == 'stop_fishing' and self.ordinary_cancel_allowed and self.off_verified
-                    and time.time() <= self.journal['return_deadline'] and point == (690,1090)
+                    and time.time() <= handoff_journal.stop_fishing_deadline(self.journal) and point == (690,1090)
                     and self.same_cancel_context(action,frame)
-                    and (self.continuous_preparation(frame) if continuous
+                    and (self.continuous_preparation(frame, early_only=self.journal.get('reason') == 'lower')
+                         if continuous
                          else self.fishing.ordinary_preparation(frame,allow_fill=True)))
         if kind in ('lower-boss-abandon','lower-boss-abandon-menu'):
             current = self.boss_abandon_context(frame)
             return (self.boss_abandon_handoff and self.phase == 'stop_fishing'
                     and self.journal.get('allow_boss_abandon') is True and self.off_verified
-                    and time.time() <= self.journal['return_deadline']
+                    and time.time() <= handoff_journal.stop_fishing_deadline(self.journal)
                     and kind == self.boss_abandon_kind and not self.journal.get('attempts',{}).get(kind)
                     and current is not None and current == self.boss_abandon_key
                     and current == action.get('abandon_context') and point == current[1])
@@ -1845,13 +2036,11 @@ class StoneFarm(ParallelScreen):
                 return False
             if kind == 'return-confirm':
                 return (self.phase == 'return_confirm' and point == (208,788)
-                        and (self.fishing.idle_icon(frame,main_known=True) is not None
-                             or self.fishing.at_port(frame,main_known=True))
-                        and not self.fishing.blue_fill(frame,main_known=True) and not self._battle(frame)
-                        and self._fixed(frame, 'return-question', (223,556,506,629), .95)
-                        and self._fixed(frame, 'continue', (63,741,356,834), .96)
-                        and float((frame[480:510,150:180].max(axis=2)>=210).mean()) >= .8)
+                        and (not self.journal.get('return_confirm_restore_runs')
+                             or action['signature'] == self.journal.get('return_confirm_scene_signature'))
+                        and self._return_dialog_ready(frame))
             return (self.phase == 'return' and self.sailing.running(frame) is False
+                    and not self.journal.get('return_confirm_restore_runs')
                     and self._idle_fishing(frame) and self._return_button(frame) == point)
         # All original-world input requires an explicit stopped header, even
         # when a modal dims the underlying lower AUTO checkbox.
@@ -2017,6 +2206,8 @@ class StoneFarm(ParallelScreen):
         if self.retry is not None:
             if not self.enabled() or time.time() > self.retry['expires_at']:
                 raise RuntimeError('新降阶观察授权已过期，原失败记录未修改')
+            if self.retry.get('mode') == 'return_confirm_restore':
+                return self._restore_return_confirmation(frame)
             restore_route = self.retry.get('mode') == 'route_restore'
             restore_route_open = self.retry.get('mode') == 'route_open_restore'
             restore_fishing = self.retry.get('mode') == 'fishing_restore'
@@ -2228,6 +2419,7 @@ class StoneFarm(ParallelScreen):
                 # A separately bounded repair archives the failed run and
                 # retains all reservations, receipts and the original start.
                 now = time.time()
+                self.journal.pop('stop_fishing_deadline',None)
                 self.journal.update(continuous_cast_stop=True,continuous_stop_repair_runs=1,
                                     continuous_stop_repair_started_at=now,
                                     deadline=now+self.LIMIT,return_deadline=now+180,
@@ -2242,9 +2434,10 @@ class StoneFarm(ParallelScreen):
                 now = time.time()
                 self.journal.update(return_entry_repair_runs=1,return_entry_repair_started_at=now,
                     return_entry_previous_deadlines={k:self.journal.get(k)
-                        for k in ('deadline','phase_deadline','return_deadline')},
+                        for k in ('deadline','phase_deadline','return_deadline','stop_fishing_deadline') if k in self.journal},
                     deadline=now+self.LIMIT,return_deadline=now+180,
                     phase='stop',phase_deadline=now+180)
+                self.journal.pop('stop_fishing_deadline',None)
                 self.rank,self.current_stage = screen['rank'],screen['stage']
                 self.phase = 'stop'
                 self.off_verified = self.fishing_stopped = False
@@ -2258,6 +2451,7 @@ class StoneFarm(ParallelScreen):
                 # This new explicit approval has its own bounded observation.
                 # Preserve every old reservation/receipt and archive the old deadlines.
                 now = time.time()
+                self.journal.pop('stop_fishing_deadline',None)
                 self.journal.update(boss_abandon_menu_retry=True,boss_abandon_menu_started_at=now,
                                     native_abandon_receipt_sha256=receipt,
                                     deadline=now+self.LIMIT,return_deadline=now+180,
@@ -2361,7 +2555,7 @@ class StoneFarm(ParallelScreen):
                 self.key = self.since = self.last_seen = None
                 self.seen = 0
             else:
-                self._begin(screen)
+                self._begin(screen,reserve_return_time=False)
                 if approval.get('allow_boss_abandon') is True:
                     self.journal['allow_boss_abandon'] = True
             self.journal.update(previous_failed_sha256=approval['failed_sha256'],
@@ -2531,8 +2725,9 @@ class StoneFarm(ParallelScreen):
                 self._set('stop_fishing',180)
             return True
         if phase == 'stop_fishing':
-            if time.time() > self.journal['return_deadline']:
-                raise RetryableStage('次元石停钓及返回超过180秒，保留进度，等待新图安全归档本轮',
+            stop_cutoff = handoff_journal.stop_fishing_deadline(self.journal)
+            if time.time() > stop_cutoff:
+                raise RetryableStage('次元石停钓超过原截止，保留进度，等待新图安全归档本轮',
                                      task='stone_farm', retry_seconds=1800)
             idle = self._idle_fishing(frame)
             context = (self.cancel_context(frame,continuous=True)
@@ -2560,7 +2755,7 @@ class StoneFarm(ParallelScreen):
                 return True
             if idle:
                 self.boss_abandon_key = None
-                if self._confirmed(('fishing-idle',self.signature(frame))):
+                if self._confirmed(('fishing-idle',self.signature(frame))) and time.time() <= stop_cutoff:
                     self.fishing_stopped = True
                     self.journal['fishing_stopped_at'] = time.time()
                     self._save()
@@ -2594,16 +2789,20 @@ class StoneFarm(ParallelScreen):
             return True
         if phase in ('return','return_confirm'):
             if time.time() > self.journal['return_deadline']:
-                raise RetryableStage('次元石返回超过180秒，保留进度，等待新图安全归档本轮；最近等待：'+str(self.hold),
+                raise RetryableStage('次元石返回已到期，保留进度，等待新图安全归档本轮；最近等待：'+str(self.return_wait_reason or self.hold),
                                      task='stone_farm', retry_seconds=1800)
             if self._original(frame):
                 self._set('original')
+                return True
+            confirmation_only = self.journal.get('return_confirm_restore_runs') == 1
+            if confirmation_only and self.journal.get('attempts',{}).get('return-confirm'):
+                self._report_return_wait('本次返回确认额度已用，等待实际原世界画面')
                 return True
             # Saved flags do not prove either stop after a restart. A modal
             # without this in-memory proof cannot authorise confirmation.
             if not self.off_verified or not self.fishing_stopped:
                 self._report_return_wait('等待重新确认停航及停钓；保存标记不能代替当前画面')
-                if self._expected(frame) and self.sailing.running(frame) is False:
+                if not confirmation_only and self._expected(frame) and self.sailing.running(frame) is False:
                     self._set('stop_fishing',180)
                 return True
             if not self._parallel(frame) or not self._off_icon(frame):
@@ -2617,6 +2816,9 @@ class StoneFarm(ParallelScreen):
                     self._report_return_wait('已发出返回确认，等待实际原世界画面')
                 else:
                     self._report_return_wait('返回确认的新截图守卫未通过，未发出输入')
+                return True
+            if confirmation_only:
+                self._report_return_wait('原返回确认弹窗不再匹配，等候实际原世界画面')
                 return True
             if self.sailing.running(frame) is False and self._idle_fishing(frame):
                 point = self._return_button(frame)

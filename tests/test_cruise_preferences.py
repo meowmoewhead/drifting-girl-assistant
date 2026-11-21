@@ -114,6 +114,63 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(before,h.receipts)
             self.assertFalse(h.controller.busy)
 
+    def test_rank_advance_after_issued_stop_keeps_the_same_budget(self):
+        with TemporaryDirectory() as root:
+            h=Harness(root)
+            h.scene=(10,6)
+            h.values=deepcopy(SettingsView.wanted(h.options))
+            h.count=12
+            h.tick(6)
+            self.assertEqual(h.receipts,[('stop',40)])
+            deadline=h.controller.deadline
+            started_at=h.controller.journal['started_at']
+            h.scene=(10,7)
+            frame=object()
+            h.controller.step(frame)
+            h.controller.step(frame)
+            h.tick()
+            self.assertEqual(h.controller.scene,(10,6))
+            self.assertEqual(h.receipts,[('stop',40)])
+            h.tick()
+            self.assertEqual(h.controller.scene,(10,7))
+            self.assertEqual(h.controller.deadline,deadline)
+            h.tick(35)
+            self.assertEqual(h.receipts,[('stop',40),('open',40),('start',40)])
+            result=h.controller.journal['last_result']
+            self.assertTrue(result['success'])
+            self.assertEqual(result['started_at'],started_at)
+            self.assertEqual(result['deadline'],deadline)
+            self.assertEqual(result['rank_after_stop']['original_scene'],(10,6))
+
+    def test_rank_advance_with_only_reserved_stop_cannot_authorize_resume(self):
+        with TemporaryDirectory() as root:
+            h=Harness(root)
+
+            def failed_contact(kind,*args):
+                h.controller.reserve(kind)
+                return False
+
+            h.controller.click=failed_contact
+            h.tick(6)
+            h.scene=(8,31)
+            h.route=False
+            h.tick()
+            self.assertFalse(h.controller.busy)
+            self.assertEqual(h.controller.journal['last_result']['attempts'],{'stop':1})
+
+    def test_rank_advance_after_open_uses_the_current_menu_once(self):
+        with TemporaryDirectory() as root:
+            h=Harness(root)
+            h.values=deepcopy(SettingsView.wanted(h.options))
+            h.count=12
+            h.tick(11)
+            self.assertEqual(h.receipts,[('stop',40),('open',40)])
+            self.assertTrue(h.menu)
+            h.scene=(8,31)
+            h.tick(25)
+            self.assertTrue(h.controller.journal['last_result']['success'])
+            self.assertEqual(h.receipts,[('stop',40),('open',40),('start',40)])
+
 
 class ReplayTests(unittest.TestCase):
     @classmethod

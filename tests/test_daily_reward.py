@@ -102,7 +102,7 @@ class DailyRewardTests(unittest.TestCase):
                 pass
         with tempfile.TemporaryDirectory(prefix='daily-replay-') as directory:
             root = Path(directory)
-            shutil.copytree(ROOT/'assets'/'daily-reward', root/'assets'/'daily-reward')
+            shutil.copytree(ROOT/'assets', root/'assets')
             rules = deepcopy(list(self.rules.values()))
             for rule in rules:
                 rule.update(enabled=True, interval=0.2, next_delay=0, stage_timeout=5)

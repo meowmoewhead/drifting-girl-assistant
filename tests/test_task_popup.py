@@ -137,19 +137,25 @@ class TaskPopupTests(unittest.TestCase):
         class Device:
             def __init__(self, cfg, stop):
                 self.stop, self.image, self.taps, self.reads, self.phase = stop, None, [], 0, 0
+                self.popup_deadline = None
             def screenshot(self):
                 self.reads += 1
                 self.phase += 1
-                clock[0] += 2
+                clock[0] += .8 if scenario == 'stuck' else 2
                 count = len(self.taps)
                 if scenario == 'expired' and count == 1 and self.phase == 1:
                     clock[0] += 12
                 visible = (count == 0 if scenario == 'initial' else
+                           count < 2 if scenario in ('swallowed','changed_retry') else
                            count == 1 if scenario == 'expired' else
                            True if scenario in ('stuck', 'stop', 'preview') else
                            (count == 0 or self.phase > 3) if scenario == 'repeat' else False)
                 if scenario == 'stop' and self.reads == 2:
                     self.stop.set()
+                if (scenario == 'changed_retry' and count == 1
+                        and app.lifecycle.ui.current_actor() == 'rule:'+RECOVERY_RULE_IDS[0]):
+                    visible = False
+                    self.taps.append('notice-disappeared')
                 self.image = (notice if visible else main).copy()
                 return self.image
             def click(self, button):
@@ -159,6 +165,15 @@ class TaskPopupTests(unittest.TestCase):
                     assert self.phase >= 3, 'Closed before three stable frames'
                     box = [int(v) for v in button.button]
                     assert 625 <= box[0] < box[2] <= 668 and 410 <= box[1] < box[3] <= 452, box
+                    token = self.input_guard('adb', ('shell','input','swipe'))
+                    stage = app.lifecycle.context.data['stage']
+                    if stage['stage']=='task_popup_return':
+                        deadline = stage['budget']['stage_deadline_epoch']
+                        if self.popup_deadline is None:
+                            self.popup_deadline = deadline
+                        else:
+                            assert deadline == self.popup_deadline, 'Popup retry extended the deadline'
+                    self.input_issued(token)
                 elif button.name != 'normal-entry':
                     raise AssertionError('Unexpected click '+button.name)
                 self.taps.append(button.name)
@@ -217,6 +232,17 @@ class TaskPopupTests(unittest.TestCase):
         self.assertIn('红叉连续三次未关掉', state['last_error'])
         # 1 次首次关闭 + 3 次重按,每次重按前都要重新凑够 stable_frames。
         self.assertEqual(taps, [RECOVERY_RULE_IDS[0]]*4)
+
+    def test_swallowed_close_retries_with_the_original_rule_owner(self):
+        state,taps = self.replay('swallowed')
+        self.assertIsNone(state['last_error'])
+        self.assertEqual(state['stop_reason'], 'cycle_complete')
+        self.assertEqual(taps, [RECOVERY_RULE_IDS[0]]*2+['normal-entry'])
+
+    def test_close_retry_is_discarded_when_the_fresh_notice_is_gone(self):
+        state,taps = self.replay('changed_retry')
+        self.assertIsNone(state['last_error'])
+        self.assertEqual(taps, [RECOVERY_RULE_IDS[0], 'notice-disappeared', 'normal-entry'])
 
     def test_repeated_popups_have_a_bounded_recovery_limit(self):
         state, taps = self.replay('repeat')

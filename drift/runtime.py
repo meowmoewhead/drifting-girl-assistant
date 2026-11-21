@@ -32,7 +32,7 @@ from task_schedule import TaskSchedule
 from meter_calibration import MeterCalibration
 from drift.tasks.cruise_watchdog import CruiseWatchdog, CruiseView, fresh_cruise_input
 from drift.tasks.cruise_gate import cruise_blockers as cruise_gate_blockers
-from drift.tasks.raid_cast import RaidCastAssist
+from drift.tasks.raid_cast import RaidBattleHud, RaidCastAssist
 from drift.tasks.cruise_setup import CruiseSetup
 from drift.tasks.cruise_options import from_rule as cruise_options, normalize as normalize_cruise
 from drift.tasks.cruise_settings import CruiseSettings, SettingsView
@@ -63,16 +63,17 @@ from drift.ui.world_map import (
 from drift.core.util import hsv_mask, number, png_bytes, rectangle
 from drift.core.matcher import (observe_native_crown_return, observe_popup_equipment_return,
                                 popup_reclick_decision, scan_rules)
-from drift.core.exceptions import GameStuck, RetryableStage
+from drift.core.exceptions import DeviceUnavailable, GameStuck, RetryableStage
 from drift.tasks.optional_timeout import PotionAdRecovery
 from drift.core.progress import ProgressGuard
-from drift.core.lifecycle import RuntimeLifecycle
+from drift.core.lifecycle import RuleStageExpired, RuntimeLifecycle
+from drift.core.continuity import FreshConfirmation
 from drift.tasks.entry_recovery import attach as attach_entry_recovery
 from drift.build_info import BUILD
 from drift.core.observability import stop_request_context
 from drift.core.pages import build
 from drift.core.ui import Navigator, nav_requested
-from drift.perception.daily_bonus import BONUS_ID, DailyBonusVisual, supported_bonus
+from drift.perception.daily_bonus import BONUS_ID, DailyBonusVisual, DailyCoinShop, supported_bonus
 from drift.tasks.pass_daily import PASS_ID, PassDaily
 from drift.tasks.guild_daily import GUILD_ID, GuildDaily
 from drift.tasks.restaurant_upgrade import RESTAURANT_ID, RestaurantUpgrade
@@ -99,6 +100,10 @@ NAV_CLICK_LIMIT = 3
 # Repeated task faults may indicate a persistent unsafe condition. Keep the
 # stop-on-failure protection after this many consecutive failed restaurant runs.
 RESTAURANT_FAILURE_LIMIT = 3
+CROWN_ENTRY = 'driftinggirl_achievements_open'
+CROWN_ENTRIES = {CROWN_ENTRY, 'driftinggirl_achievements_resume'}
+CROWN_RECOVERY_LIMIT = 3
+CROWN_RECOVERY_WINDOW = 300
 # 搜索框至少比模板大这么多像素(ALAS 的 Button.match 默认 offset 是 30/3)。
 # 以前把 search_area 写得和模板一样大,UI 位移几像素就整条规则失配。
 SEARCH_SLACK_Y, SEARCH_SLACK_X = 30, 6
@@ -221,16 +226,16 @@ class Clicker:
             self.idle_only()
             required = {'failed_sha256','allow_ordinary_cancel'}
             optional = ('allow_boss_abandon','allow_boss_abandon_menu','allow_continuous_cancel','allow_post_start_restore','allow_first_result_restore','allow_manual_rank_progress','allow_observed_lower_restore','allow_observed_cycle_restore','allow_return_entry_restore','allow_map_target_repair')
-            read_only = [name for name in ('allow_observed_lower_restore','allow_observed_cycle_restore')
-                         if data.get(name) is True]
-            if read_only:
-                if len(read_only) != 1 or set(data) != {'failed_sha256',read_only[0]}:
-                    raise ValueError('只读接续只接受原失败哈希，不能同时授权其他游戏输入')
+            single_scope = [name for name in ('allow_observed_lower_restore','allow_observed_cycle_restore',
+                                             'allow_return_confirm_restore') if data.get(name) is True]
+            if single_scope:
+                if len(single_scope) != 1 or set(data) != {'failed_sha256',single_scope[0]}:
+                    raise ValueError('指定的接续只接受原失败哈希与单一授权')
             elif (not required.issubset(data) or set(data)-required-set(optional)
                     or data['allow_ordinary_cancel'] is not True
                     or any(name in data and data[name] is not True for name in optional)):
                 raise ValueError('需要明确允许普通鱼安全停钓及原失败记录哈希')
-            options = {name:True for name in optional if data.get(name) is True}
+            options = {name:True for name in (*optional,*single_scope) if data.get(name) is True}
             result = _lookup('StoneFarm').request_retry(self.root, data['failed_sha256'], **options)
             self.event('已登记一次降阶重试授权；原失败记录、次数和截止时间未修改')
             return result
@@ -1191,6 +1196,16 @@ class Clicker:
         st = LoopState()
         st.recovery_only = (not follow_settings and bool(rules)
                             and all(rule['id'] in RECOVERY_RULE_IDS for rule, _, _ in rules))
+
+        def record_crown_recovery(now):
+            history = st.entry_recoveries.setdefault(CROWN_ENTRY, deque())
+            while history and now - history[0] >= CROWN_RECOVERY_WINDOW:
+                history.popleft()
+            if len(history) < CROWN_RECOVERY_LIMIT:
+                history.append(now)
+                if len(history) == CROWN_RECOVERY_LIMIT:
+                    self.event('皇冠奖励：五分钟内三次中断并安全返回，本次按未领取结束。两种入口暂停至恢复窗口到期，其他任务继续')
+
         # 页面图导航(ALAS page link + 反向 BFS):只在规则显式写了 ui_nav 时启用,
         # 用来把"没等到预期画面"从停机改成"朝主画面退一步"。
         navigator = None
@@ -1238,7 +1253,146 @@ class Clicker:
         guild_orphan_used = False
         guild_orphan_key, guild_orphan_since, guild_orphan_frames = None, None, 0
         guild_pending_evidence = None
+        stale_guild_proof = FreshConfirmation(max_gap=8.)
+        stale_guild_deadline = stale_guild_deadline_epoch = None
+        coin_shop = (DailyCoinShop(self.root)
+                     if not preview and (self.root / DailyCoinShop.ASSET).is_file() else None)
+        coin_close_proof = FreshConfirmation(max_gap=8.)
+        coin_close_evidence = None
         popup_pending_evidence = None
+
+        def coin_shop_context(frame):
+            close = st.matchers.get('driftinggirl_daily_close')
+            if coin_shop is None or close is None or not close[0]['enabled'] or not coin_shop.visible(frame):
+                return None
+            return PopupRaidReturn.identity(frame)
+
+        def dismiss_coin_shop(context, before_id, deadline, expired_deadline=None):
+            nonlocal coin_close_evidence
+
+            def allowed():
+                now = _time().monotonic()
+                return (not self.stop_event.is_set() and now < deadline
+                        and (st.run_deadline is None or now < st.run_deadline)
+                        and (max_clicks is None or self.state['clicks'] < max_clicks))
+
+            with getattr(self.device, 'io_lock', nullcontext()):
+                if not allowed():
+                    return False
+                fresh = runtime.capture()
+                frame_id = self.remember(fresh)
+                if frame_id == before_id or coin_shop_context(fresh) != context or not allowed():
+                    coin_close_proof.reset()
+                    return False
+                if expired_deadline is not None and not self.lifecycle.context.reserve_daily_shop_close(
+                        frame_id, expired_deadline):
+                    return False
+                if not allowed():
+                    return False
+                rule_id = 'driftinggirl_daily_coin_close'
+                if expired_deadline is None:
+                    self.lifecycle.ui.select_rule(dict(id=rule_id,stage='daily_after_claim',
+                                                       next_stage='daily_return'))
+                button = SimpleNamespace(button=DailyCoinShop.CLOSE_BOX, name=rule_id)
+                try:
+                    self.device.click(button)
+                except RuleStageExpired:
+                    return False
+                with self.lock:
+                    self.state['clicks'] += 1
+                    self.state['matches'] += 1
+                self.event('每日奖励：点券页未显示奖励卡，已请求关闭，等待确认返回')
+            receipt = dict(input_id=uuid.uuid4().hex, rule_id=rule_id, before_frame_id=frame_id,
+                           issued_at=time.time(), issued_only=True, expired_cleanup=expired_deadline is not None)
+            after = None
+            try:
+                if not self.stop_event.is_set():
+                    after = runtime.capture()
+                    receipt['after_frame_id'] = self.remember(after)
+            finally:
+                if coin_close_evidence is None:
+                    coin_close_evidence = _lookup('BossInputEvidence')(
+                        self.root, self.event, limit=16, folder='daily-shop-input', label='每日奖励关闭')
+                coin_close_evidence.record(receipt, fresh, after)
+            return True
+
+        def popup_input_receipt(before, frame_id, button, *, retry=0):
+            if self.popup_evidence is None:
+                self.popup_evidence = _lookup('BossInputEvidence')(
+                    self.root,self.event,limit=16,folder='popup-input',label='任务弹窗')
+            x1,y1,x2,y2 = button.button
+            receipt = dict(input_id=uuid.uuid4().hex,rule_id=PopupRaidReturn.CLOSE,
+                           before_frame_id=frame_id,issued_at=time.time(),issued_only=True,
+                           input_transport='adb-stationary',hold_ms=80,retry=retry,
+                           xy=[(x1+x2)//2,(y1+y2)//2])
+            return receipt, before
+
+        def retry_popup_close(close_rule, box):
+            rule, button, offset = close_rule
+            def allowed():
+                now = _time().monotonic()
+                return (not self.stop_event.is_set() and st.handling_interrupt
+                        and st.stage == 'task_popup_return' and st.stage_trigger == rule['name']
+                        and st.stage_deadline is not None and st.stage_ready_at <= now < st.stage_deadline
+                        and (st.run_deadline is None or now < st.run_deadline)
+                        and (max_clicks is None or self.state['clicks'] < max_clicks))
+            with getattr(self.device,'io_lock',nullcontext()):
+                if not allowed():
+                    return None
+                fresh = runtime.capture()
+                self.device.image = fresh
+                frame_id = self.remember(fresh)
+                with self.lock:self.state['frames'] += 1
+                if (not module.appear(button,offset=offset,interval=rule['interval'],similarity=rule['threshold'])
+                        or tuple(button.button) != box or not allowed()):
+                    return None
+                self.lifecycle.ui.select_rule(rule)
+                self.device.click(button)
+                return popup_input_receipt(fresh.copy(), frame_id, button, retry=st.popup_reclick+1)
+
+        def dismiss_stale_guild(scene, probe, before_id):
+            def allowed():
+                now = _time().monotonic()
+                return (not self.stop_event.is_set() and now < stale_guild_deadline
+                        and (st.run_deadline is None or now < st.run_deadline)
+                        and (max_clicks is None or self.state['clicks'] < max_clicks))
+            with getattr(self.device, 'io_lock', nullcontext()):
+                if not allowed():
+                    return None
+                fresh = runtime.capture()
+                frame_id = self.remember(fresh)
+                if (frame_id == before_id or GuildSelectionGuard.cleanup_scene(fresh, st.matchers, probe) != scene
+                        or not allowed()):
+                    stale_guild_proof.reset()
+                    return None
+                kind, target = scene
+                if not self.lifecycle.context.reserve_guild_cleanup(kind, frame_id, stale_guild_deadline_epoch):
+                    return None
+                if not allowed():
+                    return None
+                if kind == 'notice':
+                    rule_id, (x, y), hold_ms = 'guild_cleanup_completion_notice', target, 0
+                    button = SimpleNamespace(button=(x-5, y-5, x+5, y+5), name=rule_id)
+                    label = '平行世界：确认覆盖公会商店的探索结算'
+                else:
+                    rule_id, hold_ms = 'driftinggirl_guild_close', 80
+                    button = st.matchers[rule_id][1]
+                    x1, y1, x2, y2 = button.button
+                    x, y = (x1+x2)//2, (y1+y2)//2
+                    label = '公会商品：安全关闭过期购买步骤留下的列表'
+                self.device.click(button)
+                with self.lock:
+                    self.state['clicks'] += 1
+                    self.state['matches'] += 1
+                    self.state['last_match'] = {'name':label, 'score':1., 'box':list(button.button)}
+                self.event(f'点击：{label}，坐标 ({x}, {y})')
+                if self.guild_evidence is None:
+                    self.guild_evidence = _lookup('BossInputEvidence')(
+                        self.root,self.event,limit=16,folder='guild-input',label='公会商品')
+                return (dict(input_id=uuid.uuid4().hex, rule_id=rule_id, before_frame_id=frame_id,
+                             issued_at=time.time(), issued_only=True, xy=[x, y], hold_ms=hold_ms,
+                             input_transport='adb-stationary' if hold_ms else 'adb'), fresh.copy())
+
         def readonly_guild_world():
             nonlocal guild_return_probe
             if stone is not None:
@@ -1269,6 +1423,44 @@ class Clicker:
             st.number_values.clear();st.target_keys.clear()
             with self.lock:
                 self.state['stage'] = st.stage
+
+        def begin_optional_cleanup(frame):
+            nonlocal optional_cleanup, event_potion_skips
+            self.lifecycle.context.archive()
+            if st.stage.startswith('daily_'):
+                self.event(f'「{st.stage_trigger}」超时，跳过本次收取；先安全关闭并确认返回，不记领奖完成')
+                begin_daily_cleanup('daily_return' if self.daily_return_visible(frame,st.matchers)
+                                    else 'daily_after_claim')
+                return
+            if nav_requested(rules, st.stage):
+                step = navigation().step()
+                self.event(f'页面图退回建议：{step.kind} {step.button or ""}；仍由安全关闭流程逐帧核对')
+            optional_cleanup = OptionalCleanup(st.stage, _time().monotonic(),
+                original_deadline=st.stage_deadline, original_trigger=st.stage_trigger)
+            actions = optional_cleanup.prepare(rules, self.load_rule)
+            if optional_cleanup.family == 'event_potion':
+                event_potion_skips += 1
+                if event_potion_skips == 3:
+                    self.event('活动药水：本轮已跳过 3 次，本轮不再扫描商店入口，其他任务继续')
+            st.matchers.update({r['id']: (r,b,o) for r,b,o in actions})
+            if optional_cleanup.family == 'guild_entry':
+                self.event(f'公会商店入口超时，40秒内只读核对是否已回主画面；原截止 {st.stage_deadline}')
+            else:
+                self.event(f'「{st.stage_trigger}」超时，跳过本次；40秒内仅安全关闭，不再领取或重开；原截止 {st.stage_deadline}')
+            finish_scheduled_daily(False)
+            st.daily_attempt, st.daily_verified = None, False
+            st.stage, st.stage_deadline = optional_cleanup.stage, optional_cleanup.deadline
+            st.stage_trigger = ('公会商店：入口超时只读复核' if optional_cleanup.family == 'guild_entry'
+                                else '可跳过任务：安全退出未完成的收奖')
+            st.skip_on_timeout = False
+            st.stage_started_at = _time().monotonic()
+            st.stage_ready_at = 0
+            st.stable = {key: 0 for key in st.stable}
+            st.stable.update({r['id']: 0 for r,_,_ in actions})
+            st.number_values.clear(); st.target_keys.clear()
+            with self.lock:
+                self.state['stage'] = st.stage
+                self.state['optional_cleanup'] = optional_cleanup.status()
         st.number_values = {}
         st.target_keys = {}
         st.matchers = {rule["id"]: (rule, button, offset) for rule, button, offset in rules}
@@ -1731,22 +1923,35 @@ class Clicker:
             """RAID 甩杆辅助:战斗场地没出现 BOSS 时补一次点击(最多两次)。"""
             if preview:
                 return None
-            def owner():
-                for candidate in (parallel, stone):
-                    if candidate is not None and getattr(candidate, 'fishing', None) is not None:
-                        return candidate
-                return None
-            def battle(frame):
-                who = owner()
-                return bool(who is not None and who.fishing.real_battle(frame))
+            hud = RaidBattleHud(self.root)
             def cast(x, y, label):
-                if self.stop_event.is_set():
-                    return False
-                parallel_click(x, y, label)
-                return True
-            if owner() is None:
-                return None
-            return _lookup('RaidCastAssist')(battle=battle, cast=cast, event=self.event)
+                def allowed():
+                    now = _time().monotonic()
+                    return (not self.stop_event.is_set() and st.stage=='raid_battle'
+                            and not st.handling_interrupt and st.stage_deadline is not None
+                            and now < st.stage_deadline and (st.run_deadline is None or now < st.run_deadline)
+                            and (max_clicks is None or self.state['clicks'] < max_clicks))
+                with getattr(self.device,'io_lock',nullcontext()):
+                    if not allowed():
+                        return False
+                    fresh = runtime.capture()
+                    self.remember(fresh)
+                    with self.lock:self.state['frames'] += 1
+                    if raid.observe_battle(fresh):
+                        return False
+                    # A recognized lobby, result, or notice owns its own input.
+                    for key in ('driftinggirl_raid_prepare','driftinggirl_raid_start',
+                                'driftinggirl_raid_confirm', PopupRaidReturn.CLOSE):
+                        item = st.matchers.get(key)
+                        if item is not None:
+                            rule, button, offset = item
+                            if button.match(fresh, offset=offset, similarity=rule['threshold']):
+                                return False
+                    if not allowed():
+                        return False
+                    parallel_click(x, y, label)
+                    return True
+            return _lookup('RaidCastAssist')(battle=hud.visible, cast=cast, event=self.event)
         def make_stone(retire_expired=False):
             entry = next((r for r, _, _ in rules if r['id'] == 'driftinggirl_stone_farm'), None)
             if preview or entry is None:
@@ -1853,8 +2058,38 @@ class Clicker:
         st.run_deadline = _time().monotonic() + timeout if timeout is not None else None
         st.defense_pause_at = None
         st.completion_pause_at = None
+        check_adb = getattr(self.device, 'ensure_online', None) if not preview else None
+        adb_check_pending = callable(check_adb)
         def capture_loop_frame():
-            return runtime.capture_loop()
+            nonlocal adb_check_pending
+            while True:
+                started = _time().monotonic()
+                try:
+                    # MuMu's native frames can arrive before the ADB daemon
+                    # has brought the selected shell-input transport online.
+                    if adb_check_pending:
+                        check_adb()
+                        adb_check_pending = False
+                    return runtime.capture_loop()
+                except DeviceUnavailable as error:
+                    if recovery is None or not rules:
+                        raise
+                    adb_check_pending = callable(check_adb)
+                    recovery.wait_for_device(error, started)
+                    observe_meter_candidate('game_recovery')
+                    with self.lock:
+                        self.state['stage'] = 'game_recovery'
+                    remaining = (1.0 if st.run_deadline is None
+                                 else max(0., st.run_deadline-_time().monotonic()))
+                    if self.stop_event.wait(min(1.,remaining)):
+                        raise InterruptedError('已停止')
+                    if st.run_deadline is not None and _time().monotonic() >= st.run_deadline:
+                        with self.lock:
+                            self.state['stop_reason'] = 'timeout'
+                        self.event('本次测试达到等待时限，已停止')
+                        self.stop_event.set()
+                        raise InterruptedError('已停止')
+                    recovery.check_deadline()
         def record_failure(exc):
             with self.lock:
                 self.state["last_error"] = str(exc)
@@ -1985,12 +2220,28 @@ class Clicker:
                                                 progress.status()['edges'].items())
                                     + ' 之间反复往返，未取得进展')
                 self.remember(frame)
+                stale_guild_scene = None
                 if not preview:
                     self.lifecycle.ui.rule=None
                     probe=stone or parallel or getattr(getattr(setup,'view',None),'owner',None)
-                    main_visible=(probe is not None and probe.fishing._main_visible(frame)
+                    workflow = self.lifecycle.context
+                    stale_guild = workflow.expired_guild_shop()
+                    if stale_guild:
+                        if probe is None:
+                            probe = readonly_guild_world()
+                        stale_guild_scene = GuildSelectionGuard.cleanup_scene(frame, st.matchers, probe)
+                    fishing = getattr(probe, 'fishing', None)
+                    main_visible=(stale_guild_scene is None and fishing is not None and fishing._main_visible(frame)
                         and not probe.sailing.menu(frame) and not probe._map(frame))
-                    self.lifecycle.context.reconcile_stage(st,st.matchers,module,frame,self.state['frame_id'],main=main_visible)
+                    if workflow.expired_daily_shop():
+                        if coin_shop_context(frame) is not None:
+                            main_visible = False
+                        elif fishing is None:
+                            main_visible = self.daily_return_visible(frame, st.matchers)
+                    workflow.reconcile_stage(st,st.matchers,module,frame,self.state['frame_id'],main=main_visible)
+                    if stale_guild and workflow.pending_stage is None:
+                        stale_guild = False
+                        with self.lock:self.state['stage'] = st.stage
                     for ended in self.lifecycle.context.drain_outcomes():
                         feature=ended['feature']
                         if feature in FEATURE_BY_ID:
@@ -2114,11 +2365,17 @@ class Clicker:
                         known = ready or recovery_owner._parallel(frame) or recovery_owner._observatory(frame)
                     else:
                         known,ready=recovery.scene(frame)
+                    if (st.stage=='raid_battle' and raid is not None and raid.observe_battle(frame)):
+                        known = True
                     # Recovery's fresh login guard holds device.io_lock.
                     # Keep its capture and input in the same Maa callback so
                     # capture cannot queue on another thread waiting for it.
                     recovery_started = _time().monotonic()
+                    waiting_for_device = getattr(recovery, 'device_waiting', False)
                     result = runtime.call('game_recovery', recovery.step, frame, known, ready)
+                    if waiting_for_device and result is None:
+                        with self.lock:
+                            self.state['stage'] = st.stage
                     recovery_wait = st.account_recovery_wait(result, recovery_started, _time().monotonic())
                     if optional_cleanup is not None and st.stage_deadline is not None:
                         st.stage_deadline = min(st.stage_deadline, optional_cleanup.deadline)
@@ -2160,6 +2417,8 @@ class Clicker:
                             self.state['meter'] = calibrator.status() if calibrator else None
                             self.state['stone'] = stone.status() if stone else None
                     elif result == 'wait':
+                        if optional_cleanup is not None and optional_cleanup.family == 'guild_entry':
+                            optional_cleanup.reset_return_proof()
                         observe_meter_candidate('game_recovery')
                         with self.lock:
                             self.state['stage'] = 'game_recovery'
@@ -2173,9 +2432,22 @@ class Clicker:
                         continue
                 if optional_cleanup is not None:
                     now = _time().monotonic()
+                    guild_entry = optional_cleanup.family == 'guild_entry'
                     if now >= optional_cleanup.deadline:
+                        if guild_entry:
+                            raise RuntimeError('公会商店入口只读复核超过40秒，未确认已回主画面；保留未完成记录')
                         raise RuntimeError('可跳过任务的安全关闭超过40秒，仍未识别主画面；保留未完成记录，拒绝未知画面点击')
-                    if optional_cleanup.observe_return(frame, st.matchers, now):
+                    if guild_entry:
+                        if st.handling_interrupt:
+                            optional_cleanup.reset_return_proof()
+                            returned = False
+                        else:
+                            native_fishing = getattr(stone, 'native_entry_recovery_context', None)
+                            returned = optional_cleanup.observe_return(frame, st.matchers, now, native_fishing=native_fishing)
+                    else:
+                        returned = optional_cleanup.observe_return(frame, st.matchers, now)
+                    if returned and (not guild_entry or (not self.stop_event.is_set()
+                                    and _time().monotonic() < optional_cleanup.deadline)):
                         finish_scheduled_daily(False)
                         st.daily_attempt, st.daily_verified = None, False
                         st.reset_after_return()
@@ -2188,7 +2460,10 @@ class Clicker:
                             self.state['stage'] = 'main'
                             self.state['optional_cleanup'] = {**optional_cleanup.status(), 'returned': True}
                         optional_cleanup = None
-                        self.event('可跳过任务：连续三帧三秒确认已返回主画面，其他任务继续；本次不记领奖完成')
+                        if guild_entry:
+                            self.event('公会商店：入口超时后连续三帧三秒确认已回主画面，按原间隔重查；本次不记购买完成')
+                        else:
+                            self.event('可跳过任务：连续三帧三秒确认已返回主画面，其他任务继续；本次不记领奖完成')
                         if stop_on_main:
                             with self.lock:self.state['stop_reason'] = 'cycle_complete'
                             self.stop_event.set()
@@ -2221,10 +2496,67 @@ class Clicker:
                         and (interruption is not None or st.handling_interrupt)):
                     stone._confirmed(None)
                     stone.first_result_rank = None
+                if (not preview and stale_guild and st.stage == 'main' and interruption is None
+                        and not st.handling_interrupt and not self.lifecycle.ui.refresh().owners):
+                    now = _time().monotonic()
+                    record = workflow.guild_cleanup_record()
+                    if stale_guild_deadline is None and (stale_guild_scene is not None or record):
+                        wall = workflow.wall()
+                        stale_guild_deadline_epoch = record.get('deadline', wall+40)
+                        stale_guild_deadline = now + min(40., stale_guild_deadline_epoch-wall)
+                        self.event('公会商品：恢复过期步骤的窗口清理，保留原购买截止和次数')
+                    if stale_guild_deadline is not None and now >= stale_guild_deadline and not main_visible:
+                        raise RuntimeError('公会商店清理未确认回到主画面，已保留原购买和关闭记录')
+                    if stale_guild_scene is not None:
+                        frame_id = self.state['frame_id']
+                        key = stale_guild_scene if stale_guild_scene[1] is not None else None
+                        if (key is not None and key[0] in record.get('attempts', {})):
+                            stale_guild_proof.reset()
+                        elif stale_guild_proof.observe(key, frame_id, now):
+                            issued = runtime.call('cleanup', dismiss_stale_guild, key, probe, frame_id)
+                            if issued is not None:
+                                guild_pending_evidence = issued
+                        with self.lock:self.state['stage'] = 'guild_cleanup'
+                        if max_clicks is not None and self.state['clicks'] >= max_clicks:
+                            with self.lock:self.state['stop_reason'] = 'click_limit'
+                            self.stop_event.set()
+                            break
+                        if runtime.wait(self.config['poll_interval']):break
+                        continue
+                stale_guild_proof.reset()
+                if not preview and interruption is None and not st.handling_interrupt:
+                    daily_closing = st.stage == 'daily_after_claim' and st.daily_cleanup_deadline is not None
+                    expired_daily = (st.stage == 'main' and workflow.expired_daily_shop()
+                                     and not self.lifecycle.ui.refresh().owners)
+                    if daily_closing or expired_daily:
+                        coin_context = coin_shop_context(frame)
+                        recorded_close = workflow.daily_cleanup_record() if expired_daily else {}
+                        if (recorded_close and workflow.wall() >= recorded_close['deadline'] and not main_visible):
+                            raise RetryableStage('每日奖励点券页关闭后未确认返回，保留原记录')
+                        if coin_context is not None:
+                            now = _time().monotonic()
+                            frame_id = self.state['frame_id']
+                            if not recorded_close and coin_close_proof.observe(coin_context, frame_id, now):
+                                if expired_daily:
+                                    runtime.call('cleanup', dismiss_coin_shop, coin_context, frame_id,
+                                                 now + 40, workflow.wall() + 40)
+                                else:
+                                    deadline = min(st.stage_deadline, st.daily_cleanup_deadline)
+                                    if runtime.call('rule_driftinggirl_daily_coin_close', dismiss_coin_shop,
+                                                    coin_context, frame_id, deadline):
+                                        started = _time().monotonic()
+                                        st.stage, st.stage_trigger = 'daily_return', '每日奖励：关闭点券页'
+                                        st.stage_started_at = st.stage_ready_at = started
+                                        st.stage_deadline = min(started + 20, st.daily_cleanup_deadline)
+                                        st.stable = {key: 0 for key in st.stable}
+                            if expired_daily or _time().monotonic() < st.stage_deadline:
+                                if runtime.wait(self.config['poll_interval']):break
+                                continue
+                coin_close_proof.reset()
                 completion_owner = (parallel if parallel is not None and not getattr(parallel,'only_sailing_shutdown',False)
                                     else stone if parallel is None else None)
                 if (not preview and completion_owner is not None
-                        and interruption is None and not st.handling_interrupt
+                        and not stale_guild and interruption is None and not st.handling_interrupt
                         and callable(getattr(completion_owner,'completion_step',None))):
                     completion_started = _time().monotonic()
                     ready = None
@@ -2309,7 +2641,7 @@ class Clicker:
                         and parallel is not None and st.stage == 'achievements_claim'
                         and crown_rule is not None and crown_recovery_rule is not None
                         and crown_ready is not None and crown_fold is not None
-                        and 'driftinggirl_achievements_open' in st.matchers
+                        and CROWN_ENTRY in st.matchers
                         and st.stage_trigger == crown_rule[0]['name']
                         and st.stage_deadline is not None and _time().monotonic() < st.stage_deadline
                         and not module.appear(crown_ready[1],offset=crown_ready[2],similarity=crown_ready[0]['threshold'])
@@ -2327,16 +2659,8 @@ class Clicker:
                 if (st.resource_crown_frames >= max(3,crown_recovery_rule[0]['stable_frames'] if crown_recovery_rule else 3)
                         and st.resource_crown_since is not None
                         and _time().monotonic()-st.resource_crown_since >= max(3,crown_recovery_rule[0].get('min_stage_seconds',0))):
-                    # Preserve the original entry cooldown and bounded retry
-                    # history. This abandons an interrupted attempt, never
-                    # records a claimed reward or extends its old deadline.
-                    history = st.entry_recoveries.setdefault('driftinggirl_achievements_open',deque())
                     now = _time().monotonic()
-                    while history and now-history[0] >= 300:
-                        history.popleft()
-                    if len(history) >= 3:
-                        raise RuntimeError('皇冠奖励入口五分钟内已恢复三次仍未打开，已停止')
-                    history.append(now)
+                    record_crown_recovery(now)
                     st.stage,st.stage_deadline,st.stage_trigger = 'main',None,None
                     st.stage_started_at,st.stage_ready_at = now,0
                     finish_scheduled_daily()
@@ -2579,7 +2903,6 @@ class Clicker:
                         offset=close_rule[2],similarity=close_rule[0]['threshold']))
                     return_ready=return_rule is not None and _time().monotonic() >= st.stage_ready_at
                     if notice_gone:
-                        st.popup_reclick=0
                         st.popup_reclick_frames=0
                     else:
                         st.popup_reclick_frames+=1
@@ -2608,7 +2931,10 @@ class Clicker:
                         if runtime.wait(self.config['poll_interval']):
                             break
                         continue
-                    if not (panel_return or native_task_return or restaurant_return or cruise_return or visible) and not self.stop_event.is_set():
+                    if (not (panel_return or native_task_return or restaurant_return or cruise_return or visible)
+                            and close_rule is not None and close_rule[0].get('enabled') and close_rule[0].get('interrupt')
+                            and st.stage_trigger == close_rule[0]['name'] and st.stage_deadline is not None
+                            and _time().monotonic() < st.stage_deadline and not self.stop_event.is_set()):
                         # 红叉有时被弹窗自身的滑入动画吃掉:切到 task_popup_return
                         # 之后 stage 过滤只保留本阶段规则,那条 stage="*" 的中断
                         # 规则不再参与扫描,继续傻等只能撞上 15 秒期限停机。
@@ -2621,20 +2947,25 @@ class Clicker:
                                   else popup_reclick_decision(True,return_ready,st.popup_reclick))
                         if decision=='give_up':
                             raise RuntimeError('任务弹窗：红叉连续三次未关掉，已停止；请在单项验证时确认画面')
-                        if (decision=='reclick' and close_rule is not None
-                                and module.appear_then_click(close_rule[1],offset=close_rule[2],
-                                    interval=close_rule[0]['interval'],similarity=close_rule[0]['threshold'])):
-                            st.popup_reclick+=1
+                        if decision=='reclick':
+                            try:
+                                issued = runtime.call('rule_'+close_rule[0]['id'], retry_popup_close,
+                                                      close_rule, tuple(close_rule[1].button))
+                            except RuleStageExpired:
+                                issued = None
                             st.popup_reclick_frames=0
-                            now=_time().monotonic()
-                            delay=max(2.0,float(close_rule[0]['interval']))
-                            st.stage_started_at=now
-                            st.stage_ready_at=now+delay
-                            st.stage_deadline=now+max(delay+2.0,number(close_rule[0].get('stage_timeout',15),1,3600))
-                            st.stable={key:0 for key in st.stable}
-                            with self.lock:
-                                self.state['clicks']+=1
-                            self.event(f'任务弹窗：红叉没有关掉弹窗，{delay:.0f} 秒后重按（第 {st.popup_reclick} 次）')
+                            if issued is not None:
+                                popup_pending_evidence = issued
+                                st.popup_reclick+=1
+                                delay=max(2.0,float(close_rule[0]['interval']))
+                                st.stage_ready_at=min(st.stage_deadline,_time().monotonic()+delay)
+                                st.stable={key:0 for key in st.stable}
+                                with self.lock:self.state['clicks']+=1
+                                self.event(f'任务弹窗：新图确认红叉后已重按（第 {st.popup_reclick} 次），保留原截止')
+                                if max_clicks is not None and self.state['clicks'] >= max_clicks:
+                                    with self.lock:self.state['stop_reason'] = 'click_limit'
+                                    self.stop_event.set()
+                                    break
                             if runtime.wait(self.config['poll_interval']):
                                 break
                             continue
@@ -2732,15 +3063,16 @@ class Clicker:
                         if runtime.wait(self.config['poll_interval']):
                             break
                         continue
-                if (not preview and interruption is None and st.stage == 'raid_battle'
-                        and raid is not None and runtime.call('raid_cast',raid.step,frame)):
-                    # 甩杆输入独占这一帧,避免和 raid_confirm 的观察规则抢。
+                if not preview and interruption is None and st.stage == 'raid_battle' and raid is not None:
+                    raid_clicked = runtime.call('raid_cast',raid.step,frame)
                     with self.lock:
-                        self.state['matches'] += 1
                         self.state['raid_cast'] = raid.status()
-                    if runtime.wait(self.config['poll_interval']):
-                        break
-                    continue
+                    if raid_clicked:
+                        # 甩杆输入独占这一帧，避免和结算规则争用。
+                        with self.lock:self.state['matches'] += 1
+                        if runtime.wait(self.config['poll_interval']):
+                            break
+                        continue
                 if not preview and interruption is None and st.stage == 'main':
                     bonus_entry=st.matchers.get(BONUS_ID)
                     bonus_visual=getattr(bonus_entry[1],'daily_bonus_visual',None) if bonus_entry else None
@@ -2808,7 +3140,8 @@ class Clicker:
                         continue
                     mailbox_cleanup_frames,mailbox_cleanup_since = 0,None
                     mailbox_cleanup_key = None
-                if not preview and interruption is None and st.stage == 'main' and not guild_orphan_used:
+                if (not preview and interruption is None and st.stage == 'main' and not guild_orphan_used
+                        and workflow.pending_stage is None and not workflow.blocked):
                     context = GuildSelectionGuard.list_context(frame, st.matchers)
                     now = _time().monotonic()
                     if context is not None:
@@ -3022,6 +3355,22 @@ class Clicker:
                         break
                     continue
                 scan_candidates = optional_cleanup.rules(rules) if optional_cleanup is not None else rules
+                if not preview and optional_cleanup is None and st.stage == 'raid_wait':
+                    prepare = st.matchers.get('driftinggirl_raid_prepare')
+                    if prepare and st.stage_trigger == prepare[0]['name']:
+                        # The same bright-main observation can also confirm a
+                        # cancelled preparation. The entry's retry limit still applies.
+                        scan_candidates = [
+                            ({**rule, 'stage': 'raid_wait', 'name': 'RAID：准备后已回到主画面'}, button, offset)
+                            if (rule['id'] == 'driftinggirl_raid_entry_recover'
+                                and rule.get('action') == 'observe' and rule.get('next_stage') == 'main')
+                            else (rule, button, offset)
+                            for rule, button, offset in scan_candidates
+                        ]
+                crown_history = st.entry_recoveries.get(CROWN_ENTRY, ())
+                if (not preview and st.stage == 'main' and len(crown_history) >= CROWN_RECOVERY_LIMIT
+                        and _time().monotonic() - crown_history[0] < CROWN_RECOVERY_WINDOW):
+                    scan_candidates = [item for item in scan_candidates if item[0]['id'] not in CROWN_ENTRIES]
                 if not preview and potion_cleanup is not None and potion_cleanup.attempts >= potion_cleanup.LIMIT:
                     scan_candidates = [item for item in scan_candidates if item[0]['id'] != potion_cleanup.ENTRY]
                 if not preview and event_potion_skips >= 3:
@@ -3058,38 +3407,7 @@ class Clicker:
                     mailbox_retry = True
                 if stage_expired and not grace_visible:
                     if candidate is None and st.skip_on_timeout:
-                        if st.stage.startswith('daily_'):
-                            self.event(f'「{st.stage_trigger}」超时，跳过本次收取；先安全关闭并确认返回，不记领奖完成')
-                            begin_daily_cleanup('daily_return' if self.daily_return_visible(frame,st.matchers)
-                                                else 'daily_after_claim')
-                            continue
-                        # The graph is diagnostic only. Every input still goes
-                        # through scan_rules and the new-frame close guard.
-                        if nav_requested(rules, st.stage):
-                            step = navigation().step()
-                            self.event(f'页面图退回建议：{step.kind} {step.button or ""}；仍由安全关闭流程逐帧核对')
-                        optional_cleanup = OptionalCleanup(st.stage, _time().monotonic(),
-                            original_deadline=st.stage_deadline, original_trigger=st.stage_trigger)
-                        actions = optional_cleanup.prepare(rules, self.load_rule)
-                        if optional_cleanup.family == 'event_potion':
-                            event_potion_skips += 1
-                            if event_potion_skips == 3:
-                                self.event('活动药水：本轮已跳过 3 次，本轮不再扫描商店入口，其他任务继续')
-                        st.matchers.update({r['id']: (r,b,o) for r,b,o in actions})
-                        self.event(f'「{st.stage_trigger}」超时，跳过本次；40秒内仅安全关闭，不再领取或重开；原截止 {st.stage_deadline}')
-                        finish_scheduled_daily(False)
-                        st.daily_attempt, st.daily_verified = None, False
-                        st.stage, st.stage_deadline = optional_cleanup.stage, optional_cleanup.deadline
-                        st.stage_trigger = '可跳过任务：安全退出未完成的收奖'
-                        st.skip_on_timeout = False
-                        st.stage_started_at = _time().monotonic()
-                        st.stage_ready_at = 0
-                        st.stable = {key: 0 for key in st.stable}
-                        st.stable.update({r['id']: 0 for r,_,_ in actions})
-                        st.number_values.clear(); st.target_keys.clear()
-                        with self.lock:
-                            self.state['stage'] = st.stage
-                            self.state['optional_cleanup'] = optional_cleanup.status()
+                        begin_optional_cleanup(frame)
                         continue
                     if (candidate is None and st.daily_cleanup_deadline is not None
                             and st.stage.startswith('daily_')):
@@ -3197,7 +3515,11 @@ class Clicker:
                             rule={**rule,'action':'observe','name':'每日奖励：附赠奖励为灰色，跳过点击'}
                     recovery_entry = rule.get('recovery_entry') if not preview else None
                     retry_limit = rule.get('retry_limit') if not preview else None
-                    if recovery_entry:
+                    crown_entry_recovery = (recovery_entry == CROWN_ENTRY
+                        and rule['id'] == 'driftinggirl_achievements_parallel_entry_recover'
+                        and st.stage == 'achievements_tab' and rule.get('action') == 'observe'
+                        and rule.get('next_stage') == 'main')
+                    if recovery_entry and not crown_entry_recovery:
                         history = st.entry_recoveries.setdefault(recovery_entry, deque())
                         now = _time().monotonic()
                         while history and now - history[0] >= 300:
@@ -3382,6 +3704,15 @@ class Clicker:
                                 interval=rule['interval'], similarity=rule['threshold'])
                         try:
                             acted = runtime.call('rule_'+rule['id'],issue_candidate)
+                        except RuleStageExpired:
+                            # The input guard rejected before ADB dispatch.
+                            # Take the same close-only path as a scan timeout.
+                            if (not st.skip_on_timeout or st.handling_interrupt
+                                    or rule.get('interrupt') or optional_cleanup is not None
+                                    or self.stop_event.is_set()):
+                                raise
+                            begin_optional_cleanup(frame)
+                            continue
                         except Exception as exc:
                             if cleanup_click:
                                 optional_cleanup.uncertain = True
@@ -3454,14 +3785,7 @@ class Clicker:
                             guild_pending_evidence = receipt, guild_before
                         if did_click and popup_close:
                             popup_cruise.arm(st,frame,setup,stopped=self.stop_event.is_set())
-                            if self.popup_evidence is None:
-                                self.popup_evidence = _lookup('BossInputEvidence')(
-                                    self.root,self.event,limit=16,folder='popup-input',label='任务弹窗')
-                            receipt = dict(input_id=uuid.uuid4().hex,rule_id=rule['id'],
-                                before_frame_id=popup_frame_id,issued_at=time.time(),issued_only=True,
-                                input_transport='adb',hold_ms=0,
-                                xy=[(button.button[0]+button.button[2])//2,(button.button[1]+button.button[3])//2])
-                            popup_pending_evidence = receipt,popup_before
+                            popup_pending_evidence = popup_input_receipt(popup_before,popup_frame_id,button)
                         if retry_limit:
                             # 同上:显式用候选规则 id,不依赖扫描循环变量
                             st.entry_recoveries[rule["id"]].append(_time().monotonic())
@@ -3470,7 +3794,11 @@ class Clicker:
                             module.interval_timer['driftinggirl_mailbox_open'] = Timer(900).start()
                             self.event('邮箱物品超过获取上限，保留未领邮件，15 分钟后再检查')
                         if recovery_entry:
-                            st.entry_recoveries[recovery_entry].append(_time().monotonic())
+                            now = _time().monotonic()
+                            if crown_entry_recovery:
+                                record_crown_recovery(now)
+                            else:
+                                st.entry_recoveries[recovery_entry].append(now)
                             finish_scheduled_daily()
                             st.daily_attempt, st.daily_verified = None, False
                             with self.lock:
@@ -3625,6 +3953,8 @@ class Clicker:
             self.device.input_issued=None
             if cleanup_evidence is not None:
                 cleanup_evidence.close()
+            if coin_close_evidence is not None:
+                coin_close_evidence.close()
             if self.boss_evidence is not None:
                 self.boss_evidence.close()
                 self.boss_evidence = None

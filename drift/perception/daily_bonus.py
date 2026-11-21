@@ -7,6 +7,35 @@ from PIL import Image
 BONUS_ID = 'driftinggirl_daily_bonus'
 
 
+class DailyCoinShop:
+    """The bright PREMIUM coin grid, with the shop's actual close control."""
+    ASSET = 'assets/daily-reward/premium-coins-close.png'
+    CLOSE_BOX = (634, 247, 695, 296)
+    MARKS = ((170, 249, 269, 280), (202, 346, 310, 433),
+             (371, 349, 464, 432), CLOSE_BOX)
+
+    def __init__(self, root):
+        with Image.open(Path(root) / self.ASSET) as source:
+            pixels = np.asarray(source.convert('RGB'))
+        self.parts = []
+        for x, y, right, bottom in self.MARKS:
+            crop = pixels[y:bottom, x:right]
+            self.parts.append(((x, y, right, bottom), cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY),
+                               float(crop.max(axis=2).mean()) * .91))
+
+    def visible(self, frame):
+        if frame.shape != (1280, 720, 3):
+            return False
+        for (x, y, right, bottom), template, minimum in self.parts:
+            crop = frame[y:bottom, x:right]
+            if float(crop.max(axis=2).mean()) < minimum:
+                return False
+            gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
+            if float(cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)[0, 0]) < .96:
+                return False
+        return True
+
+
 def supported_bonus(rule):
     return (rule.get('id') == BONUS_ID
             and rule.get('asset') == 'assets/daily-reward/premium-ready.png'

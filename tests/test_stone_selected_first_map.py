@@ -77,6 +77,18 @@ class SelectedFirstMapTests(unittest.TestCase):
         self.assertEqual(self.w.journal['phase_deadline'],old['phase_deadline'])
         self.assertEqual(self.w.journal['attempts']['first-select'],1)
 
+    def test_selected_full_skull_does_not_need_avatar_occlusion(self):
+        frame = self.selected().copy()
+        full = self.w.assets['map-boss']
+        frame[428:461,401:432] = full
+        self.assertTrue(self.w._first_selected_map(frame))
+        damaged = frame.copy()
+        damaged[455:461,405:430] = 0
+        self.assertFalse(self.w._first_selected_map(damaged))
+        self.w.journal['first_selected_point'] = [417,444]
+        self.assertFalse(self.w._first_selected_map(frame))
+        self.assertEqual(self.actions, [])
+
     def test_unknown_or_changed_map_context_never_closes(self):
         frame=self.selected()
         bad=frame.copy();bad[1136:1241,9:405]=0

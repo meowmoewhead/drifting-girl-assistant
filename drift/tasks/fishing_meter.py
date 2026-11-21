@@ -552,34 +552,27 @@ class FishingMeter:
         if selected is None or player is None:
             return None
         center = (box[1]+box[3])//2
+        context = self._context(frame)
+        low_covered = self._covered(box,(234,1070,284,1100))
+        high_covered = self._covered(box,(237,929,282,953))
         # The visible frame center shifts by six pixels at the lower stop.
         # Its gold value covers the endpoint label; reading that cropped label
         # can turn 1359 into 359. The lower stop uses its full selected value;
         # the upper limit always needs an independent label reading.
-        # Keep both complete text views inside the label. The wider second
-        # region included an animated ring edge, creating a conflicting vote.
-        low = selected if center >= self.BOTTOM-self.ENDPOINT_SLOP else self.training._number(
-            frame, ((236,1070,283,1099), (236,1071,282,1097)))
-        # The first old crop included two rows above the actual white label;
-        # on the real 1604 frame its confidence fell to .63 while the complete
-        # tighter view read .995. Keep two independent full-number views and
-        # the same conflict/confidence guards, excluding the animated margin.
-        high = self.training._number(frame, ((237,931,282,953), (239,930,280,952)))
-        context = self._context(frame)
-        low_covered = self._covered(box,(234,1070,284,1100))
-        high_covered = self._covered(box,(237,929,282,953))
-        low_clear, high_clear = low is not None and not low_covered, high is not None and not high_covered
-        # A cropped label is not a new verified endpoint, even if OCR happens
-        # to recover its value. Only a recent same-location record can replace
-        # a hidden upper label; a nearby selected value cannot prove MAX.
-        if low_covered and center < self.BOTTOM-self.ENDPOINT_SLOP:
+        if center >= self.BOTTOM-self.ENDPOINT_SLOP:
+            low = selected
+        elif low_covered:
             low = self._cached_limit(context,'low')
-        # Proximity to the stop cannot establish the numeric upper limit:
-        # the actual 1806 selection at y937 still had a verified MAX of 1810.
-        # If the label is hidden, retain only a recent independent reading;
-        # otherwise reveal it before starting, even at the top of the track.
+        else:
+            low = self.training._number(frame, ((236,1070,283,1099), (236,1071,282,1097)))
+        # Use a recent independent reading for a covered label. With no
+        # cache, reveal the label before starting even at the top of the track.
         if high_covered:
             high = self._cached_limit(context,'high')
+        else:
+            high = self.training._number(frame, ((237,931,282,953), (239,930,280,952)))
+        low_clear = low is not None and not low_covered
+        high_clear = high is not None and not high_covered
         if (low is None and not low_covered or high is None and not high_covered
                 or low is not None and selected < low or high is not None and selected > high
                 or low is not None and high is not None and low > high):

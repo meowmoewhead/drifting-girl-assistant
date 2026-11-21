@@ -6,6 +6,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import io
 import json
+import math
 import os
 from pathlib import Path
 import queue
@@ -20,7 +21,18 @@ from . import theme
 from .theme import FONT, Card, Badge, Navigation, IconLabel, colors, text_colors
 
 TZ = timezone(timedelta(hours=8))
-CATEGORIES = ('干货', '炖煮', '生鱼片', '油炸', '炒饭', '面食', '寿司', '汤', '烧烤')
+SECONDS_PER_HOUR = 3600
+RESTAURANT_EFFECTS = {
+    '干货': '鱼饼获得量',
+    '炖煮': '鱼竿攻击力',
+    '生鱼片': '鱼叉塔攻击力',
+    '油炸': '大炮攻击力',
+    '炒饭': '机关炮塔攻击力',
+    '面食': '魔法石攻击力',
+    '寿司': '鲸鱼攻击力',
+    '汤': '琥珀/海蓝宝/次元石获得量',
+    '烧烤': '经验值获得量',
+}
 TRAINING_LABELS = dict(enabled='启用失败后练级', failure_limit='失败次数', level_gain='练级增量（兼容参数）',
     minutes='练级分钟数（兼容参数）', retry_level_gap='普通关允许等级差', final_boss_retry_level_gap='最后一关允许等级差',
     auto_sailing='练级自动航巡', meter_auto_adjust='练级标尺校准', boss_interrupt='海神反击', battle_tap='战斗补伤害',
@@ -55,6 +67,12 @@ class Panel:
         self.events = queue.Queue()
         self.pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix='desktop')
         self.fields = {}
+        self.parameter_forms = []
+        self.parameter_timers = {}
+        self.parameter_queue = {}
+        self.parameter_active = None
+        self.parameter_error = None
+        self.closing = False
         self.photo = None
         self.frame = None
         self.selection = None
@@ -67,7 +85,7 @@ class Panel:
         self.window.protocol('WM_DELETE_WINDOW', self.close)
         self.style()
         self.create_layout()
-        self.window.after(40, self.drain)
+        self.drain_timer = self.window.after(40, self.drain)
         self.theme_timer = self.window.after(2500, self.watch_system_theme)
         self.poll()
 
@@ -95,7 +113,7 @@ class Panel:
         self.theme_timer = self.window.after(2500, self.watch_system_theme)
 
     def notice_color(self, *_):
-        colors(self.notice_label, foreground='TEAL' if self.notice.get() in ('已完成。','正在处理…') else 'DANGER')
+        colors(self.notice_label, foreground='TEAL' if self.notice.get() in ('已完成。','正在处理…','正在自动保存…','参数已自动保存。') else 'DANGER')
 
     def create_layout(self):
         sidebar = ttk.Frame(self.window, width=240, padding=(14, 25, 14, 14))
@@ -166,7 +184,22 @@ class Panel:
         self.canvas.yview_scroll(-int(event.delta / 120), 'units')
 
     def close(self):
+        if self.closed or self.closing:
+            return
+        if not self.flush_parameters():
+            return
+        self.closing = True
+        self.finish_close()
+
+    def finish_close(self):
+        if self.parameter_active or self.parameter_queue:
+            self.window.after(60, self.finish_close)
+            return
+        if self.parameter_error:
+            self.closing = False
+            return
         self.closed = True
+        self.window.after_cancel(self.drain_timer)
         self.window.after_cancel(self.theme_timer)
         self.pool.shutdown(wait=False, cancel_futures=True)
         self.window.destroy()
@@ -197,11 +230,86 @@ class Panel:
                 self.notice.set(error or '已完成。')
             if callback:
                 callback(result, error)
-        self.window.after(60, self.drain)
+        self.drain_timer = self.window.after(60, self.drain)
 
     def post(self, path, data, callback=None):
         client = self.client
         self.submit(lambda: client.request(path, data), callback)
+
+    def watch_parameters(self, key, path, build, variables):
+        client = self.client
+        variables = tuple(variables)
+        saved = [variable.get() for variable in variables]
+
+        def commit():
+            timer = self.parameter_timers.pop(key, None)
+            if timer:
+                self.window.after_cancel(timer)
+            snapshot = [variable.get() for variable in variables]
+            active = self.parameter_active
+            if (snapshot == saved and key not in self.parameter_queue
+                    and (active is None or active[0] != key)):
+                return True
+            try:
+                data = build()
+            except (ValueError, tk.TclError) as exc:
+                self.parameter_error = str(exc)
+                self.notice.set('参数尚未保存：' + str(exc))
+                return False
+            if active and active[:4] == (key, client, path, data):
+                self.parameter_queue.pop(key, None)
+                return True
+
+            def completed():
+                saved[:] = snapshot
+                for variable, value in zip(variables, snapshot):
+                    for name, (current, initial, kind) in self.fields.items():
+                        if current is variable:
+                            self.fields[name] = current, value, kind
+
+            self.parameter_error = None
+            self.parameter_queue[key] = key, client, path, data, completed
+            self.send_parameters()
+            return True
+
+        def changed(variable):
+            self.parameter_queue.pop(key, None)
+            timer = self.parameter_timers.pop(key, None)
+            if timer:
+                self.window.after_cancel(timer)
+            self.notice.set('正在自动保存…')
+            if isinstance(variable, tk.BooleanVar):
+                commit()
+            else:
+                self.parameter_timers[key] = self.window.after(600, commit)
+
+        for variable in variables:
+            variable.trace_add('write', lambda *_, v=variable: changed(v))
+        self.parameter_forms.append(commit)
+
+    def send_parameters(self):
+        if self.parameter_active or not self.parameter_queue:
+            return
+        key = next(iter(self.parameter_queue))
+        job = self.parameter_queue.pop(key)
+        _, client, path, data, completed = job
+        self.parameter_active = job
+        self.notice.set('正在自动保存…')
+
+        def done(result, error):
+            self.parameter_active = None
+            if error:
+                self.parameter_error = error
+                self.notice.set('自动保存失败：' + error)
+            else:
+                completed()
+                self.notice.set('参数已自动保存。')
+            self.send_parameters()
+
+        self.submit(lambda: client.request(path, data), done, action=False)
+
+    def flush_parameters(self):
+        return all(commit() for commit in self.parameter_forms)
 
     def poll(self):
         if self.closed:
@@ -264,7 +372,7 @@ class Panel:
         selected = self.nav.selection()
         if not selected or selected[0] == self.page:
             return
-        if self.fields and self.dirty() and not messagebox.askyesno('未保存的修改', '当前参数尚未保存，放弃这些修改并切换页面？', parent=self.window):
+        if not self.flush_parameters():
             self.nav.selection_set(self.page)
             return
         self.page = selected[0]
@@ -299,6 +407,9 @@ class Panel:
             variable = tk.StringVar(value=str(value if value is not None else ''))
             widget = ttk.Combobox(row, textvariable=variable, values=choices, state='readonly', width=32) if choices else ttk.Entry(row, textvariable=variable, width=35)
             widget.pack(side='left', fill='x', expand=True)
+            widget.bind('<FocusOut>', lambda event: self.flush_parameters())
+            if choices:
+                widget.bind('<<ComboboxSelected>>', lambda event: self.flush_parameters())
             kind = type(value) if type(value) in (int, float) else str
         self.fields[key] = variable, variable.get(), kind
         return variable
@@ -310,11 +421,13 @@ class Panel:
             cell=ttk.Frame(grid);cell.grid(row=i//columns,column=i%columns,sticky='w',padx=(0,12),pady=3)
             self.field(cell,key,label,value)
 
-    def values(self):
+    def values(self, fields=None):
         result = {}
-        for key, (variable, _, kind) in self.fields.items():
+        for key, (variable, _, kind) in (self.fields if fields is None else fields).items():
             try:
                 result[key] = kind(variable.get())
+                if kind is float and not math.isfinite(result[key]):
+                    raise ValueError
             except ValueError:
                 raise ValueError('请检查数字参数，不要填写文字或空值') from None
         return result
@@ -332,6 +445,7 @@ class Panel:
         for widget in self.content.winfo_children():
             widget.destroy()
         self.fields = {}
+        self.parameter_forms = []
         self.canvas.yview_moveto(0)
         self.photo = None
         self.frame = None
@@ -429,8 +543,12 @@ class Panel:
         modes = {'降阶刷最后 BOSS': 'stone', '旧版任务导航练级': 'legacy', '关闭循环': 'off'}
         current = '降阶刷最后 BOSS' if enabled.get('stone_farm') else '旧版任务导航练级' if enabled.get('parallel_world') else '关闭循环'
         variable = tk.StringVar(value=current)
-        ttk.Combobox(box, textvariable=variable, values=list(modes), state='readonly', width=32).pack(side='left')
-        ttk.Button(box, text='保存模式（停止后）', command=lambda: self.post('/api/portal-mode', {'mode': modes[variable.get()]})).pack(side='left', padx=12)
+        selector = ttk.Combobox(box, textvariable=variable, values=list(modes), state='readonly', width=32)
+        selector.pack(side='left')
+        self.watch_parameters('portal-mode', '/api/portal-mode',
+                              lambda: {'mode': modes[variable.get()]}, [variable])
+        selector.bind('<<ComboboxSelected>>', lambda event: self.flush_parameters())
+        ttk.Label(box, text='选择后自动保存，切换模式需先停止脚本。', style='CardMuted.TLabel').pack(side='left', padx=12)
 
     def render_task(self, feature):
         self.title(feature['name'], feature.get('description', ''))
@@ -446,7 +564,11 @@ class Panel:
                             command=lambda: self.post('/api/features/change', {'id': feature['id'], 'enabled': variable.get()})).pack(anchor='w')
         if feature['id'] != 'return_parallel':
             box = self.section('功能参数')
-            self.field(box, 'interval', '检查 / 冷却间隔（秒）', float(feature.get('interval') or 1))
+            interval = float(feature.get('interval') or 1)
+            if feature['id'] == 'restaurant_upgrade':
+                self.field(box, 'interval', '检查 / 冷却间隔（小时）', interval / SECONDS_PER_HOUR)
+            else:
+                self.field(box, 'interval', '检查 / 冷却间隔（秒）', interval)
             if feature['id'] == 'mana':
                 self.field(box, 'mana_threshold', '法力低于此值时补充', int(feature.get('mana_threshold') or 25))
             if feature.get('hold_seconds') is not None:
@@ -460,7 +582,10 @@ class Panel:
             if feature['id'] == 'restaurant_upgrade':
                 selected = set(feature.get('targets') or [])
                 ttk.Label(box, text='选择要强化的类别；全部不选表示按图鉴顺序检查所有类别。').pack(anchor='w', pady=6)
-                self.check_grid(box,[('category.'+c,c,c in selected) for c in CATEGORIES])
+                self.check_grid(box, [
+                    ('category.' + category, f'{category}（{effect}）', category in selected)
+                    for category, effect in RESTAURANT_EFFECTS.items()
+                ], columns=2)
             if feature.get('cruise_settings'):
                 options = feature['cruise_settings']
                 cruise = self.section('游戏巡航')
@@ -480,8 +605,11 @@ class Panel:
                     for field,tail in [('auto','自动续'),('enhance','技能强化')]:
                         self.field(cell,f'skills.{key}.{field}',tail,options['skills'][key][field])
                 self.field(skills, 'skills.growth_points', '经验加速（仅使用技能点购买）', options['skills']['growth_points'])
-            ttk.Button(self.content, text='保存功能参数', style='Accent.TButton', command=lambda: self.safe(lambda: self.save_task(feature))).pack(anchor='e', pady=10)
-            ttk.Label(self.content, text='运行中可保存，沿用原热修改规则。当前流程的截止时间和已用次数不会重置。', style='Muted.TLabel', wraplength=850).pack(anchor='w')
+            fields = self.fields
+            self.watch_parameters('task/' + feature['id'], '/api/features/change',
+                                  lambda: self.task_values(feature, fields),
+                                  [variable for variable, _, _ in fields.values()])
+            ttk.Label(self.content, text='修改后自动保存；运行中在下一个安全时机应用新参数。', style='Muted.TLabel', wraplength=850).pack(anchor='w', pady=10)
         execution = feature.get('execution') or {}
         if execution.get('mode') != 'realtime':
             box = self.section('下次开启时间 · 北京时间')
@@ -490,9 +618,14 @@ class Panel:
                 value = datetime.fromisoformat(current).astimezone(TZ).strftime('%Y-%m-%d %H:%M:%S')
             except (ValueError, TypeError):
                 value = datetime.now(TZ).strftime('%Y-%m-%d %H:%M:%S')
-            self.next_time = tk.StringVar(value=value)
-            ttk.Entry(box, textvariable=self.next_time, width=28).pack(side='left')
-            ttk.Button(box, text='保存时间', command=lambda: self.safe(lambda: self.save_schedule(feature['id']))).pack(side='left', padx=8)
+            next_time = tk.StringVar(value=value)
+            entry = ttk.Entry(box, textvariable=next_time, width=28)
+            entry.pack(side='left')
+            entry.bind('<FocusOut>', lambda event: self.flush_parameters())
+            self.watch_parameters('schedule/' + feature['id'], '/api/tasks/schedule',
+                lambda: {'id': feature['id'], 'next_run': datetime.strptime(
+                    next_time.get().strip(), '%Y-%m-%d %H:%M:%S').replace(tzinfo=TZ).isoformat()},
+                [next_time])
             ttk.Button(box, text='设为可执行', command=lambda: self.post('/api/tasks/schedule', {'id': feature['id'], 'next_run': datetime.now(TZ).isoformat()})).pack(side='left')
         if feature['id'] in ('meter_calibration', 'stone_farm'):
             prefix = 'meter' if feature['id'] == 'meter_calibration' else 'stone'
@@ -504,12 +637,12 @@ class Panel:
         for index, step in enumerate(feature.get('steps', []), 1):
             ttk.Label(box, text=f'{index}. {step}', wraplength=800).pack(anchor='w', pady=4)
 
-    def save_task(self, feature):
+    def task_values(self, feature, fields):
         data = {'id': feature['id']}
         cruise = deepcopy(feature.get('cruise_settings'))
         training = deepcopy(feature.get('training'))
         targets = []
-        for key, value in self.values().items():
+        for key, value in self.values(fields).items():
             if key.startswith('category.'):
                 if value:
                     targets.append(key.split('.', 1)[1])
@@ -529,15 +662,11 @@ class Panel:
             data['training'] = training
         if feature['id'] == 'restaurant_upgrade':
             data['targets'] = targets
-        self.post('/api/features/change', data, self.mark_saved)
-
-    def mark_saved(self, result, error):
-        if not error:
-            self.fields = {k: (v, v.get(), kind) for k, (v, initial, kind) in self.fields.items()}
-
-    def save_schedule(self, identifier):
-        value = datetime.strptime(self.next_time.get().strip(), '%Y-%m-%d %H:%M:%S').replace(tzinfo=TZ)
-        self.post('/api/tasks/schedule', {'id': identifier, 'next_run': value.isoformat()})
+            hours = data['interval']
+            saved_seconds = float(feature.get('interval') or 1)
+            data['interval'] = (saved_seconds if hours == saved_seconds / SECONDS_PER_HOUR
+                                else hours * SECONDS_PER_HOUR)
+        return data
 
     def clear_record(self, prefix):
         if messagebox.askyesno('归档记录', '仅归档符合现有规则的过期记录，历史及已用次数保留。是否继续？', parent=self.window):
@@ -560,7 +689,10 @@ class Panel:
         settings = self.state.get('settings') or {}
         self.field(box, 'poll_interval', '识别最小周期（秒）', float(settings.get('poll_interval') or .6))
         self.field(box, 'max_consecutive_clicks', '同一目标重复点击上限', int(settings.get('max_consecutive_clicks') or 20))
-        ttk.Button(box, text='保存运行参数', command=lambda: self.safe(lambda: self.post('/api/settings', self.values(), self.mark_saved))).pack(anchor='e', pady=8)
+        fields = self.fields
+        self.watch_parameters('settings', '/api/settings', lambda: self.values(fields),
+                              [variable for variable, _, _ in fields.values()])
+        ttk.Label(box, text='修改后自动保存，下一轮检查使用新值。', style='CardMuted.TLabel').pack(anchor='w', pady=8)
         box = self.section('连接模拟器（先停止脚本）')
         self.adb_path = tk.StringVar(value=settings.get('adb_path', ''))
         ttk.Label(box, text='ADB 路径（留空自动查找）').pack(anchor='w')
@@ -571,6 +703,8 @@ class Panel:
         self.device_choice.pack(fill='x', pady=10)
         ttk.Button(box, text='连接所选模拟器', command=lambda: self.safe(self.select_device)).pack(anchor='e')
         ttk.Label(box, text=f'当前实例：{self.state.get("serial", "—")}    画面：{self.state.get("resolution", "—")}', style='CardMuted.TLabel').pack(anchor='w', pady=8)
+        if not self.state.get('running'):
+            self.detect_devices()
 
     def change_connection(self):
         address = validate_address(self.address.get())
@@ -584,15 +718,20 @@ class Panel:
         self.submit(client.connect, done)
 
     def detect_devices(self):
+        choice = self.device_choice
         def done(result, error):
-            if error:
+            if error or not choice.winfo_exists():
                 return
             scan = result['result']
             self.devices = [d for d in scan.get('devices', []) if d.get('compatible', False)]
             self.detected_adb = scan.get('adb_path', self.adb_path.get().strip())
-            self.device_choice.configure(values=[d.get('label') or d.get('name') or d.get('serial') for d in self.devices])
-            if self.devices:
-                self.device_choice.current(0)
+            choice.configure(values=[f"{d['name']}（{d['serial']}）" for d in self.devices])
+            index = next((i for i, d in enumerate(self.devices)
+                          if d['serial'] == scan.get('current_serial')), -1)
+            if index >= 0 or len(self.devices) == 1:
+                choice.current(max(0, index))
+            else:
+                choice.set('')
             self.notice.set(scan.get('message') or f'找到 {len(self.devices)} 个可用实例')
         self.post('/api/devices/detect', {'adb_path': self.adb_path.get().strip()}, done)
 
@@ -627,7 +766,7 @@ class Panel:
         ttk.Checkbutton(settings, text='包含测试 / 预发布版本', variable=self.update_preview).pack(anchor='w')
         ttk.Label(settings, text='更新代理（可选，留空直连；例如 http://127.0.0.1:7890）').pack(anchor='w', pady=(8, 4))
         ttk.Entry(settings, textvariable=self.update_proxy).pack(fill='x')
-        ttk.Button(settings, text='保存更新设置', command=lambda: self.post('/api/desktop/update/settings', {'preview': self.update_preview.get(), 'proxy': self.update_proxy.get()})).pack(anchor='e', pady=8)
+        ttk.Label(settings, text='修改后自动保存。', style='CardMuted.TLabel').pack(anchor='w', pady=8)
         notes = self.section('更新说明')
         self.release_notes = text_colors(tk.Text(notes, height=14, wrap='word', font=(FONT, 10), relief='flat'))
         self.release_notes.pack(fill='both', expand=True)
@@ -794,6 +933,9 @@ class Panel:
                 self.update_preview.set(update['options']['preview'])
                 self.update_proxy.set(update['options']['proxy'])
                 self.update_options_loaded = True
+                preview, proxy = self.update_preview, self.update_proxy
+                self.watch_parameters('update', '/api/desktop/update/settings',
+                    lambda: {'preview': preview.get(), 'proxy': proxy.get()}, [preview, proxy])
             release = update.get('release') or {}
             notes = release.get('notes') or '检查更新后显示新版本说明。'
             last = update.get('last_install')

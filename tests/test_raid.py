@@ -14,6 +14,7 @@ from PIL import Image
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from app import Clicker
+from drift.tasks.raid_cast import RaidBattleHud
 
 class RaidTests(unittest.TestCase):
     @classmethod
@@ -74,6 +75,22 @@ class RaidTests(unittest.TestCase):
             rule=deepcopy(self.rules['driftinggirl_raid_start']);rule['color_condition']=condition
             with self.subTest(condition=condition),self.assertRaises(ValueError):Clicker.load_rule(self.context,rule)
 
+    def test_raid_battle_hud_survives_a_dim_footer_and_excludes_other_scenes(self):
+        hud=RaidBattleHud(ROOT)
+        def load(name):
+            with Image.open(ROOT/name) as source:
+                return np.asarray(source.convert('RGB'))
+        current=load('tests/fixtures/meter-preflight/raid-r50.png')
+        self.assertTrue(hud.visible(current))
+        self.assertTrue(hud.visible(self.frames['battle']))
+        for frame in (self.frames['ready'],self.frames['result'],self.frames['return'],
+                      load('assets/raid/task-popup.png'),load('tests/fixtures/meter-preflight/sapphire-r51.png'),
+                      load('tests/fixtures/stone-first-combat/lowered-battle.png')):
+            self.assertFalse(hud.visible(frame))
+        for x,y,X,Y in ((469,88,507,124),(288,160,332,178),(355,226,448,243),(188,125,610,165)):
+            changed=current.copy();changed[y:Y,x:X]=0
+            self.assertFalse(hud.visible(changed))
+
     def test_full_replay_waits_without_clicking_other_main_tasks(self):
         frames=self.frames
         expected=['open','prepare','start','confirm']
@@ -97,10 +114,7 @@ class RaidTests(unittest.TestCase):
             def stuck_record_add(self,button):pass
         with tempfile.TemporaryDirectory(prefix='raid-replay-') as directory:
             root=Path(directory)
-            for path in {r['asset'] for r in self.rules.values()} | {
-                    p for r in self.rules.values() for p in r.get('asset_variants', [])}:
-                (root/path).parent.mkdir(parents=True,exist_ok=True)
-                shutil.copyfile(ROOT/path,root/path)
+            shutil.copytree(ROOT/'assets',root/'assets')
             config=deepcopy(self.config);config['poll_interval']=.1
             rules=deepcopy(list(self.rules.values()))
             for rule in rules:rule.update(enabled=True,interval=.2,next_delay=0,stage_timeout=5)
@@ -115,6 +129,8 @@ class RaidTests(unittest.TestCase):
                 self.assertFalse(app.running());self.assertIsNone(app.state['last_error'])
                 self.assertEqual(app.state['stop_reason'],'cycle_complete')
                 self.assertEqual(app.state['clicks'],4)
+                self.assertEqual(app.state['raid_cast']['taps'],0)
+                self.assertFalse(app.state['raid_cast']['armed'])
             finally:
                 app.stop()
                 if app.thread:app.thread.join(3)

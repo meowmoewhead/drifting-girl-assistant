@@ -8,6 +8,8 @@ import time
 import cv2
 import numpy as np
 
+from drift.perception.digit_ocr import read_numeric_views
+
 
 # Keep old gain/time keys readable when updating an existing runtime host configuration.
 # They no longer end a farming session before the requested boss-level target.
@@ -178,15 +180,16 @@ class BossTraining:
         self.failure_latched = failed
 
     def _number(self, frame, boxes):
-        votes = {}
-        for index, (x1, y1, x2, y2) in enumerate(boxes):
+        views = []
+        for x1, y1, x2, y2 in boxes:
             crop = frame[y1:y2, x1:x2]
             ink = np.all(crop >= 200, axis=2)
             binary = np.repeat(np.where(ink, 0, 255).astype(np.uint8)[:, :, None], 3, axis=2)
-            for view in (crop, binary):
-                reading = self.reader.read(view)
-                if reading.value is not None and 1 <= reading.value <= 10000 and reading.confidence >= .93:
-                    votes.setdefault(reading.value, set()).add(index)
+            views.extend((crop, binary))
+        votes = {}
+        for index, reading in enumerate(read_numeric_views(self.reader, views)):
+            if reading.value is not None and 1 <= reading.value <= 10000 and reading.confidence >= .93:
+                votes.setdefault(reading.value, set()).add(index//2)
         # Even a strong conflicting view invalidates this frame.
         if len(votes) == 1:
             value, regions = next(iter(votes.items()))

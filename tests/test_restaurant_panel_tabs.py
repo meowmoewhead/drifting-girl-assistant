@@ -30,6 +30,21 @@ class RestaurantPanelTabsTests(unittest.TestCase):
         self.assertTrue(self.visual.panel(frame))
         self.assertTrue(self.visual.atlas(frame))
 
+    def test_retained_materials_storage_tab_recognizes_only_the_container(self):
+        frame=self.read('tests/fixtures/restaurant-list/storage-tab.png').copy()
+        frame[911:947,35:165]=0
+        title=self.visual.images['materials-storage-title']
+        height,width=title.shape[:2]
+        frame[851:851+height,38:38+width]=title
+        self.assertTrue(self.visual.panel(frame))
+        self.assertFalse(self.visual.atlas(frame))
+        self.assertFalse(self.visual.detail(frame))
+        self.assertIsNone(self.visual.detail_values(frame))
+        for x,y,X,Y in ((32,846,151,892),(318,81,397,161),(592,145,683,220)):
+            missing=frame.copy()
+            missing[y:Y,x:X]=0
+            self.assertFalse(self.visual.panel(missing))
+
     def test_header_book_and_cross_are_all_still_required(self):
         original=self.read('tests/fixtures/restaurant-list/storage-tab.png')
         for area in [(35,911,165,947),(318,81,397,161),(592,145,683,220)]:

@@ -60,6 +60,15 @@ class GuildSelectionGuard:
         return dict(rule_id=self.rule_id, reason=self.reason, frames=self.frames,
                     stock=list(self.origin[0]) if self.origin is not None else None)
 
+    @classmethod
+    def cleanup_scene(cls, frame, matchers, completion_owner):
+        notice = getattr(completion_owner, 'completion_visible', None)
+        if callable(notice) and notice(frame, verify_rank=False):
+            point = (360, 840) if completion_owner._rank_value(frame) == 40 else None
+            return 'notice', point
+        page = cls.list_context(frame, matchers)
+        return ('close', page) if page is not None else None
+
     @staticmethod
     def list_context(frame, matchers):
         """Identify only the bright guild list, never its quantity/confirm modal."""

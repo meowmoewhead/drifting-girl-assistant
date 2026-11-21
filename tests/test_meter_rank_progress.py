@@ -89,4 +89,17 @@ class MeterRankProgressTests(unittest.TestCase):
         self.assertEqual(Path(c.journal['resolution']['archive']).read_bytes(),original)
         self.assertEqual(self.inputs,[])
 
+    def test_released_restore_does_not_filter_next_rank_by_the_old_training_rank(self):
+        c = self.c
+        c.journal.update(pending=False, retirement={'released': True}, next_check=0)
+        c._save()
+        original = c.path.read_bytes()
+        self.assertFalse(c.fishing.world_matches(self.frame))
+        c._set('idle')
+        self.assertTrue(c.fishing.world_matches(self.frame))
+        self.assertIsNone(c.world.rank)
+        self.assertEqual(c.fishing.range_cache, {'high': 1421})
+        self.assertEqual(c.path.read_bytes(), original)
+        self.assertEqual(self.inputs, [])
+
 if __name__=='__main__':unittest.main()

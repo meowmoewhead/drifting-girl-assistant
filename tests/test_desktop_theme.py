@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import tempfile
+import time
 import tkinter as tk
 from tkinter import ttk
 import unittest
@@ -57,7 +58,7 @@ class ThemeSwitchTests(unittest.TestCase):
         self.client = Mock(address='http://127.0.0.1:19865')
         with patch.object(Panel, 'poll'):
             self.panel = Panel(self.window, self.root, self.client)
-        self.panel.state = {'settings': {'poll_interval': .6, 'max_consecutive_clicks': 20}}
+        self.panel.state = {'running': True, 'settings': {'poll_interval': .6, 'max_consecutive_clicks': 20}}
         self.panel.build_nav()
         self.panel.page = 'settings'
         self.panel.render_page()
@@ -65,6 +66,10 @@ class ThemeSwitchTests(unittest.TestCase):
 
     def tearDown(self):
         self.panel.close()
+        end = time.monotonic() + 2
+        while not self.panel.closed and time.monotonic() < end:
+            self.window.update()
+            time.sleep(.01)
         self.directory.cleanup()
 
     def choose(self, label):

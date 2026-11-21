@@ -19,6 +19,10 @@ class InputOwnershipError(RuntimeError):
     pass
 
 
+class RuleStageExpired(InputOwnershipError):
+    """The rule's stage expired before any input was sent."""
+
+
 def active(task):
     value=getattr(task,'active',False)
     return bool(value() if callable(value) else value)
@@ -130,9 +134,13 @@ class UiOwnership:
             entry=self.checkpoint.data['tasks'].get(actor,{})
             budget=self.budget()
             limits=[entry.get('deadline'),budget.get('run_deadline_epoch')]
-            if rule:limits.append(budget.get('stage_deadline_epoch'))
-            if any(type(limit) in (int,float) and self.checkpoint.wall()>=limit for limit in limits):
-                raise InputOwnershipError('原输入窗口已到期，保留预留记录并拒绝发送：'+str(actor))
+            now=self.checkpoint.wall()
+            message='原输入窗口已到期，保留预留记录并拒绝发送：'+str(actor)
+            if any(type(limit) in (int,float) and now>=limit for limit in limits):
+                raise InputOwnershipError(message)
+            stage_limit=budget.get('stage_deadline_epoch')
+            if rule and type(stage_limit) in (int,float) and now>=stage_limit:
+                raise RuleStageExpired(message)
             return self.checkpoint.data['last_input']['at']
         return None
 

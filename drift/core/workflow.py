@@ -21,6 +21,10 @@ FIELDS={'phase','state','started_at','phase_since','deadline','next_at','next_ac
         'interrupted','attempts','period','started_period','enhance_attempts','close_attempts',
         'opening_attempts','attempted','capacity_before','capacity_after','pending','login_clicked',
         'recoveries','awaiting_self_exit'}
+GUILD_SHOP_STAGES = {'guild_special', 'guild_tab', 'guild_potion', 'guild_potion_quantity',
+                     'guild_potion_confirm', 'guild_material', 'guild_material_quantity',
+                     'guild_material_confirm', 'guild_close', 'guild_return'}
+DAILY_SHOP_STAGES = {'daily_tab', 'daily_reward', 'daily_bonus', 'daily_after_claim'}
 
 
 def classify(record,now):
@@ -75,7 +79,7 @@ class WorkflowContext:
             stamp=receipt.get('at') if isinstance(receipt,dict) else None
             if key.startswith('launch:') and type(stamp) in (int,float):
                 if all(abs(stamp-old)>.01 for old in stamps):stamps.append(stamp)
-        self._archive()
+        self.archive()
         archive=hashlib.sha256(self.raw).hexdigest()
         retired={'cycle_id':saved.get('cycle_id'),'deadline':deadline,
                  'spent':deepcopy(saved.get('spent',{})),
@@ -95,10 +99,71 @@ class WorkflowContext:
         atomic_write_json(self.path,self.data,expected=self.raw)
         self.raw=read_bytes(self.path)
 
-    def _archive(self):
+    def archive(self):
         if self.raw is None:return
         digest=hashlib.sha256(self.raw).hexdigest()
         archive_bytes(self.root/'logs/workflow-context-retired'/(digest+'.json'),self.raw,'任务接续')
+
+    def expired_guild_shop(self):
+        return self._expired_stage(GUILD_SHOP_STAGES)
+
+    def expired_daily_shop(self):
+        return self._expired_stage(DAILY_SHOP_STAGES)
+
+    def _expired_stage(self, stages):
+        saved = self.pending_stage or {}
+        deadline = (saved.get('budget') or {}).get('stage_deadline_epoch')
+        return (saved.get('stage') in stages and type(deadline) in (int, float)
+                and self.wall() >= deadline)
+
+    def guild_cleanup_record(self):
+        return self._stage_cleanup_record('guild_shop_cleanup')
+
+    def daily_cleanup_record(self):
+        return self._stage_cleanup_record('daily_shop_cleanup')
+
+    def _stage_cleanup_record(self, field):
+        saved = self.pending_stage or {}
+        source = hashlib.sha256(json.dumps(saved, sort_keys=True).encode()).hexdigest()
+        record = self.data.get(field) or {}
+        return record if record.get('source') == source else {}
+
+    def reserve_guild_cleanup(self, kind, frame_id, deadline):
+        """Reserve a modal dismissal or list close against the same expired step."""
+        if kind not in ('notice', 'close') or not self.expired_guild_shop():
+            return False
+        saved = self.pending_stage
+        last = self.data.get('last_input') or {}
+        if kind == 'close' and (saved['stage'] == 'guild_return'
+                or (last.get('actor') == 'rule:driftinggirl_guild_close'
+                    and last.get('stage') == saved['stage'])):
+            return False
+        return self._reserve_stage_cleanup('guild_shop_cleanup', kind, frame_id, deadline)
+
+    def reserve_daily_shop_close(self, frame_id, deadline):
+        if not self.expired_daily_shop():
+            return False
+        last = self.data.get('last_input') or {}
+        if (last.get('actor') in ('rule:driftinggirl_daily_close', 'rule:driftinggirl_daily_coin_close',
+                                 'rule:driftinggirl_daily_unavailable')
+                and last.get('stage') == self.pending_stage['stage']):
+            return False
+        return self._reserve_stage_cleanup('daily_shop_cleanup', 'close', frame_id, deadline)
+
+    def _reserve_stage_cleanup(self, field, kind, frame_id, deadline):
+        saved = self.pending_stage
+        record = self._stage_cleanup_record(field)
+        now = self.wall()
+        if now >= record.get('deadline', deadline) or kind in record.get('attempts', {}):
+            return False
+        if not record:
+            self.archive()
+            source = hashlib.sha256(json.dumps(saved, sort_keys=True).encode()).hexdigest()
+            record = {'source': source, 'deadline': deadline, 'attempts': {}}
+            self.data[field] = record
+        record['attempts'][kind] = {'reserved_at': now, 'before_frame_id': frame_id}
+        self.save()
+        return self.wall() < record['deadline']
 
     def pack(self,task):
         values={}
@@ -231,7 +296,7 @@ class WorkflowContext:
 
     def release_verified_main(self):
         if not self.blocked:return
-        self._archive()
+        self.archive()
         for name in self.blocked:
             if name in self.data['tasks']:self.data['tasks'][name]['pending']=False
             self.outcomes.append({'feature':name,'outcome':'blocked','detail':self.blocked[name]})
@@ -254,7 +319,7 @@ class WorkflowContext:
                 if module.appear(button,offset=offset,similarity=rule['threshold']):
                     candidates.append(rule['id'])
         if self.stage_proof.observe((stage,tuple(candidates)) if candidates else None,frame_id,self.monotonic()):
-            self._archive()
+            self.archive()
             loop.stage=stage;loop.stage_trigger=budget.get('stage_trigger')
             loop.stage_deadline=self.monotonic()+deadline-now
             for key in ('stage_started_at','stage_ready_at'):
@@ -268,7 +333,7 @@ class WorkflowContext:
             self.event('任务接续：连续新图确认原界面，沿用原阶段截止与已用次数；不重放不确定输入')
             return True
         if self.main_proof.observe('main' if main else None,frame_id,self.monotonic()):
-            self._archive();self.pending_stage=None;self.stage_result='retired_on_verified_main'
+            self.archive();self.pending_stage=None;self.stage_result='retired_on_verified_main'
             self.event('任务接续：连续新图确认已在安全主画面；旧未完成步骤归档，不补记完成或重放输入')
             self.data['stage']={'stage':'main','popup':False,'budget':{}}
             self.data['pending']=any(t.get('pending') for t in self.data['tasks'].values())

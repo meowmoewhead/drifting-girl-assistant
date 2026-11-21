@@ -14,6 +14,8 @@ from PIL import Image
 
 from app import Clicker
 from digit_ocr import NumberReading
+from drift.core.exceptions import DeviceUnavailable
+from drift.device.adb import AdbDevice
 from game_recovery import GameRecovery, PACKAGE, COMPONENT, game_state, restartable
 from parallel_world import ParallelWorld
 
@@ -111,6 +113,52 @@ class GameRecoveryTests(unittest.TestCase):
         self.assertEqual(command.call_count,2)
         self.assertEqual(state,dict(foreground='com.android.vending/.AssetBrowserActivity',running=False,exit=None))
         self.assertTrue(restartable(state))
+
+    def test_only_safe_transport_failures_wait_for_android(self):
+        from subprocess import CompletedProcess
+
+        device = AdbDevice({'adb_path': 'adb.exe', 'serial': 'emulator-5554'})
+        launch = ('shell', 'am', 'start', '-n', COMPONENT)
+        cases = (
+            (('exec-out', 'screencap'), b'', b'error: closed', 1, DeviceUnavailable),
+            (('get-state',), b'', b'* daemon started successfully\r\nadb.exe: device offline', 1, DeviceUnavailable),
+            (('get-state',), b'', b"adb.exe: device 'emulator-5554' not found", 1, DeviceUnavailable),
+            (launch, b'', b"cmd: Can't find service: activity", 1, DeviceUnavailable),
+            (('shell', 'dumpsys', 'activity', 'activities'), b"Can't find service: activity",
+             b'', 0, DeviceUnavailable),
+            (launch, b'', b'error: closed', 1, RuntimeError),
+            (('shell', 'input', 'tap', '360', '914'), b'', b'error: closed', 1, RuntimeError),
+        )
+        for args, stdout, stderr, code, expected in cases:
+            with self.subTest(args=args), patch('drift.device.adb.subprocess.run',
+                    return_value=CompletedProcess(args, code, stdout, stderr)):
+                with self.assertRaises(expected) as failure:
+                    device.command(*args)
+                self.assertIs(type(failure.exception), expected)
+
+    def test_connect_only_the_saved_loopback_and_check_it_again(self):
+        device = AdbDevice({'adb_path': 'adb.exe', 'serial': '127.0.0.1:16384'})
+        with patch.object(device, 'command', side_effect=[DeviceUnavailable('offline'), b'device\r\n']) as query, \
+                patch('drift.device.adb.run_adb') as attach:
+            device.ensure_online()
+        attach.assert_called_once_with(['adb.exe', 'connect', '127.0.0.1:16384'], timeout=2)
+        self.assertEqual([call.args for call in query.call_args_list], [('get-state',), ('get-state',)])
+
+    def test_rejected_launch_waits_for_fresh_state_without_renewing_the_deadline(self):
+        with patch.object(self.d, 'command', side_effect=DeviceUnavailable("Can't find service: activity")):
+            self.launch()
+        started = self.r.started_at
+        self.assertIsNotNone(started)
+        self.assertTrue(self.r.device_waiting)
+        self.assertEqual(list(self.r.restarts), [])
+        self.assertEqual(self.d.actions, [])
+        self.launch()
+        self.assertEqual(self.r.started_at, started)
+        self.assertEqual(self.d.actions, [('launch', COMPONENT)])
+        with patch('game_recovery.time.monotonic', return_value=started+120):
+            with self.assertRaisesRegex(RuntimeError, '120 秒'):
+                self.r.step(self.d.images['login'], False, False)
+        self.assertEqual(self.d.actions, [('launch', COMPONENT)])
 
     def test_real_network_exit_message_is_observed_without_pressing_exit(self):
         network=image('assets/recovery/network-error.png')
@@ -349,13 +397,15 @@ class GameRecoveryTests(unittest.TestCase):
         self.assertEqual(len([a for a in self.d.actions if a[0]=='launch']), 2)
 
     def worker(self, preview=False, max_clicks=None, stone_only=False, expired_stone=False, equipment_only=False,
-               locked_capture=False, existing_start=False, store_start=False):
+               locked_capture=False, existing_start=False, store_start=False, first_capture_failure=False,
+               first_adb_offline=False):
         outer, worlds = self, []
         class ReplayDevice(Device):
             def __init__(self, config, stop):
                 super().__init__()
                 self.stop = stop
                 self.shots = self.main_shots = 0
+                self.adb_checks = 0
                 self.image = None
                 if store_start:
                     self.state.update(foreground='com.android.vending/.AssetBrowserActivity',exit=None)
@@ -363,6 +413,8 @@ class GameRecoveryTests(unittest.TestCase):
                     self.screen = 'login'
                     self.state.update(foreground=COMPONENT, running=True)
             def screenshot(self):
+                if first_adb_offline:
+                    outer.assertGreaterEqual(self.adb_checks, 2)
                 # Real AdbDevice captures acquire this same RLock. A bounded
                 # acquire exposes cross-thread dispatch without hanging tests.
                 acquired = not locked_capture or self.io_lock.acquire(timeout=.5)
@@ -370,6 +422,8 @@ class GameRecoveryTests(unittest.TestCase):
                     raise RuntimeError('Recovery capture waited for another thread holding device I/O')
                 try:
                     self.shots += 1
+                    if first_capture_failure and self.shots == 1:
+                        raise DeviceUnavailable('error: closed')
                     if self.screen == 'main':
                         self.main_shots += 1
                     if self.main_shots >= 4 or self.shots >= 20:
@@ -380,6 +434,12 @@ class GameRecoveryTests(unittest.TestCase):
                     if locked_capture:self.io_lock.release()
             def stuck_record_add(self, _):
                 pass
+            def ensure_online(self):
+                self.adb_checks += 1
+                if first_adb_offline and self.adb_checks == 1:
+                    outer.assertEqual(self.actions, [])
+                    outer.assertEqual(self.shots, 0)
+                    raise DeviceUnavailable('adb.exe: device offline')
         class Reader:
             def read(self, _):
                 return NumberReading('37', 37, .999)
@@ -442,6 +502,20 @@ class GameRecoveryTests(unittest.TestCase):
         self.assertEqual(state['recoveries'], 1)
         self.assertEqual(state['clicks'], 1)
         self.assertEqual(len(worlds), 2)
+        self.assertEqual(worlds[-1].training.state['start_level'], 1323)
+
+    def test_worker_reacquires_a_frame_after_adb_read_closes(self):
+        state, actions, worlds, _ = self.worker(first_capture_failure=True)
+        self.assertIsNone(state['last_error'])
+        self.assertEqual(actions, [('launch', COMPONENT), ('login', (360, 914))])
+        self.assertEqual(state['recoveries'], 1)
+        self.assertEqual(worlds[-1].training.state['start_level'], 1323)
+
+    def test_formal_start_waits_for_adb_even_before_the_first_native_frame(self):
+        state, actions, worlds, _ = self.worker(first_adb_offline=True)
+        self.assertIsNone(state['last_error'])
+        self.assertEqual(actions, [('launch', COMPONENT), ('login', (360, 914))])
+        self.assertEqual(state['recoveries'], 1)
         self.assertEqual(worlds[-1].training.state['start_level'], 1323)
 
     def test_worker_relaunches_from_play_store_without_exit_record(self):

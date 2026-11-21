@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -11,6 +12,7 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image
 from app import Clicker
+from drift.perception.daily_bonus import DailyCoinShop
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -71,7 +73,23 @@ class DailyCleanupTests(unittest.TestCase):
         self.assertEqual(rule['threshold'],before['threshold'])
         self.assertEqual(rule['required_source_areas'],[[171,250,263,280],[637,251,688,294]])
 
-    def replay(self,*,timeout_path=False,no_return=False,stop_on_recheck=False):
+    def coin_page(self):
+        frame = image(DailyCoinShop.ASSET).copy()
+        frame[:76] = self.claimed[:76]
+        return frame
+
+    def test_coin_grid_is_distinct_from_rewards_and_dimmed_pages(self):
+        visual = DailyCoinShop(ROOT)
+        frame = self.coin_page()
+        self.assertTrue(visual.visible(frame))
+        for negative in (self.claimed, frame // 2, image('assets/daily-reward/premium-ready.png'),
+                         image('assets/daily-reward/shop-open.png'), image('assets/daily-reward/return.png')):
+            self.assertFalse(visual.visible(negative))
+        x, y, right, bottom = visual.CLOSE_BOX
+        frame[y:bottom, x:right] = 0
+        self.assertFalse(visual.visible(frame))
+
+    def replay(self,*,timeout_path=False,no_return=False,stop_on_recheck=False,coin_page=None,expired=False):
         claimed=self.claimed
         frames=([image('assets/daily-reward/main.png'),image('assets/daily-reward/shop-open.png'),
                  image('assets/daily-reward/premium-ready.png'),claimed,
@@ -79,6 +97,12 @@ class DailyCleanupTests(unittest.TestCase):
                 else [claimed,image('assets/daily-reward/return.png')])
         expected=([(648,367,709,423),(168,228,270,297),(210,433,377,510),(634,247,695,296)]
                   if timeout_path else [(634,247,695,296)])
+        if coin_page is not None:
+            frames = [coin_page, frames[-1]]
+            expected = [DailyCoinShop.CLOSE_BOX]
+            if not expired:
+                frames = [image('assets/daily-reward/main.png'),image('assets/daily-reward/shop-open.png'),*frames]
+                expected = [(648,367,709,423),(168,228,270,297),*expected]
         clock=[0.0];devices=[]
         class Device:
             def __init__(self,config,stop):
@@ -88,6 +112,8 @@ class DailyCleanupTests(unittest.TestCase):
                 index=min(len(self.taps),len(frames)-1)
                 self.image=(claimed if no_return and self.taps else frames[index]).copy()
                 if stop_on_recheck and self.reads==7:self.stop.set()
+                if expired and self.taps and app.lifecycle.context.pending_stage is None:
+                    self.stop.set()
                 return self.image
             def click(self,button):
                 if self.stop.is_set():raise AssertionError('Input after stop')
@@ -99,7 +125,7 @@ class DailyCleanupTests(unittest.TestCase):
             def stuck_record_add(self,_):pass
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)
-            shutil.copytree(ROOT/'assets/daily-reward',root/'assets/daily-reward')
+            shutil.copytree(ROOT/'assets',root/'assets')
             rules=deepcopy(self.rules)
             for r in rules:r.update(enabled=True,interval=.2,next_delay=0,stage_timeout=5)
             if timeout_path:
@@ -110,6 +136,14 @@ class DailyCleanupTests(unittest.TestCase):
             config=dict(adb_path='fake',serial='test',resolution=[720,1280],poll_interval=.1,
                         max_consecutive_clicks=2,rules=rules)
             (root/'config.json').write_text(json.dumps(config),encoding='utf-8')
+            saved = None
+            if expired:
+                saved = dict(stage='daily_after_claim', popup=True,
+                             budget={'stage_deadline_epoch': time.time()-60, 'clicks': 42})
+                record = dict(version=1, serial='test', pending=False, tasks={}, stage=saved,
+                              last_input=dict(actor='rule:driftinggirl_daily_premium', stage='daily_tab',
+                                              state='issued_only', at=time.time()-100))
+                (root/'workflow_context_state.json').write_text(json.dumps(record),encoding='utf-8')
             app=Clicker(root,Device)
             try:
                 with patch('app.time',SimpleNamespace(monotonic=lambda:clock[0])):
@@ -125,7 +159,15 @@ class DailyCleanupTests(unittest.TestCase):
                     self.assertEqual(devices[0].taps,[])
                 else:
                     self.assertIsNone(app.state['last_error'])
-                    self.assertEqual(app.state['stop_reason'],'cycle_complete')
+                    if expired:
+                        workflow = app.lifecycle.context
+                        self.assertIsNone(workflow.pending_stage)
+                        self.assertEqual(workflow.stage_result,'retired_on_verified_main')
+                        self.assertIn('close', workflow.data['daily_shop_cleanup']['attempts'])
+                        self.assertTrue(any(json.loads(path.read_text('utf-8'))['stage'] == saved
+                                            for path in (root/'logs/workflow-context-retired').glob('*.json')))
+                    else:
+                        self.assertEqual(app.state['stop_reason'],'cycle_complete')
                     self.assertEqual(len(devices[0].taps),len(expected))
             finally:
                 app.stop()
@@ -137,6 +179,12 @@ class DailyCleanupTests(unittest.TestCase):
     def test_bonus_timeout_closes_real_shop_without_marking_daily_complete(self):self.replay(timeout_path=True)
     def test_close_without_verified_return_stops_instead_of_claiming_main(self):self.replay(no_return=True)
     def test_stop_during_fresh_close_recheck_prevents_input(self):self.replay(stop_on_recheck=True)
+
+    def test_unavailable_coin_grid_closes_after_timeout_and_does_not_mark_claimed(self):
+        self.replay(coin_page=self.coin_page())
+
+    def test_expired_daily_context_closes_coin_grid_once_and_retires_after_main(self):
+        self.replay(coin_page=self.coin_page(), expired=True)
 
     def test_unverified_cleanup_consumes_the_total_window_then_becomes_retryable(self):
         # 认不出画面时:先吃满 40 秒总窗口(至少延长一次),再按"可重试"收尾,

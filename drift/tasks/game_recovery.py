@@ -9,6 +9,8 @@ from types import SimpleNamespace
 import cv2
 import numpy as np
 
+from drift.core.exceptions import DeviceUnavailable
+
 PACKAGE = 'com.daerigame.girladriftrm'
 COMPONENT = PACKAGE + '/com.unity3d.player.UnityPlayerActivity'
 
@@ -73,6 +75,7 @@ class GameRecovery:
         self.recoveries = 0
         self.network_frames=0
         self.awaiting_self_exit = False
+        self.device_waiting = False
 
     def scene(self, frame):
         """Recovery also works when only scheduled or reward tasks are enabled."""
@@ -124,10 +127,23 @@ class GameRecovery:
         if self.device.stop.is_set():
             raise InterruptedError('已停止')
 
-    def _launch(self, state, *, retry=False):
-        now = time.monotonic()
-        if self.started_at is not None and retry and now-self.started_at>120:
+    def check_deadline(self):
+        if self.started_at is not None and time.monotonic()-self.started_at >= 120:
             raise RuntimeError('游戏恢复等待超过 120 秒，已停止并保留当前画面')
+
+    def wait_for_device(self, error, started):
+        self._stopped()
+        if self.started_at is None:
+            self.started_at = started
+        self.check_deadline()
+        if not self.device_waiting:
+            self.event(f'游戏恢复：Android 暂未就绪（{error}），等待新截图和进程状态')
+        self.device_waiting = True
+        self.missing = self.title_frames = self.ready_frames = self.network_frames = 0
+
+    def _launch(self, state):
+        now = time.monotonic()
+        self.check_deadline()
         while self.restarts and now - self.restarts[0] >= 1800:
             self.restarts.popleft()
         if len(self.restarts) >= 2:
@@ -138,13 +154,12 @@ class GameRecovery:
             self.missing = 0
             return False
         now = time.monotonic()
-        if self.started_at is not None and retry and now-self.started_at>120:
-            raise RuntimeError('游戏恢复等待超过 120 秒，已停止并保留当前画面')
+        self.check_deadline()
         result = self.device.command('shell', 'am', 'start', '-n', COMPONENT)
         if b'Error:' in result or b'Exception' in result:
             raise RuntimeError('游戏启动失败，已停止')
         self.restarts.append(now)
-        if not retry:
+        if self.started_at is None:
             self.started_at = now
         self.phase = 'loading'
         self.missing = self.title_frames = self.ready_frames = 0
@@ -156,6 +171,17 @@ class GameRecovery:
     def step(self, frame, known, ready):
         """Return wait/ready while recovering; None leaves ordinary workflows alone."""
         self._stopped()
+        self.check_deadline()
+        started = time.monotonic()
+        try:
+            result = self._step(frame, known, ready)
+        except DeviceUnavailable as error:
+            self.wait_for_device(error, started)
+            return 'wait'
+        self.device_waiting = False
+        return result
+
+    def _step(self, frame, known, ready):
         if self.phase == 'idle':
             self.network_frames=self.network_frames+1 if self._network_error(frame) else 0
             if self.network_frames:
@@ -178,7 +204,9 @@ class GameRecovery:
                     self._stopped()
                     if (state['running'] and (state.get('foreground') or '').startswith(PACKAGE + '/')
                             and self._login(fresh)):
-                        self.started_at = time.monotonic()
+                        self.check_deadline()
+                        if self.started_at is None:
+                            self.started_at = time.monotonic()
                         self.phase = 'loading'
                         self.login_clicked = False
                         self.ready_frames = self.missing = 0
@@ -193,6 +221,7 @@ class GameRecovery:
                 self._stopped()
                 if state['running'] and (state.get('foreground') or '').startswith(PACKAGE + '/'):
                     self.missing=0
+                    self.started_at=None
                     return None
                 if not restartable(state):
                     if not state.get('foreground'):
@@ -202,13 +231,12 @@ class GameRecovery:
                 self._launch(state)
             return 'wait'
 
-        if time.monotonic() - self.started_at > 120:
-            raise RuntimeError('游戏恢复等待超过 120 秒，已停止并保留当前画面')
         self.ready_frames = self.ready_frames + 1 if ready else 0
         if self.ready_frames >= 3:
             with self.device.io_lock:
                 state=self.device.game_state()
                 self._stopped()
+                self.check_deadline()
                 if not (state['running'] and (state.get('foreground') or '').startswith(PACKAGE+'/')):
                     self.ready_frames=0
                     return 'wait'
@@ -227,7 +255,7 @@ class GameRecovery:
                 self._stopped()
                 if restartable(state):
                     # Retrying a launch never extends the original 120 seconds.
-                    self._launch(state, retry=True)
+                    self._launch(state)
                     return 'wait'
                 if not state.get('foreground'):
                     # Android may temporarily report no resumed Activity
@@ -246,6 +274,7 @@ class GameRecovery:
                 self._stopped()
                 fresh = self.capture()
                 self._stopped()
+                self.check_deadline()
                 if (state['running'] and (state.get('foreground') or '').startswith(PACKAGE + '/')
                         and self._login(fresh)):
                     self.click(360, 914, '游戏恢复：点击 TOUCH TO START')

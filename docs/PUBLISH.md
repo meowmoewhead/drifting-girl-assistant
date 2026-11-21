@@ -12,7 +12,7 @@
 git init -b main
 git add .
 git diff --cached --stat
-git commit -m "release: public preview v0.2.0"
+git commit -m "release: public preview v0.2.1"
 ```
 
 不要把正在使用的开发仓库或其历史直接覆盖到这里。本目录已经保留必要代码和来源声明。
@@ -24,16 +24,16 @@ git commit -m "release: public preview v0.2.0"
 ```powershell
 git remote add origin https://github.com/OWNER/drifting-girl-assistant.git
 git push -u origin main
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
 ## 3. 创建 Release
 
-从 `v0.2.0` 创建预发布，标题可用“漂流助手 v0.2.0 公开预览”。填写版本说明、支持环境及必要限制，上传：
+从 `v0.2.1` 创建预发布，标题可用“漂流助手 v0.2.1 公开预览”。填写版本说明、支持环境及必要限制，上传：
 
-- `mumu-clicker-0.2.0-win64.zip`：普通用户使用的便携版。
-- `drifting-girl-assistant-0.2.0-source.zip`：与本次发行对应的完整源码快照。
+- `mumu-clicker-0.2.1-win64.zip`：普通用户使用的便携版。
+- `drifting-girl-assistant-0.2.1-source.zip`：与本次发行对应的完整源码快照。
 - `SHA256SUMS.txt`：附件校验值。
 
 可再附 `build-report.json`。EXE和便携ZIP通过 Release 分发，不提交到 Git 历史。源码标签应对应本次构建使用的内容。

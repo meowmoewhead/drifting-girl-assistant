@@ -154,6 +154,7 @@ class ResourceCrownRecoveryTests(unittest.TestCase):
             only_sailing_shutdown=False
             def __init__(self,*_args,**_kwargs):
                 self.training,self.sailing,self.rank=world.training,world.sailing,world.rank
+                self.fishing,self._map=world.fishing,world._map
                 self.defense=Defense();self.phase='play'
             def observe(self,_frame):pass
             def observe_boss_sailing_rank(self,_frame,**_kwargs):return False
@@ -166,7 +167,7 @@ class ResourceCrownRecoveryTests(unittest.TestCase):
             def step(self,_frame):return scenario!='repeat' and bool(device_reference[0].taps)
 
         root=Path(self.directory.name)/'runner';root.mkdir(exist_ok=True)
-        assets={r['asset'] for r in config['rules']}
+        assets={r['asset'] for r in config['rules']} | {'assets/parallel/map-close.png', 'assets/task-popup/map-legend.png'}
         assets.update(p for r in config['rules'] for p in r.get('asset_variants',[]))
         for path in assets:
             (root/path).parent.mkdir(parents=True,exist_ok=True)
@@ -214,10 +215,11 @@ class ResourceCrownRecoveryTests(unittest.TestCase):
         self.assertEqual(len(taps),1)
         self.assertFalse(any('普通资源战斗打断' in e['message'] for e in events))
 
-    def test_repeated_resource_interruptions_share_original_three_per_five_minute_limit(self):
-        state,taps,_=self.replay('repeat')
-        self.assertIn('五分钟内已恢复三次',state['last_error'])
+    def test_repeated_resource_interruptions_share_the_crown_entry_cooldown(self):
+        state,taps,events=self.replay('repeat')
+        self.assertIsNone(state['last_error'])
         self.assertEqual(state['recoveries'],3)
-        self.assertEqual(len(taps),4)
+        self.assertEqual(len(taps),3)
+        self.assertEqual(sum('两种入口暂停至恢复窗口到期' in e['message'] for e in events),1)
 
 if __name__=='__main__':unittest.main()

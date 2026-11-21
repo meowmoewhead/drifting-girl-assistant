@@ -117,6 +117,9 @@ def build_handlers(_bindings,_globals):
                     return False
                 if cancelling and _time().monotonic() >= scan_deadline:
                     return False
+                if returning and owner is stone and (
+                        not owner.input_allowed() or _time().time() > owner.journal['return_deadline']):
+                    return False
                 metadata = dict(input_id=uuid.uuid4().hex,frame_id=frame_id,
                     kind=action['kind'],x=action['x'],y=action['y'],
                     label=action['label'],rank=owner.rank,

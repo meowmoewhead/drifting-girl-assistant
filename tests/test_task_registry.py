@@ -62,7 +62,7 @@ class TaskRegistryTests(unittest.TestCase):
 
     def test_controller_specs_point_at_importable_modules(self):
         controllers = [spec for spec in TASK_SPECS.values() if spec.is_controller]
-        self.assertEqual(len(controllers), 7)
+        self.assertEqual(len(controllers), 8)
         for spec in controllers:
             module = importlib.import_module(spec.module)
             self.assertTrue(hasattr(module, _class_name(spec.controller)),
@@ -106,6 +106,7 @@ def _class_name(controller):
         "meter_calibration": "MeterCalibration",
         "stone_farm": "StoneFarm",
         "parallel_world": "ParallelWorld",
+        "meal_delivery": "MealDelivery",
     }[controller]
 
 

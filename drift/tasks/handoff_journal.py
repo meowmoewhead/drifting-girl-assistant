@@ -64,7 +64,7 @@ def status(root):
         return dict(pending=bool(record and record['pending']),
                     sha256=hashlib.sha256(raw).hexdigest() if raw else None,
                     phase=record.get('phase') if record else None,
-                    expired=bool(expiry(record, time.time())),
+                    expired=bool(record and record.get('reason') != 'lower' and expiry(record, time.time())),
                     retirement=record.get('retirement') if record else None)
     except (OSError, ValueError) as exc:
         return dict(pending=False, error=str(exc))
@@ -77,18 +77,21 @@ def retire(root, expected_sha256, *, source):
     if not record['pending']:
         return dict(retired=False, reason='没有待处理交接')
     now = time.time()
-    expired = expiry(record, now)
+    obsolete = record.get('reason') == 'lower'
+    if source == 'removed_stage_lowering' and not obsolete:
+        raise ValueError('当前记录不是已停用的旧交接')
+    expired = [] if obsolete else expiry(record, now)
     if source == 'startup_expired' and not expired:
         return dict(retired=False, reason='交接尚未到期')
-    if source not in ('startup_expired', 'manual_clear'):
+    if source not in ('startup_expired', 'manual_clear', 'removed_stage_lowering'):
         raise ValueError('未知归档来源')
     archive = path.parent / 'logs' / 'stone-farm-retired' / (expected_sha256 + '.json')
     updated = dict(record)
     updated.update(pending=False, phase='idle', retirement=dict(
         at=now, source=source, sha256=expected_sha256, archive=str(archive),
         previous_phase=record['phase'], expired_fields=expired,
-        blocked_contexts=blocked_contexts(record), backoff_seconds=BACKOFF_SECONDS,
-        released=False))
+        blocked_contexts=[] if obsolete else blocked_contexts(record),
+        backoff_seconds=0 if obsolete else BACKOFF_SECONDS, released=obsolete))
     archive_and_replace(path, raw, updated, archive, expected_sha256, '交接', 'stone_farm_retry.json')
     return dict(retired=True, sha256=expected_sha256, archive=str(archive), previous_phase=record['phase'])
 

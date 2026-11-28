@@ -45,6 +45,17 @@ class RunWatchdogTests(unittest.TestCase):
         self.assertTrue(self.watchdog.should_restart(self.status, self.now, [self.now - 180])[0])
         self.assertEqual(self.watchdog.COOLDOWN, 180)
 
+    def test_recovery_cooldown_never_uses_a_watchdog_restart_early(self):
+        self.status.update(stop_reason='recovery_cooldown', restart_not_before=self.now+500)
+        with tempfile.TemporaryDirectory() as folder:
+            poster = Mock()
+            _, output = self.invoke(folder, poster=poster, now=self.now+499)
+            poster.assert_not_called()
+            self.assertIn('原因=game_recovery_cooldown', output)
+            self.assertFalse((Path(folder) / 'run-watchdog-history.json').exists())
+            self.invoke(folder, poster=poster, now=self.now+500)
+            poster.assert_called_once()
+
     def test_hourly_budget_and_window_boundary_without_mutating_history(self):
         history = [self.now - age for age in (200, 400, 600, 800, 3599)]
         original = history.copy()

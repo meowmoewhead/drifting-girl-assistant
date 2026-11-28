@@ -16,12 +16,12 @@ class PopupMapRestoreTests(unittest.TestCase):
 
     def failed(self):
         self.begin()
-        frame=base.image('tests/fixtures/task-popup-idle/returned.png')
-        self.w.journal.update(verified_gate_stage=8,entered_verified_at=self.now-10,
+        frame=base.image('tests/fixtures/stone-farm/stage9-rank0-unselected-stopped.png')
+        self.w.journal.update(verified_gate_stage=9,entered_verified_at=self.now-10,
             first_deadline=self.now-1,phase='first_map',phase_deadline=self.now-1,
             first_recovery=True,first_unselected=True,first_signature=self.w.signature(frame),
-            attempts={'lower':1,'enter-confirm':1,'first-map':1},
-            issued_inputs=[dict(kind=k) for k in ('lower','enter-confirm','first-map')])
+            attempts={'close-gate':1,'enter-confirm':1,'first-map':1},
+            issued_inputs=[dict(kind=k) for k in ('close-gate','enter-confirm','first-map')])
         self.w.phase='first_map';self.w._save()
         (self.path.parent/'config.json').write_text(json.dumps(dict(rules=[
             dict(id='driftinggirl_stone_farm',enabled=True)])),encoding='utf-8')

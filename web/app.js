@@ -39,8 +39,11 @@ const groupFeatures = group => group.features.map(id => state.features.find(f =>
 const effective = feature => feature.effective_enabled ?? feature.enabled;
 const groupFor = feature => taskGroups().find(g => g.features.includes(feature.id));
 const portalMode = () => state.features.find(f => f.id === 'stone_farm')?.enabled ? 'stone' : state.features.find(f => f.id === 'parallel_world')?.enabled ? 'legacy' : 'off';
-const stonePairText = () => Number.isInteger(state.stone?.start_stage) && Number.isInteger(state.stone?.final_stage) ? `${state.stone.start_stage}→${state.stone.final_stage}阶` : '等待识别当前阶段';
-const portalLabel = () => ({stone:`降阶刷最后BOSS · ${stonePairText()}`,legacy:'旧版任务练级',off:'循环关闭'}[portalMode()]);
+const stoneRankText = () => {
+  const rank = state.stone?.active_restart_rank ?? state.features.find(f => f.id === 'stone_farm')?.restart_rank;
+  return Number.isInteger(rank) ? `到达 RANK ${rank} 重开` : '等待载入重开设置';
+};
+const portalLabel = () => ({stone:stoneRankText(),legacy:'旧版任务练级',off:'循环关闭'}[portalMode()]);
 const dailyTime = feature => ({guild_daily:'18:00',pass_daily:'10:00'}[feature.id] || '08:00');
 function durationText(seconds) {
   const value = Number(seconds);
@@ -220,7 +223,7 @@ function renderGroup(group) {
   if (groupId !== group.id) {
     groupId = group.id; portalDirty = false;
     const list = groupFeatures(group).filter(f => group.id !== 'stone' || !['stone_farm','parallel_world'].includes(f.id));
-    const mode = group.id === 'stone' ? `<section class="panel"><h2>次元石循环模式</h2><form id="portal-mode-form"><label for="portal-mode">运行模式</label><select id="portal-mode"><option value="stone">降阶刷最后BOSS</option><option value="legacy">旧版任务练级</option><option value="off">关闭次元石循环</option></select><p id="portal-mode-state" class="detail-note" role="status"></p><p class="field-help">停止脚本后可切换。只切换循环方式，返回平行世界和武器强化使用各自开关；进度、截止时间和已用次数保留。</p></form><div class="mode-links"><a href="#task/stone_farm">降阶流程与记录</a><a href="#task/parallel_world">旧版任务练级设置</a></div></section>` : '';
+    const mode = group.id === 'stone' ? `<section class="panel"><h2>次元石循环模式</h2><form id="portal-mode-form"><label for="portal-mode">运行模式</label><select id="portal-mode"><option value="stone">到达 RANK 后重开</option><option value="legacy">旧版任务练级</option><option value="off">关闭次元石循环</option></select><p id="portal-mode-state" class="detail-note" role="status"></p><p class="field-help">停止脚本后可切换。只切换循环方式，返回平行世界和武器强化使用各自开关；进度、截止时间和已用次数保留。</p></form><div class="mode-links"><a href="#task/stone_farm">重开设置与记录</a><a href="#task/parallel_world">旧版任务练级设置</a></div></section>` : '';
     $('group-detail').innerHTML = `<div class="page-heading"><div><div class="eyebrow">任务设置</div><h1>${esc(group.name)}</h1><p>${esc(group.description)}</p></div><a class="button" href="#overview">返回总览</a></div>${mode}<div class="task-rows">${list.map(taskRow).join('')}</div><p class="field-help">各子项独立保存开关和记录；实时任务按条件触发，定时与每日任务各自安排下次执行。</p>`;
     if ($('portal-mode-form')) {
       const modeInput = $('portal-mode');
@@ -307,7 +310,7 @@ const notes = {
   backpack_sell:'此开关控制脚本前往港口出售，与“巡航设置”中的游戏自动贩卖相互独立。确认钓鱼材料背包已满后，先停航并保存原地点，再到当前世界港口出售第一标签的未锁定材料。料理及锁定物品保留；确认容量后返回原地点，并按已有记录接续活动。',
   equipment_upgrade:'五种武器各检查一次，绿色鱼饼按钮可强化时长按一次，完成一遍就关闭面板。实际战斗期间暂缓打开；已确认入口未展开时等待下个检查间隔。此开关与游戏航巡中的自动强化分别控制，关闭次元石循环也不会自动关闭本项。',
   meter_calibration:'在平行世界普通地点校准，保留航巡，仅在普通鱼准备阶段停止持续钓鱼。确认无填充、无战斗后，读取当前范围并调整到角色等级附近；途中换地点则重新读取。长按启动后，以连续新图的真实填充或战斗确认恢复。任务BOSS、港口或圆球AUTO未开启时等待；已有填充或战斗时不重复拖动和长按。',
-  stone_farm:'游戏航巡负责钓鱼、升级与尝试BOSS。连续确认当前阶段后，RANK39先安全停航停钓，再返回观测所降一阶，保留本轮进度打最后一关（例如10→9）。降阶后的世界实际RANK40后安全返回，确认旧门关闭，再打开本轮原阶段的新门并启动钓鱼和航巡。旧交接按记录的原阶段继续，未知或冲突数字等待重认。恢复航巡时使用已启用的巡航设置；未启用管理时沿用兼容路线。守护者补伤害、海神反击与补伤害按相应已保存开关执行。此模式与旧版任务导航练级互斥。',
+  stone_farm:'游戏航巡负责钓鱼、升级和挑战 BOSS。连续核对画面达到设定 RANK 后，停航停钓、返回观测所并关门，再打开新门。确认新轮的实际钓鱼后恢复已保存的巡航。',
   parallel_world:'自动寻找骷髅任务点。普通 BOSS 实际钓鱼失败达到设定次数后开始练级；成功会清除失败计数。最后一个 BOSS（RANK39→40）低于单独设定的挑战等级时先练级，默认达到 BOSS 同级再挑战。默认开启练级自动航行，只勾选珍珠、琥珀、蓝色宝石，取消天赋材料和 BOSS；不启用游戏内自动出售或自动强化。航行期间继续已开启的钓鱼加速和鱼饼武器强化。达到任务 BOSS 等级减去对应允许差值后，先确认航行停止，再返回试打；时间或本轮升级数量不会提前触发。关闭自动航行时，仍可前往其他红色地点练级；连续确认未钓鱼后调整计量并长按圆盘，看到浅蓝色填充才确认启动，已有填充或抛竿、收鱼时不重复操作。练级进度重启后保留。连续三次确认 RANK 40 后返回并重开次元门。',
   growth_ad:'每日额度读取游戏右上角计数；满额或读不清时跳过。不会因为重启脚本重置额度。',
   potion_ad:'每日额度读取游戏右上角计数；满额或读不清时跳过。不会因为重启脚本重置额度。'
@@ -405,11 +408,17 @@ function renderDetail(feature) {
     if ($('mana-threshold')) $('mana-threshold').value = feature.mana_threshold ?? 25;
     const form = $('feature-form');
     const manaInput = $('mana-threshold'), restaurantInput = $('restaurant-targets');
+    if (feature.id === 'stone_farm') {
+      $('parameter-apply-state').insertAdjacentHTML('beforebegin', '<label for="stone-restart-rank">到达 / 超过此 RANK 后重开</label><input id="stone-restart-rank" type="number" min="1" max="40" step="1" required><p class="field-help">按游戏左上角的 RANK 判断。选 40 会等当前阶段通关。</p>');
+    }
+    const restartInput = $('stone-restart-rank');
+    if (restartInput) restartInput.value = feature.restart_rank;
     autoSaveForm(form, 'task/' + feature.id, '/api/features/change', () => {
       const enteredInterval = Number(interval.value);
       const data = {id: feature.id, interval: enteredInterval === displayedInterval
         ? savedInterval : enteredInterval * secondsPerUnit};
       if (manaInput) data.mana_threshold = Number(manaInput.value);
+      if (restartInput) data.restart_rank = Number(restartInput.value);
       if (feature.id === 'parallel_world' && feature.training) data.training = feature.training;
       if (feature.id === 'parallel_skills') { if (form.querySelector('#cruise-enabled')) data.cruise_settings = readCruiseFields(form); else data.growth_points = feature.growth_points; }
       if (feature.id === 'restaurant_upgrade') {
@@ -441,7 +450,7 @@ function renderDetail(feature) {
   if ($('stone-clear')) {
     const record = state.stone_record || {};
     $('stone-clear').disabled = busy || state.running || !record.pending || !!record.error;
-    $('stone-record-state').textContent = `${stonePairText()} · ` + (record.error || (record.pending ? `${record.expired ? '已过期' : '待处理'} · ${record.phase}` : record.retirement ? '旧交接已归档，等待当前游戏进度更新' : '没有待处理的交接'));
+    $('stone-record-state').textContent = `${stoneRankText()} · ` + (record.error || (record.pending ? `${record.expired ? '已过期' : '待处理'} · ${record.phase}` : record.retirement ? '旧交接已归档，等待当前游戏进度更新' : '没有待处理的交接'));
   }
   if ($('meter-clear')) {
     const record = state.meter_record || {};
@@ -554,7 +563,7 @@ async function refreshStatus() {
   const parallelText = (training?.mode === 'farming' ? `平行世界 RANK ${state.parallel.rank ?? '—'} · 钓鱼练级 Lv${training.player_level ?? '—'} / BOSS Lv${training.boss_level ?? '—'} · 达到 Lv${training.retry_level ?? '待识别'} 后试打` : training?.mode === 'trial' ? `平行世界 RANK ${state.parallel.rank ?? '—'} · 返回 BOSS 试打 · 角色 Lv${training.player_level ?? '—'}` : `平行世界 RANK ${state.parallel?.rank ?? '—'} · 等待游戏自动战斗`) + sailingText + fishingText + (state.parallel?.defense?.battle_tap ? ` · 补伤害点击 ${state.parallel.defense.damage_taps || 0} 次` : '');
   const bagPhases = {idle:'继续钓鱼',prepare:'确认自动航行停止',resume:'恢复返回步骤',find_port:'选择附近港口',close_port_map:'前往港口',travel_port:'前往港口',bag:'检查保管箱',verify_sale:'确认出售结果',open_return:'准备返回原地点',find_origin:'选择原钓鱼地点',close_origin_map:'返回原地点',travel_origin:'返回原地点'};
   const bagText = `满背包出售 · ${bagPhases[state.backpack?.phase] || '识别画面'}${state.backpack?.capacity_after != null ? ` · ${state.backpack.capacity_after}/30` : ''}`;
-  $('stage-text').textContent = !state.running ? `${activeCount} 项功能已开启，等待开始` : state.mode === 'preview' ? '仅识别画面，不发送点击' : state.stage === 'game_recovery' ? '游戏重连中 · 等待返回主画面' : state.stage.startsWith('stone_') ? `次元石：降阶刷最后BOSS · ${stonePairText()} · ${state.stone?.phase || '核对阶段'} · 第${state.stone?.world_stage ?? '—'}阶段 · RANK ${state.stone?.rank ?? '—'}` : state.stage.startsWith('meter_') ? `标尺等级校准 · ${state.meter?.pending ? '校准进行中' : (state.meter?.hold || '等待触发条件')}` : state.stage.startsWith('backpack_') ? bagText : state.stage.startsWith('skills_') ? `巡航系技能 · 钓鱼速度 ${state.skills?.fishing_percent ?? '—'}% · 技能点 ${state.skills?.balance ?? '待识别'}` : state.stage.startsWith('equipment_') ? `鱼饼武器强化 · ${state.equipment?.weapon || '识别列表'} · 本轮长按 ${state.equipment?.holds || 0} 次` : state.stage.startsWith('parallel_') ? (state.parallel?.phase === 'play' ? parallelText : `平行世界 · ${state.parallel?.phase || '识别中'} · RANK ${state.parallel?.rank ?? '—'}`) : state.stage === 'main' ? (state.parallel && state.features.find(f => f.id === 'parallel_world')?.enabled ? parallelText : state.active_rule_ids?.length ? '主画面 · 等待任务出现' : '所有功能已关闭，等待开启任务') : `当前流程 · ${stageRule?.name || state.stage}`;
+  $('stage-text').textContent = !state.running ? `${activeCount} 项功能已开启，等待开始` : state.mode === 'preview' ? '仅识别画面，不发送点击' : state.stage === 'game_recovery' ? '游戏重连中 · 等待返回主画面' : state.stage.startsWith('stone_') ? `次元石循环 · ${stoneRankText()} · ${state.stone?.phase || '核对阶段'} · 第${state.stone?.world_stage ?? '—'}阶段 · RANK ${state.stone?.rank ?? '—'}` : state.stage.startsWith('meter_') ? `标尺等级校准 · ${state.meter?.pending ? '校准进行中' : (state.meter?.hold || '等待触发条件')}` : state.stage.startsWith('backpack_') ? bagText : state.stage.startsWith('skills_') ? `巡航系技能 · 钓鱼速度 ${state.skills?.fishing_percent ?? '—'}% · 技能点 ${state.skills?.balance ?? '待识别'}` : state.stage.startsWith('equipment_') ? `鱼饼武器强化 · ${state.equipment?.weapon || '识别列表'} · 本轮长按 ${state.equipment?.holds || 0} 次` : state.stage.startsWith('parallel_') ? (state.parallel?.phase === 'play' ? parallelText : `平行世界 · ${state.parallel?.phase || '识别中'} · RANK ${state.parallel?.rank ?? '—'}`) : state.stage === 'main' ? (state.parallel && state.features.find(f => f.id === 'parallel_world')?.enabled ? parallelText : state.active_rule_ids?.length ? '主画面 · 等待任务出现' : '所有功能已关闭，等待开启任务') : `当前流程 · ${stageRule?.name || state.stage}`;
   $('pending').hidden = !state.settings_pending;
   const health = state.lifecycle?.health;
   if (state.running && state.mode !== 'preview' && state.stage === 'main' && health) {

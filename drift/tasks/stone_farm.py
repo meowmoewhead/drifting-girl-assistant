@@ -1,12 +1,7 @@
-"""Native AUTO farming: lower one observed stage at RANK39 for the last boss.
-
-Only the portal handoff owns the UI. The game's route, fishing and levelling
-remain native. Closing a gate is a separate, persisted RANK40-only operation.
-"""
+"""Restart native AUTO farming after reaching the saved RANK cutoff."""
 import hashlib
 import json
 from pathlib import Path
-import re
 import time
 
 import cv2
@@ -20,6 +15,7 @@ from drift.tasks.fishing_meter import FishingMeter
 from drift.tasks.meter_calibration import MeterCalibration, _ScreenContext
 from drift.tasks.parallel_screen import ParallelScreen
 from drift.tasks.parallel_world import ParallelWorld
+from drift.tasks.stone_options import DEFAULT_RESTART_RANK, is_rank_restart
 from drift.tasks.training_sailing import TARGETS, TrainingSailing
 from drift.tasks import native_auto_sale
 from drift.tasks import handoff_journal
@@ -30,29 +26,25 @@ class StoneFarm(ParallelScreen):
     _portal_words = ParallelWorld._portal_words
     _portal_number = ParallelWorld._portal_number
     _gate_manager = ParallelWorld._gate_manager
-    _lower_prompt = ParallelWorld._lower_prompt
     _npc_ready = ParallelWorld._npc_ready
     _gate_active = staticmethod(ParallelWorld._gate_active)
     completion_visible = ParallelWorld.completion_visible
     settings_key = MeterCalibration.settings_key
     _match = ParallelScreen.match
 
-    START_STAGE, FINAL_STAGE, HANDOFF_RANK = 9, 8, 39
     TARGET_VALUES = (True, False, True, True, True)
     LIMIT = 600
     STOP_FISHING_SECONDS = 180
     RETURN_RESERVE_SECONDS = 45
     FIRST_RESULT_SECONDS = 30
     PHASES = {'idle', 'completion', 'stop', 'stop_fishing', 'return', 'return_confirm',
-              'original', 'npc', 'manager', 'lower_confirm', 'lower_verify',
+              'original', 'npc', 'manager',
               'close_confirm', 'closed', 'search', 'new_gate', 'panel_close',
               'enter', 'enter_confirm', 'arrive', 'route_open', 'route_menu',
               'route_running', 'fishing_stop', 'fishing_prepare',
               'first_map', 'first_select', 'first_close', 'first_idle', 'first_verify'}
-    INPUT_LIMITS = {'completion': 1, 'stop': 3, 'handoff-cancel': 2, 'lower-boss-abandon': 1,
-                    'lower-boss-abandon-menu': 1, 'return-request': 8,
-                    'return-confirm': 3, 'npc': 3, 'lower': 1,
-                    'lower-confirm': 1, 'close-gate': 1, 'close-confirm': 1,
+    INPUT_LIMITS = {'completion': 1, 'stop': 3, 'handoff-cancel': 2, 'return-request': 8,
+                    'return-confirm': 3, 'npc': 3, 'close-gate': 1, 'close-confirm': 1,
                     'activate': 1, 'search-confirm': 1, 'panel-close': 2,
                     'enter': 2, 'enter-confirm': 2, 'route-open': 3,
                     'route-start': 1, 'enable-auto-sale': 1, 'restore-stop': 3, 'restore-route-open': 3,
@@ -60,15 +52,21 @@ class StoneFarm(ParallelScreen):
                     'first-close': 3, 'first-wake': 1, 'first-cast': 1, 'first-pan': 16,
                     **{'target:'+n: 1 for n in TARGETS}, 'cruise-auto-sale':1,'cruise-auto-upgrade':1}
 
+    RETRY_MODES = {'return_retry', 'route_restore', 'gate_restore', 'startup_restore',
+                   'first_cast_restore', 'first_map_restore', 'first_close_restore',
+                   'first_idle_restore', 'first_result_restore', 'first_entry_restore',
+                   'route_result_restore', 'observed_cycle_restore',
+                   'continuous_cast_stop_retry', 'return_entry_restore', 'manual_rank_progress_restore'}
+
     @staticmethod
     def stage_pair(record):
-        """A journal binds one adjacent pair; never reinterpret an old trip."""
+        """Return the endpoints of a supported gate restart."""
         source, target = record.get('from_stage'), record.get('to_stage')
         if type(source) is not int or type(target) is not int:
             return None
-        if record.get('reason') == 'lower' and 2 <= source <= 99 and target == source-1:
-            return source, target
         if record.get('reason') == 'cycle' and 1 <= source < 99 and target == source+1:
+            return target, source
+        if is_rank_restart(record):
             return target, source
         return None
 
@@ -82,24 +80,15 @@ class StoneFarm(ParallelScreen):
         if self.path.is_file():
             saved = json.loads(self.path.read_text(encoding='utf-8-sig'))
             if (saved.get('version') != 1 or type(saved.get('pending')) is not bool
-                    or saved.get('phase') not in self.PHASES
-                    or saved.get('pending') and (
-                        saved.get('reason') not in ('lower', 'cycle')
-                        or saved.get('rank') != (39 if saved['reason'] == 'lower' else 40)
+                    or saved.get('reason') != 'lower' and saved.get('phase') not in self.PHASES
+                    or saved.get('pending') and saved.get('reason') != 'lower' and (
+                        (not is_rank_restart(saved) if saved.get('reason') == 'restart'
+                         else (saved.get('reason'), saved.get('rank'), saved.get('entry_rank')) != ('cycle', 40, 0))
                         or not isinstance(saved.get('deadline'), (int, float))
                         or not np.isfinite(saved['deadline'])
                         or self.stage_pair(saved) is None
-                        or saved.get('entry_rank') != (39 if saved['reason'] == 'lower' else 0)
                         or saved.get('phase') == 'idle'
                         or 'continuous_cast_stop' in saved and type(saved['continuous_cast_stop']) is not bool
-                        or 'allow_boss_abandon' in saved and type(saved['allow_boss_abandon']) is not bool
-                        or saved.get('allow_boss_abandon') is True and (
-                            saved.get('reason') != 'lower' or saved.get('rank') != 39
-                            or saved.get('from_stage') != 9 or saved.get('to_stage') != 8)
-                        or 'boss_abandon_menu_retry' in saved and type(saved['boss_abandon_menu_retry']) is not bool
-                        or saved.get('boss_abandon_menu_retry') is True and (
-                            saved.get('allow_boss_abandon') is not True
-                            or saved.get('attempts',{}).get('lower-boss-abandon') != 1)
                         or not isinstance(saved.get('phase_deadline'), (int,float))
                         or not np.isfinite(saved['phase_deadline'])
                         or not isinstance(saved.get('return_deadline'), (int,float))
@@ -111,14 +100,10 @@ class StoneFarm(ParallelScreen):
                         or not isinstance(saved.get('attempts'), dict)
                         or any(k not in self.INPUT_LIMITS or type(v) is not int or v < 0
                                or v > self.INPUT_LIMITS[k] for k,v in saved['attempts'].items()))):
-                raise RuntimeError('次元石降阶记录无效，已停止并保留原记录')
+                raise RuntimeError('次元石交接记录无效，已停止并保留原记录')
             self.journal = saved
-        # Old configurations need no migration. An in-flight journal retains
-        # its pair; otherwise fresh native frames can adopt the current stage.
-        self.START_STAGE, self.FINAL_STAGE = self.stage_pair(self.journal) or (9, 8)
-        self.stage_probe = self.stage_probe_since = self.stage_probe_seen_at = None
-        self.stage_probe_frames = 0
-        self.stage_probe_frame = None
+        self.restart_rank = DEFAULT_RESTART_RANK
+        self.restart_probe_frame = None
         self.world = _ScreenContext(root, reader, lambda: None)
         self.training = self.world.training  # read-only, never the training_state.json journal
         self.meter_action = lambda action, data: False
@@ -137,33 +122,30 @@ class StoneFarm(ParallelScreen):
                                    scan=defense_action is not None, final_boss_attacks=True)
         self.portal_frames = {}
         for name in ('parallel-manager', 'parallel-manager-inactive',
-                     'parallel-lower-question', 'observatory-npc', 'observatory-npc-day'):
+                     'observatory-npc', 'observatory-npc-day'):
             raw = cv2.imread(str(self.root/'assets/recovery'/f'{name}.png'))
             if raw is None or raw.shape[:2] != (1280, 720):
-                raise RuntimeError('次元石降阶缺少传送门模板')
+                raise RuntimeError('次元石交接缺少传送门模板')
             self.portal_frames[name] = cv2.cvtColor(raw, cv2.COLOR_BGR2RGB)
         self.completion_frame = self._load('assets/recovery/parallel-complete.png')
         self.return_icon = self._load('assets/stone-farm/return-icon.png')
-        self.boss_abandon_icon = self._load('assets/stone-farm/boss-abandon.png')
         self.cast_stop_fish = self._load('assets/stone-farm/cast-stop-fish.png')
         fish = self.cast_stop_fish.astype(np.int16)
         self.cast_stop_mask = cv2.dilate(((fish[:,:,2]-fish[:,:,0] > 25)
                                          & (fish[:,:,2] > 140)).astype('uint8'),
                                         np.ones((3,3),np.uint8))
-        abandon = cv2.cvtColor(self.boss_abandon_icon,cv2.COLOR_RGB2HSV)
-        self.boss_abandon_mask = cv2.dilate(((abandon[:,:,0] < 20) & (abandon[:,:,1] > 100)
-            & (abandon[:,:,2] > 120)).astype('uint8'),np.ones((3,3),np.uint8))
         destination = self._load('assets/stone-farm/choose-destination.png')
         self.destination_ink = destination.max(axis=2) < 60
         self.menu_zero = self._load('assets/stone-farm/menu-rank-zero.png')
         self.menu_one = self._load('assets/stone-farm/menu-rank-one.png')
         self.map_legend = self._load('assets/task-popup/map-legend.png')
         self.moving_label = self._load('assets/backpack/moving.png')
+        self.seoul_title = self._load('assets/stone-farm/seoul-map-title.png')
+        self.seoul_title_mask = ((self.seoul_title.min(axis=2) >= 220)
+                                 | (self.seoul_title.max(axis=2) <= 67)).astype(np.uint8)
+        self.seoul_header_ink = self._load('assets/stone-farm/seoul-header-ink.png')[:,:,0] > 0
         self.first_map_core = self._load('assets/stone-farm/first-map-skull-core.png')
         self.selected_first_map_core = self._load('assets/stone-farm/selected-first-map-skull-core.png')
-        self.lower_map_core = self._load('assets/stone-farm/lower-map-skull-core.png')
-        self.lower_map_bone = self._load('assets/stone-farm/lower-map-skull-bone.png')
-        self.selected_lower_map = self._load('assets/stone-farm/lower-map-skull-selected.png')
         self.world.assets['success-check'] = self._load('assets/training/success-check.png')
         self.native_entry_auto_label = self._load('assets/stone-farm/native-entry-auto-label.png')
         # The swirl moves; only the metal frame and its four corners are stable.
@@ -182,14 +164,12 @@ class StoneFarm(ParallelScreen):
         self.seen = 0
         self.next_at = 0
         self.off_verified = False  # A restart requires new OFF proof.
-        self.boss_abandon_key = None
         self.cancel_anchor = None
         self.fishing_stopped = False
         self.hold = None
         self.return_probe = None
         self.return_wait_logged_at = None
         self.return_wait_reason = None
-        self.return_recovery_frame = None
         self.menu_key = None
         self.meter_context = None
         self.first_idle_key = None
@@ -199,51 +179,34 @@ class StoneFarm(ParallelScreen):
         self.first_result_observed = False
         self.retry_path = self.path.with_name('stone_farm_retry.json')
         self.retry = None
-        if self.retry_path.is_file():
+        if self.active and self.retry_path.is_file():
             request = json.loads(self.retry_path.read_text(encoding='utf-8-sig'))
-            confirm_restore = (request.get('mode') == 'return_confirm_restore'
-                               and request.get('allow_return_confirm_restore') is True
-                               and request.get('receipt_sha256') is not None
-                               and time.time() < request.get('expires_at',0))
-            if ((self.active or confirm_restore) and self.path.is_file()
-                    and request.get('failed_sha256') == hashlib.sha256(self.path.read_bytes()).hexdigest()
-                    and (request.get('allow_ordinary_cancel') is True
-                         or confirm_restore
-                         or request.get('mode') == 'observed_lower_restore'
-                         and request.get('allow_observed_lower_restore') is True
-                         or request.get('mode') == 'observed_cycle_restore'
-                         and request.get('allow_observed_cycle_restore') is True)):
+            approved = (request.get('allow_ordinary_cancel') is True
+                        or request.get('mode') == 'observed_cycle_restore'
+                        and request.get('allow_observed_cycle_restore') is True)
+            if (approved and request.get('mode') in self.RETRY_MODES
+                    and request.get('failed_sha256') == hashlib.sha256(self.path.read_bytes()).hexdigest()):
                 self.retry = request
 
     @staticmethod
-    def request_retry(root, failed_sha256, *, allow_boss_abandon=False, allow_boss_abandon_menu=False,
-                      allow_continuous_cancel=False, allow_post_start_restore=False,
-                      allow_first_result_restore=False, allow_manual_rank_progress=False,
-                      allow_observed_lower_restore=False, allow_observed_cycle_restore=False,
-                       allow_return_entry_restore=False, allow_map_target_repair=False,
-                       allow_return_confirm_restore=False):
+    def request_retry(root, failed_sha256, *, allow_continuous_cancel=False,
+                      allow_manual_rank_progress=False, allow_observed_cycle_restore=False,
+                      allow_return_entry_restore=False):
         """Explicit one-run approval, without resetting the failed journal."""
         root = Path(root)
         config = json.loads((root/'config.json').read_text(encoding='utf-8-sig'))
         if not any(r['id'] == 'driftinggirl_stone_farm' and r['enabled'] for r in config['rules']):
-            raise ValueError('请先启用次元石降阶功能')
+            raise ValueError('请先启用次元石重开功能')
         raw = (root/'stone_farm_state.json').read_bytes()
         digest = hashlib.sha256(raw).hexdigest()
         journal = json.loads(raw.decode('utf-8-sig'))
-        if allow_return_confirm_restore is True:
-            receipt = StoneFarm._return_confirm_receipt(root,journal)
-            if (digest != failed_sha256 or receipt is None
-                    or any((allow_boss_abandon,allow_boss_abandon_menu,allow_continuous_cancel,
-                            allow_post_start_restore,allow_first_result_restore,allow_manual_rank_progress,
-                            allow_observed_lower_restore,allow_observed_cycle_restore,allow_return_entry_restore,
-                            allow_map_target_repair))):
-                raise ValueError('只可接续已确认的返回弹窗，且原返回确认未占用任何输入次数')
-            now = time.time()
-            return StoneFarm._write_retry(root,dict(mode='return_confirm_restore',failed_sha256=digest,
-                approved_at=now,expires_at=now+120,allow_return_confirm_restore=True,
-                allow_ordinary_cancel=False,receipt_sha256=receipt))
-        pair = StoneFarm.stage_pair(journal)
-        upper_stage, lower_stage = pair or (None, None)
+        is_cycle = (journal.get('reason') == 'cycle' and journal.get('rank') == 40
+                    and journal.get('entry_rank') == 0 and journal.get('rank40_verified') is True
+                    and StoneFarm.stage_pair(journal) is not None)
+        if (digest != failed_sha256 or not journal.get('pending')
+                or not (is_cycle or is_rank_restart(journal))):
+            raise ValueError('原记录须为待处理的重开交接且哈希一致')
+        target_stage = journal['to_stage']
         return_limit = (handoff_journal.stop_fishing_deadline(journal) if journal.get('phase') == 'stop_fishing'
                         else journal.get('return_deadline',float('inf')))
         returned_failure = (journal.get('phase') in ('stop_fishing','return','return_confirm')
@@ -253,52 +216,23 @@ class StoneFarm(ParallelScreen):
                          and journal.get('verified_gate_stage') == journal.get('to_stage')
                          and journal.get('entered_verified_at') and time.time() > journal.get('phase_deadline',float('inf'))
                          and any(a.get('kind') == 'enter-confirm' for a in journal.get('issued_inputs',[])))
-        route_open_failure = (journal.get('phase') == 'route_open'
-                              and journal.get('reason') == 'lower'
-                              and journal.get('verified_gate_stage') == journal.get('to_stage')
-                              and journal.get('entered_verified_at') and journal.get('first_cast_verified_at')
-                              and journal.get('first_cast_verified_rank') == journal.get('entry_rank') == 39
-                              and time.time() > journal.get('phase_deadline',float('inf'))
-                              and any(a.get('kind') == 'first-cast' for a in journal.get('issued_inputs',[]))
-                              and journal.get('attempts',{}).get('first-cast') == 1
-                              and not journal.get('attempts',{}).get('restore-route-start')
-                              and not journal.get('route_open_repair_runs'))
-        fishing_failure = (journal.get('phase') in ('route_running','fishing_prepare')
-                           and journal.get('verified_gate_stage') == lower_stage
-                           and journal.get('entered_verified_at')
-                           and time.time() > journal.get('phase_deadline',float('inf'))
-                           and any(a.get('kind') == 'route-start' for a in journal.get('issued_inputs',[]))
-                           and not journal.get('meter_attempts',{}).get('start'))
-        post_start_failure = (allow_post_start_restore is True
-            and journal.get('phase') == 'fishing_prepare'
-            and journal.get('verified_gate_stage') == lower_stage and journal.get('entered_verified_at')
-            and time.time() > journal.get('phase_deadline',float('inf'))
-            and journal.get('meter_attempts',{}).get('start') == 1
-            and not journal.get('post_start_restore_runs')
-            and not journal.get('attempts',{}).get('restore-route-start')
-            and journal.get('restore_signature'))
         gate_failure = (journal.get('phase') == 'manager'
                         and journal.get('resumed_after_unverified_return') is True
                         and journal.get('returned_at')
                         and time.time() > journal.get('phase_deadline',float('inf')))
         startup_failure = (journal.get('phase') == 'fishing_prepare'
-                           and journal.get('verified_gate_stage') == upper_stage
+                           and journal.get('verified_gate_stage') == target_stage
                            and journal.get('entered_verified_at')
                            and time.time() > journal.get('phase_deadline',float('inf'))
                            and any(a.get('kind') == 'enter-confirm' for a in journal.get('issued_inputs',[]))
                            and not journal.get('meter_attempts'))
         first_failure = (journal.get('phase') == 'route_running'
-                         and journal.get('verified_gate_stage') == upper_stage
+                         and journal.get('verified_gate_stage') == target_stage
                          and journal.get('entered_verified_at')
                          and time.time() > journal.get('phase_deadline',float('inf'))
                          and any(a.get('kind') == 'route-start' for a in journal.get('issued_inputs',[]))
                          and not journal.get('attempts',{}).get('first-cast')
                          and not journal.get('meter_attempts',{}).get('start'))
-        map_target_repair = (allow_map_target_repair is True
-                             and journal.get('first_map_repair_runs') == 1
-                             and not journal.get('first_map_target_repair_runs')
-                             and journal.get('reason') == 'lower'
-                             and journal.get('first_unselected') is True)
         # A notice can consume the map-open click before the map appears.
         # The explicit, hash-bound repair can reuse the map restoration path
         # only while an original map allowance remains; never replenish it.
@@ -315,13 +249,10 @@ class StoneFarm(ParallelScreen):
                              and any(a.get('kind') == 'first-map' for a in journal.get('issued_inputs',[]))
                              and not journal.get('attempts',{}).get('first-cast')
                              and not journal.get('attempts',{}).get('first-select')
-                             and (not journal.get('first_map_repair_runs') or map_target_repair))
-        if (type(allow_map_target_repair) is not bool or allow_map_target_repair
-                and not (map_target_repair and first_map_failure)):
-            raise ValueError('选点修复接续仅限一次未选中任务的降阶地图失败；保留全部已用次数')
+                             and not journal.get('first_map_repair_runs'))
         first_close_failure = (journal.get('phase') == 'first_close'
             and journal.get('first_unselected') is True
-            and journal.get('verified_gate_stage') == upper_stage and journal.get('entered_verified_at')
+            and journal.get('verified_gate_stage') == target_stage and journal.get('entered_verified_at')
             and time.time() > journal.get('phase_deadline',float('inf'))
             and journal.get('first_selected_rank') == 0
             and isinstance(journal.get('first_selected_point'),list)
@@ -346,7 +277,7 @@ class StoneFarm(ParallelScreen):
                               and not journal.get('attempts',{}).get('first-cast')
                               and not journal.get('first_idle_repair_runs'))
         first_result_failure = (journal.get('phase') == 'first_verify'
-                                and journal.get('verified_gate_stage') == upper_stage
+                                and journal.get('verified_gate_stage') == target_stage
                                 and journal.get('entered_verified_at')
                                 and time.time() > journal.get('phase_deadline',float('inf'))
                                 and journal.get('attempts',{}).get('first-cast') == 1
@@ -354,19 +285,9 @@ class StoneFarm(ParallelScreen):
                                 and all(any(a.get('kind') == kind for a in journal.get('issued_inputs',[]))
                                         for kind in ('first-select','first-cast'))
                                 and not journal.get('first_result_repair_runs'))
-        lower_first_result_failure = (journal.get('phase') == 'first_verify'
-            and journal.get('verified_gate_stage') == lower_stage and journal.get('entered_verified_at')
-            and time.time() > journal.get('phase_deadline',float('inf'))
-            and journal.get('first_selected_rank') == journal.get('entry_rank') == 39
-            and journal.get('attempts',{}).get('first-cast') == 1
-            and all(any(a.get('kind') == kind for a in journal.get('issued_inputs',[]))
-                    for kind in ('enter-confirm','first-select','first-cast'))
-            and not journal.get('first_result_repair_runs')
-            and not any(journal.get('attempts',{}).get(k)
-                        for k in ('restore-route-open','restore-route-start')))
         first_entry_failure = (journal.get('phase') == 'fishing_stop'
                                and journal.get('first_recovery') is True
-                               and journal.get('verified_gate_stage') == upper_stage
+                               and journal.get('verified_gate_stage') == target_stage
                                and journal.get('entered_verified_at')
                                and time.time() > journal.get('phase_deadline',float('inf'))
                                and all(any(a.get('kind') == kind for a in journal.get('issued_inputs',[]))
@@ -376,7 +297,7 @@ class StoneFarm(ParallelScreen):
                                and not journal.get('meter_attempts')
                                and not journal.get('first_entry_repair_runs'))
         route_result_failure = (journal.get('phase') == 'route_running'
-                                and journal.get('verified_gate_stage') == upper_stage
+                                and journal.get('verified_gate_stage') == target_stage
                                 and journal.get('entered_verified_at')
                                 and journal.get('first_cast_verified_rank') == 1
                                 and journal.get('first_cast_verified_at')
@@ -384,44 +305,25 @@ class StoneFarm(ParallelScreen):
                                 and all(any(a.get('kind') == kind for a in journal.get('issued_inputs',[]))
                                         for kind in ('first-cast','restore-route-start'))
                                 and not journal.get('route_result_repair_runs'))
-        lower = (journal.get('reason') == 'lower' and journal.get('rank') == 39
-                 and pair is not None
-                 and journal.get('entry_rank') == 39)
-        cycle = (journal.get('reason') == 'cycle' and journal.get('rank') == 40
-                 and pair is not None
-                 and journal.get('entry_rank') == 0 and journal.get('rank40_verified') is True)
-        return_entry_failure = ((lower or cycle) and returned_failure
+        return_entry_failure = (returned_failure
             and journal.get('phase') == 'return'
             and journal.get('off_verified_at') and journal.get('fishing_stopped_at')
             and journal.get('continuous_cast_stop') is True
             and not journal.get('attempts',{}).get('return-request')
             and not journal.get('return_entry_repair_runs'))
         if (type(allow_return_entry_restore) is not bool or allow_return_entry_restore and not (
-                return_entry_failure and not any((allow_boss_abandon,allow_boss_abandon_menu,
-                    allow_continuous_cancel,allow_post_start_restore,allow_first_result_restore,
-                    allow_manual_rank_progress,allow_observed_lower_restore,allow_observed_cycle_restore)))):
+                return_entry_failure and not any((allow_continuous_cancel,
+                    allow_manual_rank_progress,allow_observed_cycle_restore)))):
             raise ValueError('返回入口恢复仅限已停钓但未发出返回输入的超时；保留旧次数且仅允许一次')
-        observed_cycle_failure = (cycle and first_result_failure
+        observed_cycle_failure = (first_result_failure
             and not journal.get('observed_cycle_restore_runs')
             and all(any(a.get('kind') == k for a in journal.get('issued_inputs',[]))
                     for k in ('return-request','return-confirm','enter-confirm','first-select','first-cast')))
         if (type(allow_observed_cycle_restore) is not bool or allow_observed_cycle_restore and not (
-                observed_cycle_failure and not any((allow_boss_abandon,allow_boss_abandon_menu,
-                    allow_continuous_cancel,allow_post_start_restore,allow_first_result_restore,
-                    allow_manual_rank_progress,allow_observed_lower_restore)))):
+                observed_cycle_failure and not any((allow_continuous_cancel,allow_manual_rank_progress)))):
             raise ValueError('新轮只读接续仅限已有单次首竿的验证超时；不允许新增输入或重置期限')
-        observed_lower_failure = (lower and fishing_failure
-            and journal.get('phase') == 'route_running'
-            and not journal.get('observed_lower_restore_runs')
-            and all(any(a.get('kind') == k for a in journal.get('issued_inputs',[]))
-                    for k in ('lower','lower-confirm','enter-confirm','route-start')))
-        if (type(allow_observed_lower_restore) is not bool or allow_observed_lower_restore and not (
-                observed_lower_failure and not any((allow_boss_abandon,allow_boss_abandon_menu,
-                    allow_continuous_cancel,allow_post_start_restore,allow_first_result_restore,
-                    allow_manual_rank_progress,allow_observed_cycle_restore)))):
-            raise ValueError('已恢复钓鱼的只读接续仅限本次降阶航巡超时；不允许新增输入或重置期限')
-        manual_progress_failure = (cycle and journal.get('phase') == 'first_close'
-            and journal.get('verified_gate_stage') == upper_stage and journal.get('entered_verified_at')
+        manual_progress_failure = (journal.get('phase') == 'first_close'
+            and journal.get('verified_gate_stage') == target_stage and journal.get('entered_verified_at')
             and time.time() > journal.get('phase_deadline',float('inf'))
             and journal.get('first_selected_rank') == 0
             and all(any(a.get('kind') == k for a in journal.get('issued_inputs',[]))
@@ -429,84 +331,39 @@ class StoneFarm(ParallelScreen):
             and not journal.get('attempts',{}).get('first-cast')
             and not journal.get('meter_attempts') and not journal.get('manual_rank_progress_runs'))
         if (type(allow_manual_rank_progress) is not bool or allow_manual_rank_progress and not (
-                manual_progress_failure and not any((allow_boss_abandon,allow_boss_abandon_menu,
-                    allow_continuous_cancel,allow_post_start_restore,allow_first_result_restore)))):
+                manual_progress_failure and not allow_continuous_cancel)):
             raise ValueError('手动推进接续仅限本次首任务移动超时；不重复抛竿或标尺输入')
-        if (digest != failed_sha256 or not journal.get('pending')
-                or not (lower and (returned_failure or route_failure or route_open_failure or fishing_failure or post_start_failure or first_map_failure or first_idle_failure
-                                  or allow_first_result_restore is True and lower_first_result_failure)
-                        or cycle and (returned_failure or gate_failure or startup_failure or route_failure or first_failure or first_map_failure or first_close_failure or first_idle_failure or first_result_failure or first_entry_failure or route_result_failure
-                                      or allow_manual_rank_progress and manual_progress_failure))):
-            raise ValueError('仅可为已核对的降阶返回失败另开观察，原记录必须一致')
-        if (type(allow_first_result_restore) is not bool or allow_first_result_restore and not (
-                lower and lower_first_result_failure and not any((allow_boss_abandon,
-                    allow_boss_abandon_menu,allow_continuous_cancel,allow_post_start_restore)))):
-            raise ValueError('降阶抛竿结果恢复仅限本次已降一阶的RANK39；保留已用抛竿且仅恢复未用航巡步骤')
-        if (type(allow_post_start_restore) is not bool or allow_post_start_restore and not (
-                lower and post_start_failure and not allow_boss_abandon
-                and not allow_boss_abandon_menu and not allow_continuous_cancel)):
-            raise ValueError('长按后恢复仅限本次已降一阶的RANK39的一次已有长按；不能重置输入或重复申请')
-        if (type(allow_boss_abandon) is not bool or allow_boss_abandon and not (
-                lower and journal.get('from_stage') == 9 and journal.get('to_stage') == 8
-                and returned_failure and journal.get('phase') == 'stop_fishing'
-                and time.time() > return_limit
-                and not journal.get('attempts',{}).get('lower-boss-abandon'))):
-            raise ValueError('放弃BOSS仅限已核对的9阶RANK39停钓超时，且本场尚未尝试放弃')
-        menu_receipt = StoneFarm._boss_abandon_receipt(root,journal) if allow_boss_abandon_menu else None
-        if (type(allow_boss_abandon_menu) is not bool or allow_boss_abandon_menu and not (
-                not allow_boss_abandon and lower and returned_failure
-                and journal.get('from_stage') == 9 and journal.get('to_stage') == 8
-                and journal.get('phase') == 'stop_fishing'
-                and time.time() > return_limit
-                and journal.get('allow_boss_abandon') is True
-                and journal.get('attempts',{}).get('lower-boss-abandon') == 1
-                and not journal.get('attempts',{}).get('lower-boss-abandon-menu')
-                and not journal.get('boss_abandon_menu_retry') and menu_receipt)):
-            raise ValueError('追加80毫秒接触仅限本次9阶RANK39降阶，须保留一次已释放的原生输入回执且尚未追加')
+        if not (returned_failure or gate_failure or startup_failure or route_failure
+                or first_failure or first_map_failure or first_close_failure or first_idle_failure
+                or first_result_failure or first_entry_failure or route_result_failure
+                or allow_manual_rank_progress and manual_progress_failure):
+            raise ValueError('仅可为已核对的交接失败另开观察，原记录必须一致')
         if (type(allow_continuous_cancel) is not bool or allow_continuous_cancel and not (
-                not allow_boss_abandon and not allow_boss_abandon_menu
-                and returned_failure and (lower or cycle)
+                returned_failure
                 and journal.get('phase') == 'stop_fishing'
                 and not journal.get('continuous_stop_repair_runs')
                 and journal.get('attempts',{}).get('handoff-cancel',0) < StoneFarm.INPUT_LIMITS['handoff-cancel'])):
             raise ValueError('持续停钓修复仅限本次停钓超时，保留已有次数且不能再次申请同一修复')
-        if (lower and returned_failure and not allow_boss_abandon_menu and not allow_continuous_cancel
-                and any(journal.get('attempts',{}).get(k) for k in ('lower-boss-abandon','lower-boss-abandon-menu'))):
-            raise ValueError('已有放弃BOSS尝试不能通过普通重试重置次数')
         request = dict(failed_sha256=digest, approved_at=time.time(), expires_at=time.time()+300,
-                       allow_ordinary_cancel=True, mode='lower_first_result_restore' if allow_first_result_restore
-                       else 'route_result_restore' if cycle and route_result_failure
-                       else 'first_entry_restore' if cycle and first_entry_failure
-                       else 'first_result_restore' if cycle and first_result_failure
-                       else 'first_close_restore' if cycle and first_close_failure
+                       allow_ordinary_cancel=True,
+                       mode='route_result_restore' if route_result_failure
+                       else 'first_entry_restore' if first_entry_failure
+                       else 'first_result_restore' if first_result_failure
+                       else 'first_close_restore' if first_close_failure
                        else 'first_map_restore' if first_map_failure
                        else 'first_idle_restore' if first_idle_failure
-                       else 'route_open_restore' if route_open_failure
-                       else 'first_cast_restore' if cycle and first_failure
-                       else 'startup_restore' if cycle and startup_failure
-                       else 'gate_restore' if cycle and gate_failure
-                       else 'fishing_restore' if fishing_failure
+                       else 'first_cast_restore' if first_failure
+                       else 'startup_restore' if startup_failure
+                       else 'gate_restore' if gate_failure
                        else 'route_restore' if route_failure else 'return_retry')
         if first_map_failure and interrupted_map_open:
             request['map_open_interrupted'] = True
         if allow_return_entry_restore:
             request.update(mode='return_entry_restore',allow_return_entry_restore=True)
-        if allow_map_target_repair:
-            request['allow_map_target_repair'] = True
-        if allow_boss_abandon:
-            request['allow_boss_abandon'] = True
-        if allow_boss_abandon_menu:
-            request.update(mode='boss_abandon_menu_retry',allow_boss_abandon_menu=True,
-                           native_abandon_receipt_sha256=menu_receipt)
         if allow_continuous_cancel:
             request.update(mode='continuous_cast_stop_retry',allow_continuous_cancel=True)
-        if allow_post_start_restore:
-            request.update(mode='post_start_restore',allow_post_start_restore=True)
         if allow_manual_rank_progress:
             request.update(mode='manual_rank_progress_restore',allow_manual_rank_progress=True)
-        if allow_observed_lower_restore:
-            request.update(mode='observed_lower_restore',allow_observed_lower_restore=True,
-                           allow_ordinary_cancel=False,expires_at=time.time()+60)
         if allow_observed_cycle_restore:
             request.update(mode='observed_cycle_restore',allow_observed_cycle_restore=True,
                            allow_ordinary_cancel=False,expires_at=time.time()+60)
@@ -518,142 +375,30 @@ class StoneFarm(ParallelScreen):
         atomic_write_text(root/'stone_farm_retry.json', json.dumps(request, indent=2) + '\n')
         return request
 
-    @staticmethod
-    def _return_confirm_receipt(root, journal):
-        """Bind an unused confirmation to the exact expired return request."""
-        if (journal.get('reason') != 'lower' or journal.get('rank') != 39
-                or journal.get('entry_rank') != 39 or StoneFarm.stage_pair(journal) is None
-                or journal.get('return_confirm_restore_runs')):
-            return None
-        phase = journal.get('phase')
-        if not journal.get('pending'):
-            retired = journal.get('retirement') or {}
-            digest = retired.get('sha256','')
-            if (phase != 'idle' or retired.get('previous_phase') != 'return_confirm'
-                    or retired.get('released') is not False or not re.fullmatch('[0-9a-f]{64}',digest)):
-                return None
-            raw, prior = read_record(root/'logs/stone-farm-retired'/f'{digest}.json','交接')
-            if (raw is None or hashlib.sha256(raw).hexdigest() != digest
-                    or not prior['pending'] or prior.get('phase') != 'return_confirm'
-                    or any(prior.get(k) != journal.get(k) for k in
-                           ('reason','rank','from_stage','to_stage','entry_rank','deadline','return_deadline',
-                            'phase_deadline','attempts','issued_inputs','off_verified_at','fishing_stopped_at'))):
-                return None
-        elif phase != 'return_confirm':
-            return None
-        times = [journal.get(k) for k in ('off_verified_at','fishing_stopped_at','return_deadline')]
-        if (any(type(t) not in (int,float) or not np.isfinite(t) for t in times)
-                or not times[0] <= times[1] <= times[2] < time.time()):
-            return None
-        counts = journal.get('attempts') or {}
-        issued = journal.get('issued_inputs') or []
-        if (not issued or counts.get('return-request') != 1
-                or any(n and k not in ('stop','handoff-cancel','return-request') for k,n in counts.items())
-                or any(entry.get('kind') not in ('stop','handoff-cancel','return-request') for entry in issued)
-                or issued[-1].get('kind') != 'return-request'):
-            return None
-        request = issued[-1]
-        identifier = request.get('input_id','')
-        frame_id = request.get('frame_id','')
-        at = request.get('time')
-        if (not re.fullmatch('[0-9a-f]{32}',identifier) or not re.fullmatch('[0-9a-f]{32}',frame_id)
-                or type(at) not in (int,float) or not times[1] <= at <= times[2]):
-            return None
-        path = root/'logs/portal-input'/f'input-{identifier}.json'
-        if not path.is_file() or path.stat().st_size > 16384:
-            return None
-        raw = path.read_bytes()
-        receipt = json.loads(raw.decode('utf-8-sig'))
-        age = receipt.get('capture_age_ms')
-        if (receipt.get('kind') != 'return-request' or receipt.get('controller') != 'stone_farm'
-                or receipt.get('rank') != 39 or receipt.get('input_id') != identifier
-                or receipt.get('frame_id') != frame_id or receipt.get('input_begin_time') != at
-                or receipt.get('input_transport') != request.get('transport')
-                or type(age) not in (int,float) or not 0 <= age <= 120):
-            return None
-        return hashlib.sha256(raw).hexdigest()
-
-    @staticmethod
-    def _boss_abandon_receipt(root, journal):
-        """A known completed native contact permits one separately approved menu attempt."""
-        issued = [a for a in journal.get('issued_inputs',[]) if isinstance(a,dict) and a.get('kind') == 'lower-boss-abandon']
-        planned = [a for a in journal.get('inputs',[]) if isinstance(a,dict) and a.get('kind') == 'lower-boss-abandon']
-        if len(issued) != 1 or len(planned) != 1:
-            return None
-        prior = issued[0]
-        identifier = prior.get('input_id')
-        if not isinstance(identifier,str) or not re.fullmatch('[0-9a-f]{32}',identifier):
-            return None
-        path = Path(root)/'logs/portal-input'/('input-'+identifier+'.json')
-        try:
-            if path.stat().st_size > 131072:
-                return None
-            raw = path.read_bytes()
-            receipt = json.loads(raw.decode('utf-8-sig'))
-        except (OSError,ValueError):
-            return None
-        if not isinstance(receipt,dict):
-            return None
-        numbers = [receipt.get(k) for k in ('input_begin_time','touch_down_time','touch_up_time','capture_age_ms')]
-        if any(type(n) not in (int,float) or not np.isfinite(n) for n in numbers):
-            return None
-        began,down,up,age = numbers
-        if (receipt.get('input_id') != identifier or receipt.get('frame_id') != prior.get('frame_id')
-                or receipt.get('kind') != 'lower-boss-abandon' or receipt.get('controller') != 'stone_farm'
-                or receipt.get('rank') != 39 or receipt.get('completed_rank_40') is not False
-                or receipt.get('input_transport') != 'mumu-native' or prior.get('transport') != 'mumu-native'
-                or receipt.get('hold_ms') != 40 or prior.get('time') != began
-                or not journal.get('started_at',float('inf')) <= began <= journal.get('return_deadline',0)
-                or down < began or not .035 <= up-down <= .12 or not 0 <= age <= 120
-                or type(receipt.get('x')) is not int or type(receipt.get('y')) is not int
-                or not 0 <= receipt['x'] < 720 or not 0 <= receipt['y'] < 1280
-                or (receipt['x'],receipt['y']) != (planned[0].get('x'),planned[0].get('y'))
-                or receipt.get('native_xy') != [receipt.get('x'),receipt.get('y')]
-                or any(receipt.get(k) for k in ('error','uncertain_down','down_failed'))):
-            return None
-        return hashlib.sha256(raw).hexdigest()
-
     def _load(self, relative):
         raw = cv2.imread(str(self.root/relative))
         if raw is None:
-            raise RuntimeError('次元石降阶模板缺失：'+relative)
+            raise RuntimeError('次元石重开模板缺失：'+relative)
         return cv2.cvtColor(raw, cv2.COLOR_BGR2RGB)
 
     @property
     def active(self):
-        return (self.journal['pending']
-                or (getattr(self,'retry',None) or {}).get('mode') == 'return_confirm_restore')
+        return self.journal['pending'] and self.journal.get('reason') != 'lower'
 
     @property
     def completed_rank_40(self):
-        return bool(self.active and self.journal.get('reason') == 'cycle'
+        return bool(self.active and self.journal.get('reason') in ('cycle', 'restart')
                     and self.journal.get('rank') == 40 and self.journal.get('rank40_verified'))
 
     @property
-    def ordinary_cancel_allowed(self):
-        # The user authorised the same stopped ordinary-fish guard for both
-        # the RANK39 handoff and the actual completed RANK40 return. No other
-        # stage, rank, or legacy calibration gains cancellation permission.
-        return bool(self.active and self.journal.get('allow_ordinary_cancel') is True
-                    and self.stage_pair(self.journal) is not None
-                    and ((self.journal.get('reason') == 'lower'
-                          and self.journal.get('rank') == 39)
-                         or self.completed_rank_40))
+    def restarting_gate(self):
+        return self.completed_rank_40 or (self.active and is_rank_restart(self.journal))
 
     @property
-    def boss_abandon_handoff(self):
-        # One explicit, hash-bound recovery approval for this lower handoff.
-        # It is never copied to a new automatic handoff or to meter recovery.
-        lower = (self.active and not self.continuous_cancel_allowed
-                 and self.journal.get('reason') == 'lower'
-                 and (self.journal.get('from_stage'),self.journal.get('rank'),
-                      self.journal.get('to_stage'),self.journal.get('entry_rank')) == (9,39,8,39))
-        approved = (self.journal.get('allow_boss_abandon') is True
-                    or self.retry is not None and (
-                        self.retry.get('mode') == 'return_retry' and self.retry.get('allow_boss_abandon') is True
-                        or self.retry.get('mode') == 'boss_abandon_menu_retry'
-                        and self.retry.get('allow_boss_abandon_menu') is True))
-        return bool(lower and approved and self.phase in ('stop','stop_fishing'))
+    def ordinary_cancel_allowed(self):
+        # This applies to the stopped outgoing gate, never to meter recovery.
+        return bool(self.active and self.journal.get('allow_ordinary_cancel') is True
+                    and self.stage_pair(self.journal) is not None and self.restarting_gate)
 
     @property
     def continuous_cancel_allowed(self):
@@ -667,7 +412,7 @@ class StoneFarm(ParallelScreen):
     def first_route_resume_requested(self):
         # Finish only the route restoration after an actually verified cast.
         # Battle ownership must not starve its finite confirmation window.
-        if (self.retry is not None and self.retry.get('mode') in ('lower_first_result_restore','observed_lower_restore','observed_cycle_restore')
+        if (self.retry is not None and self.retry.get('mode') == 'observed_cycle_restore'
                 and self.enabled() and time.time() <= self.retry['expires_at']):
             return True  # Read-only fresh result votes precede every input.
         return bool(self._first_scope() and self.input_allowed()
@@ -675,20 +420,15 @@ class StoneFarm(ParallelScreen):
                          or self.journal.get('selected_fishing_verified_at'))
                     and self.phase in ('route_open','route_menu','route_running'))
 
-    @property
-    def boss_abandon_kind(self):
-        return 'lower-boss-abandon-menu' if self.journal.get('boss_abandon_menu_retry') is True else 'lower-boss-abandon'
-
     def status(self):
         return dict(phase=self.phase, pending=self.active, rank=self.rank,
-                    world_stage=self.current_stage, start_stage=self.START_STAGE,
-                    final_stage=self.FINAL_STAGE, adaptive_stage=True,
-                    handoff_rank=39, cycles=self.journal.get('cycles', 0),
+                    world_stage=self.current_stage, restart_rank=self.restart_rank,
+                    handoff_rank=self.journal.get('rank') if self.active else None,
+                    reason=self.journal.get('reason') if self.active else None,
+                    active_restart_rank=self.journal.get('restart_rank') if self.active else None,
+                    cycles=self.journal.get('cycles', 0),
                     handoffs=self.journal.get('handoffs', 0), hold=self.hold,
                     deadline=self.journal.get('deadline'),
-                    boss_abandon_approved=self.boss_abandon_handoff,
-                    boss_abandon_attempts=self.journal.get('attempts',{}).get('lower-boss-abandon',0),
-                    boss_abandon_menu_attempts=self.journal.get('attempts',{}).get('lower-boss-abandon-menu',0),
                     continuous_cast_stop=self.continuous_cancel_allowed,
                     continuous_stop_attempts=self.journal.get('attempts',{}).get('handoff-cancel',0),
                     targets=['珍珠', '琥珀', '蓝色宝石', 'BOSS'],
@@ -699,40 +439,19 @@ class StoneFarm(ParallelScreen):
         if not screen:
             return False
         stage, rank = screen['stage'], screen['rank']
-        return (rank == 40 and stage == self.FINAL_STAGE
-                or rank == self.HANDOFF_RANK and 2 <= stage <= 99
-                and (stage == self.START_STAGE or stage > self.START_STAGE))
-
-    def observe_stage_policy(self, frame, screen):
-        """Read-only adoption, independent of RANK trigger confirmation."""
-        if self.active or frame is self.stage_probe_frame:
-            return False
-        self.stage_probe_frame = frame
-        candidate = None
-        if (screen and not screen['menu'] and not screen['completion']
-                and 2 <= screen['stage'] <= 99 and 0 <= screen['rank'] <= 39):
-            stage = screen['stage']
-            if stage > self.START_STAGE or stage != self.START_STAGE and screen['rank'] < 39:
-                candidate = (stage, stage-1)
-        now = time.monotonic()
-        if candidate is None:
-            self.stage_probe = self.stage_probe_since = self.stage_probe_seen_at = None
-            self.stage_probe_frames = 0
-            return False
-        if (candidate != self.stage_probe or self.stage_probe_seen_at is None
-                or now-self.stage_probe_seen_at > 8):
-            self.stage_probe, self.stage_probe_since, self.stage_probe_frames = candidate, now, 1
-        else:
-            self.stage_probe_frames += 1
-        self.stage_probe_seen_at = now
-        if self.stage_probe_frames < 3 or now-self.stage_probe_since < 3:
-            return False
-        self.START_STAGE, self.FINAL_STAGE = candidate
-        self.event(f'次元石：连续新图确认当前第{self.START_STAGE}阶段，'
-                   f'本轮RANK39降到第{self.FINAL_STAGE}阶段打最后BOSS；保留旧交接记录')
-        return True
+        return (1 <= stage <= 99 and self.restart_rank <= rank <= 40
+                and (not screen.get('completion') or rank == 40))
 
     def retire_expired_on_start(self):
+        if self.journal['pending'] and self.journal.get('reason') == 'lower':
+            raw, saved = read_record(self.path, '交接')
+            if saved != self.journal:
+                raise ValueError('次元石交接记录已变化，保留原记录')
+            handoff_journal.retire(self.path.parent, hashlib.sha256(raw).hexdigest(),
+                                  source='removed_stage_lowering')
+            self.journal = json.loads(self.path.read_text(encoding='utf-8-sig'))
+            self.event('次元石：旧降阶交接已归档，保留原截止和输入记录')
+            return True
         # Called only at a new worker/recovered-game boundary; constructors
         # and ordinary controller recreation remain read-only.
         if not self.active or not self.path.is_file() or not handoff_journal.expiry(self.journal, time.time()):
@@ -822,7 +541,7 @@ class StoneFarm(ParallelScreen):
             self.first_result_rank = self.first_result_frame = None
             self.first_result_observed = False
         self._save()
-        self.event('次元石降阶：'+phase)
+        self.event('次元石交接：'+phase)
 
     def _confirmed(self, key, seconds=3):
         now = time.monotonic()
@@ -873,24 +592,6 @@ class StoneFarm(ParallelScreen):
                 and (self.fishing.at_port(frame) or not self.fishing.busy(frame)
                      and self.fishing.idle_icon(frame) is not None))
 
-    def boss_abandon_context(self, frame):
-        # No OCR, old coordinates or scene background in this fast input guard.
-        # Actual stage/RANK OCR is confirmed in step(); signature binds that
-        # proof to the new frame, with independent real Sea God battle guards.
-        if (frame.shape != (1280,720,3) or not self._parallel(frame)
-                or not self._off_icon(frame) or self.sailing.running(frame) is not False
-                or not self.defense.encounter(frame,39) or not self.defense._battle_footer(frame)):
-            return None
-        scores = cv2.matchTemplate(frame[158:210,584:642],self.boss_abandon_icon,
-                                  cv2.TM_CCOEFF_NORMED,mask=self.boss_abandon_mask)
-        scores = np.nan_to_num(scores,nan=-1,posinf=-1,neginf=-1)
-        _,score,_,location = cv2.minMaxLoc(scores)
-        if score < .97:
-            return None
-        h,w = self.boss_abandon_icon.shape[:2]
-        point = (584+location[0]+w//2,158+location[1]+h//2)
-        return (tuple(self.signature(frame)),point)
-
     def _no_destination(self, frame):
         # Only the actual fixed "choose destination" text, never its moving
         # arrow or sea, identifies a new gate with no fishing location yet.
@@ -902,10 +603,11 @@ class StoneFarm(ParallelScreen):
                     and float(ink[self.destination_ink].mean()) >= .98)
 
     def cancel_context(self, frame, *, continuous=False):
+        ordinary_only = not continuous or self.journal.get('reason') == 'restart'
         if (frame.shape != (1280,720,3) or not self._parallel(frame)
                 or not self._off_icon(frame) or self.sailing.running(frame) is not False
                 or not self.fishing._main_visible(frame)
-                or not continuous and (self.training.boss_mode(frame) or self._battle(frame))):
+                or ordinary_only and (self.training.boss_mode(frame) or self._battle(frame))):
             return None
         self.training.state['rank'] = self.journal['rank']
         data = self.fishing.cast_data(frame)
@@ -932,15 +634,12 @@ class StoneFarm(ParallelScreen):
         return (current is not None and self.signature(frame) == action.get('signature')
                 and current == action.get('cancel_context'))
 
-    def continuous_preparation(self, frame, *, early_only=False):
+    def continuous_preparation(self, frame):
         # The blood-bar X only abandons the current fish. This separate fish
         # silhouette plus orange X stops continuous fishing before combat.
         if self._battle(frame) or self.fishing.at_port(frame):
             return False
-        # On lower-stage handoffs, the warning can outlast the useful cancel
-        # window. Wait for the earlier three dots before reserving a touch.
-        preparation = self.fishing.waiting_cast if early_only else self.fishing.cast_preparation
-        if not preparation(frame, allow_fill=True, allow_task=True):
+        if not self.fishing.cast_preparation(frame, allow_fill=True, allow_task=self.journal.get('reason') == 'cycle'):
             return False
         scores = cv2.matchTemplate(frame[1052:1124,663:720],self.cast_stop_fish,
                                   cv2.TM_CCOEFF_NORMED,mask=self.cast_stop_mask)
@@ -1161,67 +860,45 @@ class StoneFarm(ParallelScreen):
                 and self._fixed(frame,'continue',(63,741,356,834),.96)
                 and float((frame[480:510,150:180].max(axis=2)>=210).mean()) >= .8)
 
-    def _restore_return_confirmation(self, frame):
-        if frame is self.return_recovery_frame:
-            return True
-        self.return_recovery_frame = frame
-        ready = (self._return_dialog_ready(frame)
-                 and self._stage(frame) == self.journal['from_stage']
-                 and self._rank_value(frame) == self.journal['rank'])
-        key = ('return-confirm-restore',self.signature(frame,return_prompt=True)) if ready else None
-        if not self._confirmed(key):
-            self.hold = '等待三张新截图确认同一返回弹窗、实际阶段与RANK及停航停钓'
-            return True
-        approval = self.retry
-        raw, record = read_record(self.path,'交接')
-        if (raw is None or hashlib.sha256(raw).hexdigest() != approval['failed_sha256']
-                or self._return_confirm_receipt(self.path.parent,record) != approval['receipt_sha256']):
-            raise RuntimeError('返回请求回执或归档记录已变化，未接续')
-        now = time.time()
-        if not self.enabled() or not self.observed_restore_allowed() or now >= approval['expires_at']:
-            raise RuntimeError('本次返回确认接续已停止或过期，原失败记录保留')
-        previous = {k:record[k] for k in ('deadline','phase_deadline','return_deadline','stop_fishing_deadline')
-                    if k in record}
-        updated = dict(record,pending=True,phase='return_confirm',deadline=now+self.LIMIT,
-                      phase_deadline=now+self.RETURN_RESERVE_SECONDS,return_deadline=now+self.RETURN_RESERVE_SECONDS,
-                      phase_started_at=now,allow_ordinary_cancel=False,continuous_cast_stop=False,
-                      return_confirm_restore_runs=1,return_confirm_previous_deadlines=previous,
-                      return_confirm_scene_signature=key[1],
-                      previous_failed_sha256=approval['failed_sha256'],retry_approved_at=approval['approved_at'],
-                      return_request_receipt_sha256=approval['receipt_sha256'])
-        updated.pop('stop_fishing_deadline',None)
-        archive = self.path.parent/'logs/stone-farm-failed'/f'{approval["failed_sha256"]}.json'
-        archive_and_replace(self.path,raw,updated,archive,approval['failed_sha256'],'交接','stone_farm_retry.json')
-        self.journal,self.phase,self.retry = updated,'return_confirm',None
-        self.off_verified = self.fishing_stopped = True
-        self.rank,self.current_stage = record['rank'],record['from_stage']
-        self._confirmed(None)
-        self.event('次元石：连续新图确认原返回弹窗；旧窗口和输入已保留，本次仅允许一次尚未使用的返回确认')
-        return True
-
-    def _expected(self, frame, *, entry=False):
+    def _expected(self, frame, *, entry=False, advance=False):
         screen = self.screen(frame)
         stage = self.journal['to_stage'] if entry else self.journal['from_stage']
         rank = self.journal['entry_rank'] if entry else self.journal['rank']
-        if (entry and self.completed_rank_40 and rank == 0
+        if (entry and self.restarting_gate and rank == 0
                 and (self.journal.get('first_cast_verified_at') or self.journal.get('selected_fishing_verified_at')
                      or self.journal.get('manual_rank_progress_observed_rank') == 1)
                 and self.phase in ('route_open','route_menu','route_running')):
             minimum = 1 if self.journal.get('manual_rank_progress_observed_rank') == 1 else rank
             return screen if screen and screen['stage'] == stage and minimum <= screen['rank'] < 39 else None
-        return screen if screen and (screen['stage'], screen['rank']) == (stage,rank) else None
+        if screen and (screen['stage'], screen['rank']) == (stage,rank):
+            return screen
+        if advance:
+            # A fish can finish while the route is stopping. Reconfirm the
+            # later RANK on this gate before any return input is reserved.
+            later = (screen and not screen['menu'] and screen['stage'] == stage
+                     and rank < screen['rank'] <= 40 and self.journal.get('reason') == 'restart'
+                     and not self.journal['attempts'].get('return-request'))
+            if later and self._confirm_restart(('advance', stage, screen['rank']), frame):
+                self.rank = screen['rank']
+                self.journal.update(rank=self.rank, rank40_verified=self.rank == 40)
+                self.off_verified = self.fishing_stopped = False
+                self.cancel_anchor = None
+                for key in ('off_verified_at', 'fishing_stopped_at'):
+                    self.journal.pop(key, None)
+                if screen['completion']:
+                    self.phase = 'completion'
+                elif self.phase == 'return':
+                    self.phase = 'stop'
+                self.journal['phase'] = self.phase
+                self._confirmed(None)
+                self._save()
+            elif not later:
+                self._confirmed(None)
+        return None
 
     def _first_scope(self):
-        # Both a new gate and a lowered gate can arrive at a dormant task.
-        # Reuse the selected-task, one-tap workflow; neither scope permits
-        # dragging, holding or cancelling a task BOSS.
-        new_round = (self.completed_rank_40 and self.stage_pair(self.journal) is not None
-                     and self.journal.get('entry_rank') == 0)
-        lowered = (self.active and self.journal.get('reason') == 'lower'
-                   and self.stage_pair(self.journal) is not None
-                   and self.journal.get('verified_gate_stage') == self.journal.get('to_stage')
-                   and self.journal.get('rank') == self.journal.get('entry_rank') == 39)
-        return bool((new_round or lowered) and self.journal.get('entered_verified_at'))
+        return bool(self.restarting_gate and self.stage_pair(self.journal) is not None
+                    and self.journal.get('entry_rank') == 0 and self.journal.get('entered_verified_at'))
 
     def _first_idle(self, frame, *, allow_running=False):
         # A single tap may start the newly selected first task; a task BOSS
@@ -1242,9 +919,7 @@ class StoneFarm(ParallelScreen):
             return None
         box = self.fishing.box(frame)
         value = self.fishing.selected(frame,box) if box else None
-        value_known = (value == 1 if self.journal['entry_rank'] == 0
-                       else value is not None and 1 <= value <= 10000)
-        return (self.signature(frame),tuple(box),value) if value_known else None
+        return (self.signature(frame),tuple(box),value) if value == 1 else None
 
     def _moving(self, frame):
         if frame.shape[:2] != (1280,720):
@@ -1257,16 +932,8 @@ class StoneFarm(ParallelScreen):
         # This state can open a real task map only. It never authorises a cast,
         # meter gesture or cancellation without a fresh actual task selection.
         route = self.sailing.running(frame) if frame.shape[:2] == (1280,720) else None
-        # Lowering can re-enter RANK39 with "choose destination" and the
-        # continuous cast still stopped. Select the actual current task before
-        # starting a route; travel with a gray hook cannot restart fishing.
-        # An ordinary, already named destination remains a new-round-only path.
-        lowered = (self.journal.get('reason') == 'lower'
-                   and self.stage_pair(self.journal) is not None
-                   and self.journal.get('entry_rank') == 39)
         if (not self._first_scope()
                 or self.journal.get('verified_gate_stage') != self.journal.get('to_stage')
-                or ordinary and lowered
                 or frame.shape[:2] != (1280,720)
                 or not self._parallel(frame) or self._map(frame)
                 or self._stage(frame) != self.journal['to_stage']
@@ -1290,9 +957,7 @@ class StoneFarm(ParallelScreen):
             return None
         box = self.fishing.box(frame)
         value = self.fishing.selected(frame,box) if box else None
-        value_known = (value == 1 if self.journal['entry_rank'] == 0
-                       else value is not None and 1 <= value <= 10000)
-        return (self.signature(frame),tuple(box),value) if value_known else None
+        return (self.signature(frame),tuple(box),value) if value == 1 else None
 
     def _first_map_origin(self, frame):
         return (self._first_idle(frame) or self._first_unselected_idle(frame)
@@ -1326,6 +991,24 @@ class StoneFarm(ParallelScreen):
         return bool(self._first_map_context(frame)
                     and self.signature(frame) == self.journal.get('first_signature'))
 
+    def _seoul_task_title(self, frame, point):
+        if self.journal['entry_rank'] != 0:
+            return False
+        x,y = point
+        crop = frame[max(175,y-58):y-25,max(20,x-54):min(700,x+23)]
+        if any(actual < needed for actual,needed in zip(crop.shape[:2],self.seoul_title.shape[:2])):
+            return False
+        scores = cv2.matchTemplate(crop,self.seoul_title,cv2.TM_CCOEFF_NORMED,
+                                   mask=self.seoul_title_mask)
+        scores = np.where(np.isfinite(scores),scores,-1)
+        return bool(scores.max() >= .97)
+
+    def _seoul_selected_header(self, frame):
+        ink = frame[12:34,286:434].max(axis=2) < 60
+        expected = int(self.seoul_header_ink.sum())
+        return bool(expected >= 40 and .9*expected <= int(ink.sum()) <= 1.1*expected
+                    and float(ink[self.seoul_header_ink].mean()) >= .98)
+
     def _first_selected_map(self, frame):
         issued = {a.get('kind') for a in self.journal.get('issued_inputs',[])}
         self.first_selected_map_reason = '缺少对应的选点记录'
@@ -1338,6 +1021,15 @@ class StoneFarm(ParallelScreen):
             return False
         self.first_selected_map_reason = '缺少已选任务标记'
         if not self.training.boss_mode(frame):
+            return False
+        if self.journal['entry_rank'] == 0 and self.journal.get('first_selected_seoul') is True:
+            # The stopped map and selected BOSS are already confirmed. RANK0
+            # has only the Seoul task. Its header survives the arriving avatar
+            # covering the skull (and can be bound on the new pre-close frame).
+            if self._seoul_selected_header(frame):
+                self.first_selected_map_reason = '已核对选点回执、首尔标题及任务标记'
+                return True
+            self.first_selected_map_reason = '已选首尔标题未确认'
             return False
         target = self._map_task_target(frame,selected_point=self.journal.get('first_selected_point'))
         self.first_selected_map_reason = '当前露出骷髅未识别' if not target else '当前骷髅位置与选点不符'
@@ -1361,25 +1053,11 @@ class StoneFarm(ParallelScreen):
         # stores only its exposed right eye/outline and red lower jaw; every
         # other pixel is zero and excluded. Neither an avatar nor old map
         # coordinates participate in locating the selected task.
-        lowered = self.journal['entry_rank'] == 39 and self.journal.get('reason') == 'lower'
-        template = self.lower_map_core if lowered else self.first_map_core
-        templates = [template]
-        if not lowered and selected_point is not None:
-            # A second real RANK0 raster variant is used only to re-find an
-            # already receipted selection. It cannot select another task.
+        templates = [self.first_map_core]
+        if selected_point is not None:
+            # This variant only re-finds a receipted selection.
             templates.append(self.selected_first_map_core)
-        # The RANK39 portrait covers more of the left skull. Its exposed
-        # right crescent starts at x19; neither sample includes the portrait.
-        parts = ((slice(8,27),slice(19,31)) if lowered else (slice(10,27),slice(23,31)),
-                 (slice(27,33),slice(4,29)))
-        variants = [(item,parts) for item in templates]
-        if lowered and self.journal.get('first_unselected') and (
-                unselected_first or selected_point is not None):
-            # The avatar can cover the right eye as well. The lower bone/teeth
-            # and red jaw remain separate fixed shapes in the real RANK39 map.
-            # Both must match independently; no portrait pixels are included.
-            variants.append((self.lower_map_bone,(
-                (slice(22,27),slice(4,29)),(slice(27,33),slice(4,29)))))
+        parts = ((slice(10,27),slice(23,31)), (slice(27,33),slice(4,29)))
         area = (20,175,700,1115)
         if selected_point is not None:
             # Closing an already selected map only needs to re-find that
@@ -1405,22 +1083,8 @@ class StoneFarm(ParallelScreen):
             jaw_score = cv2.matchTemplate(crop[jaw],full[jaw],cv2.TM_CCOEFF_NORMED)[0,0]
             if score >= .90 and jaw_score >= .85:
                 return x,y,float(score)
-            if lowered and self.journal.get('first_unselected') and self.phase == 'first_close':
-                # After arrival the portrait obscures the left forehead and
-                # lower teeth. Match the exposed right eye and red jaw
-                # separately, only at a selection already issued this run.
-                eye = np.s_[5:26,21:30]
-                jaw = np.s_[28:33,8:28]
-                scores = [float(cv2.matchTemplate(crop[part],self.selected_lower_map[part],
-                                 cv2.TM_CCOEFF_NORMED)[0,0]) for part in (eye,jaw)]
-                jaw_rgb = crop[jaw].astype(np.int16)
-                red = ((jaw_rgb[:,:,0] >= 130) & (jaw_rgb[:,:,0] > 1.4*jaw_rgb[:,:,1])
-                       & (jaw_rgb[:,:,0] > 1.4*jaw_rgb[:,:,2]))
-                if (all(np.isfinite(value) and value >= .97 for value in scores)
-                        and int(red.sum()) >= 30 and int((crop[eye].min(axis=2)>=170).sum()) >= 40):
-                    return x,y,min(scores)
         left,top,right,bottom=area
-        for template,parts in variants:
+        for template in templates:
             mask = np.zeros(template.shape[:2],np.uint8)
             for r,c in parts:
                 mask[r,c] = 1
@@ -1452,7 +1116,7 @@ class StoneFarm(ParallelScreen):
         """
         issued = {a.get('kind') for a in self.journal.get('issued_inputs',[])}
         saved = self.journal.get('first_signature')
-        if (not self.input_allowed() or not self._first_scope() or not self.completed_rank_40
+        if (not self.input_allowed() or not self._first_scope() or not self.restarting_gate
                 or self.journal.get('first_selected_rank') != 0
                 or not {'first-select','first-close'} <= issued or 'first-cast' in issued
                 or not saved or frame.shape != (1280,720,3) or not self._parallel(frame)
@@ -1500,19 +1164,19 @@ class StoneFarm(ParallelScreen):
                 used=self.journal.get('attempts',{}).get('first-pan',0)
                 if used < self.INPUT_LIMITS['first-pan'] and self._confirmed(('first-map-search',self.signature(frame))):
                     # The last resource point may be far from the new quest.
-                    # RANK39's final map extension is west; the first quest is
-                    # east. Only pan a newly verified stopped map. Never use
-                    # an old BOSS coordinate or renew the first-task deadline.
-                    west=self.journal['entry_rank']==39
-                    x,X=(120,610) if west else (600,120)
-                    self._click('first-pan',x,600,'任务不在当前视野，向'+('西' if west else '东')+'搜索地图',
-                                frame,swipe=[X,600,400])
+                    # The new world's first task is east. Verify the stopped
+                    # map before each bounded pan.
+                    self._click('first-pan',600,600,'任务不在当前视野，向东搜索地图',
+                                frame,swipe=[120,600,400])
                 return True
             if self._confirmed(('first-task',point,self.signature(frame)) if point else None):
                 self.first_map_target, self.first_map_verified = point,True
-                if self._click('first-select',*point,'任务抛竿恢复：重新选择已核对的骷髅任务',frame):
+                seoul = self._seoul_task_title(frame,point)
+                if self._click('first-select',*point,'任务抛竿恢复：重新选择已核对的骷髅任务',
+                               frame,selected_seoul=seoul):
                     self.journal['first_selected_rank'] = self.journal['entry_rank']
                     self.journal['first_selected_point'] = list(point)
+                    self.journal['first_selected_seoul'] = seoul
                     self._save()
                     self._set('first_close',max(0,self.journal.get('first_travel_deadline',
                               self.journal['first_deadline'])-time.time()))
@@ -1614,7 +1278,7 @@ class StoneFarm(ParallelScreen):
         entry_rank = self.journal['entry_rank']
         proof = bool(issued and screen and screen['stage'] == self.journal['to_stage']
                      and not screen['menu'] and self._off_icon(frame)
-                     and (screen['route'] is False or screen['rank'] == 40 and screen['completion'])
+                     and screen['route'] is False
                      and (screen['rank'] == entry_rank+1
                           or screen['rank'] == entry_rank and (battle or success)
                           and self.signature(frame) == self.journal.get('first_signature')))
@@ -1682,7 +1346,7 @@ class StoneFarm(ParallelScreen):
         if confirmed:
             self.journal.update(first_cast_verified_at=time.time(),first_cast_verified_rank=context[1])
             self._save()
-            self._set('route_running' if context[1] == 40 else 'route_open')
+            self._set('route_open')
             return True
         return False
 
@@ -1704,12 +1368,11 @@ class StoneFarm(ParallelScreen):
         # worked. Keep the two fixed, bright currency controls and every world,
         # stopped-route, map/menu, numeric and location guard. Meter/input
         # guards continue using their stricter adaptive-AUTO check.
-        completion = bool(screen and screen['rank'] == 40 and screen['completion'])
         main = (all(self.training._match(frame,name,box,.91) for name,box in
                     (('guard-star',(208,1137,269,1192)),
                      ('guard-diamond',(539,1137,600,1186))))
                 and float((frame[1147:1168,558:585].max(axis=2)>=210).mean())>=.30)
-        if not completion and not main:
+        if not main:
             self.first_result_context_reason = 'bright_main'
             return None
         rank = screen['rank'] if screen else self._rank_value(frame)
@@ -1805,7 +1468,7 @@ class StoneFarm(ParallelScreen):
         if self.active and self.retry is None and not self.input_allowed():
             # Identity alone is not permission to continue: the runner must
             # independently verify safe release and archive the failed journal.
-            raise RetryableStage('次元石降阶流程到期或功能关闭，保留交接记录'
+            raise RetryableStage('次元石重开流程到期或功能关闭，保留交接记录'
                 f'（阶段={self.phase}，阶段截止={self.journal["phase_deadline"]:.3f}，总截止={self.journal["deadline"]:.3f}）；'
                 + ('返回步骤；最近等待：'+str(self.hold) if self.phase in ('return','return_confirm')
                    else self._first_close_diagnostic()), task='stone_farm', retry_seconds=1800)
@@ -1859,14 +1522,12 @@ class StoneFarm(ParallelScreen):
             return False
         if not self.input_allowed() or self.phase != 'fishing_prepare':
             return False
-        if self.journal.get('post_start_restore_runs'):
-            return False  # This recovery only observes the already running fishing.
         if action not in ('drag','reveal','start'):
             return False  # Restoration never cancels existing fishing.
         counts = self.journal.setdefault('meter_attempts',{})
         used = counts.get('start',0) if action == 'start' else counts.get('drag',0)+counts.get('reveal',0)
         if used >= (1 if action == 'start' else 4):
-            raise RuntimeError('降阶后的钓鱼恢复已到输入上限，保留记录且不重复长按')
+            raise RuntimeError('重开后的钓鱼恢复已到输入上限，保留记录且不重复长按')
         counts[action] = counts.get(action,0)+1
         self._save()
         return True
@@ -1890,14 +1551,11 @@ class StoneFarm(ParallelScreen):
         counts = self.journal.setdefault('attempts', {})
         if name.startswith('return-') and time.time() > self.journal['return_deadline']:
             return False
-        if name in ('handoff-cancel','lower-boss-abandon','lower-boss-abandon-menu'):
+        if name == 'handoff-cancel':
             if time.time() > handoff_journal.stop_fishing_deadline(self.journal):
                 return False
-        if (self.journal.get('return_confirm_restore_runs') and name.startswith('return-')
-                and (name != 'return-confirm' or counts.get(name,0))):
-            return False
         if name not in self.INPUT_LIMITS or counts.get(name, 0) >= self.INPUT_LIMITS[name]:
-            raise RuntimeError('次元石降阶操作达到上限，已停止并保留交接记录：'+name)
+            raise RuntimeError('次元石交接操作达到上限，已停止并保留交接记录：'+name)
         counts[name] = counts.get(name, 0)+1
         self.journal.setdefault('inputs', []).append(dict(kind=name, time=time.time(),
             phase=self.phase, x=action['x'], y=action['y']))
@@ -1936,37 +1594,51 @@ class StoneFarm(ParallelScreen):
         self.next_at = time.monotonic()+1.5
         return result is not False
 
-    def _begin(self, screen, *, reserve_return_time=True):
-        lower = screen['rank'] == 39 and 2 <= screen['stage'] <= 99
-        if not lower and not (screen['rank'] == 40 and 1 <= screen['stage'] < 99):
-            raise ValueError('次元石交接须有实际RANK39降阶或RANK40通关阶段')
+    def _confirm_restart(self, key, frame):
+        if frame is self.restart_probe_frame:
+            return False
+        self.restart_probe_frame = frame
+        return self._confirmed(key)
+
+    def _begin(self, screen, *, reserve_return_time=True, saved_retry=None):
+        stage, rank = screen['stage'], screen['rank']
+        cutoff = self.restart_rank
+        reason, target, entry = 'restart', stage, 0
+        if saved_retry is not None:
+            if (self.stage_pair(saved_retry) is None
+                    or (stage, rank) != (saved_retry['from_stage'], saved_retry['rank'])):
+                raise ValueError('原次元石交接的阶段与 RANK 已变化')
+            reason, target, entry = (saved_retry[key] for key in ('reason', 'to_stage', 'entry_rank'))
+            cutoff = saved_retry.get('restart_rank', cutoff)
+        elif not self.handoff_due(screen) or screen['menu']:
+            raise ValueError('次元石重开需确认已到达设置的 RANK')
         now = time.time()
         stop_cutoff = now+self.STOP_FISHING_SECONDS
-        split_window = lower and reserve_return_time
-        self.journal = dict(version=1, pending=True, reason='lower' if lower else 'cycle',
-            rank=screen['rank'], from_stage=screen['stage'],
-            to_stage=screen['stage']-1 if lower else screen['stage']+1,
-            entry_rank=39 if lower else 0, started_at=now, deadline=now+self.LIMIT,
+        split_window = reason != 'cycle' and reserve_return_time
+        self.journal = dict(version=1, pending=True, reason=reason, rank=rank, from_stage=stage,
+            to_stage=target, entry_rank=entry, started_at=now, deadline=now+self.LIMIT,
             phase='completion' if screen['completion'] else 'stop', phase_deadline=stop_cutoff,
             return_deadline=stop_cutoff+(self.RETURN_RESERVE_SECONDS if split_window else 0), attempts={}, inputs=[],
             allow_ordinary_cancel=True,continuous_cast_stop=True,
-            rank40_verified=not lower, gate_closed=False,
+            rank40_verified=rank == 40, gate_closed=False,
             cycles=self.journal.get('cycles',0), handoffs=self.journal.get('handoffs',0),
             recoveries=self.journal.get('recoveries',0))
         if split_window:
             self.journal['stop_fishing_deadline'] = stop_cutoff
+        if reason == 'restart':
+            self.journal['restart_rank'] = cutoff
         self.return_wait_logged_at = self.return_wait_reason = None
-        self.START_STAGE, self.FINAL_STAGE = self.stage_pair(self.journal)
-        self.rank = screen['rank']
+        self.rank = rank
         self.phase = self.journal['phase']
         self.off_verified = False
         self.fishing_stopped = False
-        self.boss_abandon_key = None
         self.cancel_anchor = None
         self.key = None
         self._save()
-        self.event(f'次元石：第{self.START_STAGE}阶段已到 RANK39，先停航返回并降至第{self.FINAL_STAGE}阶段，保留本轮进度' if lower
-                   else f'次元石：第{self.FINAL_STAGE}阶段已连续确认 RANK40，先停航返回，关闭旧门后重开第{self.START_STAGE}阶段')
+        if reason == 'restart':
+            self.event(f'次元石：第{stage}阶段 RANK{rank} 达到重开设定 RANK{cutoff}，先停航停钓再返回关门')
+        else:
+            self.event(f'次元石：继续原交接，第{stage}阶段 RANK{rank} → 第{target}阶段')
 
     def validate_portal(self, action, frame):
         """Every input is authorised by a fresh frame plus the saved budget."""
@@ -1988,17 +1660,9 @@ class StoneFarm(ParallelScreen):
             return (self.phase == 'stop_fishing' and self.ordinary_cancel_allowed and self.off_verified
                     and time.time() <= handoff_journal.stop_fishing_deadline(self.journal) and point == (690,1090)
                     and self.same_cancel_context(action,frame)
-                    and (self.continuous_preparation(frame, early_only=self.journal.get('reason') == 'lower')
+                    and (self.continuous_preparation(frame)
                          if continuous
                          else self.fishing.ordinary_preparation(frame,allow_fill=True)))
-        if kind in ('lower-boss-abandon','lower-boss-abandon-menu'):
-            current = self.boss_abandon_context(frame)
-            return (self.boss_abandon_handoff and self.phase == 'stop_fishing'
-                    and self.journal.get('allow_boss_abandon') is True and self.off_verified
-                    and time.time() <= handoff_journal.stop_fishing_deadline(self.journal)
-                    and kind == self.boss_abandon_kind and not self.journal.get('attempts',{}).get(kind)
-                    and current is not None and current == self.boss_abandon_key
-                    and current == action.get('abandon_context') and point == current[1])
         if kind.startswith('first-'):
             if (not self._first_scope() or not self.off_verified
                     or time.time() > self._first_phase_limit(self.phase)
@@ -2007,15 +1671,15 @@ class StoneFarm(ParallelScreen):
             if kind == 'first-map':
                 return self.phase == 'first_map' and point == (350,30) and self._first_map_origin(frame) is not None
             if kind == 'first-pan':
-                west=self.journal['entry_rank']==39
                 return (self.phase == 'first_select' and self._first_map_ready(frame)
                         and self._map_task_target(frame) is None
-                        and point == ((120,600) if west else (600,600))
-                        and action.get('swipe') == ([610,600,400] if west else [120,600,400]))
+                        and point == (600,600)
+                        and action.get('swipe') == [120,600,400])
             if kind == 'first-select':
                 target = self._map_task_target(frame) if self._first_map_ready(frame) else None
                 return (self.phase == 'first_select' and self.first_map_verified
-                        and target is not None and tuple(target[:2]) == point == self.first_map_target)
+                        and target is not None and tuple(target[:2]) == point == self.first_map_target
+                        and (not action.get('selected_seoul') or self._seoul_task_title(frame,point)))
             selected = (self.journal.get('first_selected_rank') == self.journal['entry_rank']
                         and any(a['kind'] == 'first-select' for a in self.journal.get('issued_inputs',[])))
             if kind == 'first-close':
@@ -2036,11 +1700,8 @@ class StoneFarm(ParallelScreen):
                 return False
             if kind == 'return-confirm':
                 return (self.phase == 'return_confirm' and point == (208,788)
-                        and (not self.journal.get('return_confirm_restore_runs')
-                             or action['signature'] == self.journal.get('return_confirm_scene_signature'))
                         and self._return_dialog_ready(frame))
             return (self.phase == 'return' and self.sailing.running(frame) is False
-                    and not self.journal.get('return_confirm_restore_runs')
                     and self._idle_fishing(frame) and self._return_button(frame) == point)
         # All original-world input requires an explicit stopped header, even
         # when a modal dims the underlying lower AUTO checkbox.
@@ -2087,15 +1748,8 @@ class StoneFarm(ParallelScreen):
             return False
         if kind == 'npc':
             return self.phase == 'npc' and self._npc_ready(frame) and point == (482,548)
-        if kind == 'lower':
-            return (self.phase == 'manager' and self.journal['reason'] == 'lower'
-                    and not self.completed_rank_40 and self._gate_manager(frame) is True
-                    and self._gate_stage(frame) == self.journal['from_stage'] and point == (357,873))
-        if kind == 'lower-confirm':
-            return (self.phase == 'lower_confirm' and self.journal['reason'] == 'lower'
-                    and self._lower_prompt(frame) == self.journal['to_stage'] and point == (208,788))
         if kind in ('close-gate','close-confirm'):
-            if not self.completed_rank_40 or self.stage_pair(self.journal) is None:
+            if not self.restarting_gate or self.stage_pair(self.journal) is None:
                 return False
             if kind == 'close-gate':
                 return (self.phase == 'manager' and self._gate_manager(frame) is True
@@ -2104,11 +1758,11 @@ class StoneFarm(ParallelScreen):
                     and bool(self.journal.get('attempts',{}).get('close-gate'))
                     and self._close_question(frame))
         if kind == 'activate':
-            return (self.phase == 'closed' and self.completed_rank_40
+            return (self.phase == 'closed' and self.restarting_gate
                     and self.journal.get('gate_closed') and self._gate_manager(frame) is False
                     and point == (355,803))
         if kind == 'search-confirm':
-            return (self.phase == 'search' and self.completed_rank_40
+            return (self.phase == 'search' and self.restarting_gate
                     and self.journal.get('gate_closed') and point == (208,786)
                     and self._fixed(frame,'search-question',(194,555,525,620),.95)
                     and self._fixed(frame,'continue',(63,741,356,834),.96))
@@ -2126,19 +1780,18 @@ class StoneFarm(ParallelScreen):
         return False
 
     def _close_question(self, frame):
-        # Unlike a generic Continue button, this identifies the actual discard
-        # prompt. It is deliberately unavailable until a real sample exists.
+        # Identify the discard question as well as its current Continue button.
         path = self.root/'assets/stone-farm/close-question.png'
         if not path.is_file():
             return False
         reference = self._load('assets/stone-farm/close-question.png')
-        if reference.shape != frame.shape:
+        words = frame[535:650,190:530]
+        if reference.shape != words.shape:
             return False
-        for x,y,X,Y in ((190,535,530,650),(63,741,356,834)):
-            score = cv2.matchTemplate(frame[y:Y,x:X], reference[y:Y,x:X], cv2.TM_CCOEFF_NORMED)[0,0]
-            if not np.isfinite(score) or score < .96:
-                return False
-        return float((frame[480:510,150:180].max(axis=2)>=210).mean()) >= .8
+        score = cv2.matchTemplate(words, reference, cv2.TM_CCOEFF_NORMED)[0,0]
+        return (np.isfinite(score) and score >= .96
+                and self._fixed(frame,'continue',(63,741,356,834),.96)
+                and float((frame[480:510,150:180].max(axis=2)>=210).mean()) >= .8)
 
     def _finish(self, frame):
         issued = {a['kind'] for a in self.journal.get('issued_inputs',[])}
@@ -2154,17 +1807,16 @@ class StoneFarm(ParallelScreen):
             required.add('close-gate')
         if not external_return:
             required.update(('return-request','return-confirm'))
-        if self.journal['reason'] == 'cycle' and not (
-                self.completed_rank_40 and self.journal.get('gate_closed')
+        if not (self.restarting_gate and self.journal.get('gate_closed')
                 and required.issubset(issued)):
-            raise RuntimeError('次元石循环缺少实际 RANK40 和关门证明')
+            raise RuntimeError('次元石循环缺少返回、关门或重开证明')
         archive = self.path.parent/'logs/stone-farm'
         archive.mkdir(parents=True, exist_ok=True)
         self.journal.update(pending=False, phase='idle', finished_at=time.time(),
             restored_stage=self.journal['to_stage'],
             restored_rank=self.rank if manual_progress or restoration_only else self.journal['entry_rank'],
             restored_fishing=True)
-        field = 'handoffs' if self.journal['reason'] == 'lower' else 'recoveries' if external_return or external_close or manual_progress or restoration_only else 'cycles'
+        field = 'recoveries' if external_return or external_close or manual_progress or restoration_only else 'cycles'
         if external_return or external_close:
             self.journal['resolution'] = 'reopened_after_unverified_return_or_close'
             self.journal['missing_return_input_proof'] = sorted({'return-request','return-confirm'}-issued)
@@ -2183,15 +1835,13 @@ class StoneFarm(ParallelScreen):
         self.event('次元石：已按手动推进后的当前RANK恢复航巡和实际钓鱼，旧首竿失败保留，不计完整自动循环' if manual_progress
                    else '次元石：返回或关门输入未核实，仅确认门状态、重开与钓鱼恢复，不计完整循环' if external_return or external_close
                    else '次元石：已确认本次获准的航巡和实际钓鱼恢复，旧失败及次数保留，不计完整自动循环' if field == 'recoveries'
-                   else f'次元石：已保留 RANK39 降到第{self.journal["to_stage"]}阶段，四项航巡及实际钓鱼已恢复' if field == 'handoffs'
-                   else f'次元石：RANK40 后关门、重开第{self.journal["to_stage"]}阶段 RANK0及实际钓鱼已确认')
+                   else f'次元石：RANK{self.journal["rank"]} 后关门、重开第{self.journal["to_stage"]}阶段及恢复实际钓鱼已确认')
 
     def completion_step(self, frame, *, ready=None):
         """An actual RANK40 completion owns UI before ordinary menu tasks.
 
         Detection only requests the existing step controller. It still needs
         independent stage/RANK consensus and every original fresh input guard.
-        Active lower-stage work cannot be converted into a completed cycle.
         """
         if not self.enabled():
             return False
@@ -2203,16 +1853,12 @@ class StoneFarm(ParallelScreen):
         return self.step(frame)
 
     def step(self, frame):
+        if self.journal['pending'] and self.journal.get('reason') == 'lower':
+            self.retire_expired_on_start()
         if self.retry is not None:
             if not self.enabled() or time.time() > self.retry['expires_at']:
-                raise RuntimeError('新降阶观察授权已过期，原失败记录未修改')
-            if self.retry.get('mode') == 'return_confirm_restore':
-                return self._restore_return_confirmation(frame)
+                raise RuntimeError('次元石重开接续已过期，原失败记录未修改')
             restore_route = self.retry.get('mode') == 'route_restore'
-            restore_route_open = self.retry.get('mode') == 'route_open_restore'
-            restore_fishing = self.retry.get('mode') == 'fishing_restore'
-            restore_post_start = (self.retry.get('mode') == 'post_start_restore'
-                                  and self.retry.get('allow_post_start_restore') is True)
             restore_gate = self.retry.get('mode') == 'gate_restore'
             restore_startup = self.retry.get('mode') == 'startup_restore'
             restore_manual_progress = (self.retry.get('mode') == 'manual_rank_progress_restore'
@@ -2222,22 +1868,17 @@ class StoneFarm(ParallelScreen):
             restore_first_close = self.retry.get('mode') == 'first_close_restore'
             restore_first_idle = self.retry.get('mode') == 'first_idle_restore'
             restore_first_result = self.retry.get('mode') == 'first_result_restore'
-            restore_lower_first_result = self.retry.get('mode') == 'lower_first_result_restore'
             restore_first_entry = self.retry.get('mode') == 'first_entry_restore'
             restore_route_result = self.retry.get('mode') == 'route_result_restore'
-            restore_observed_lower = (self.retry.get('mode') == 'observed_lower_restore'
-                                      and self.retry.get('allow_observed_lower_restore') is True)
-            restore_observed_cycle = (self.retry.get('mode') == 'observed_cycle_restore'
-                                      and self.retry.get('allow_observed_cycle_restore') is True)
-            restore_observed = restore_observed_lower or restore_observed_cycle
-            restore_boss_menu = self.retry.get('mode') == 'boss_abandon_menu_retry'
+            restore_observed = (self.retry.get('mode') == 'observed_cycle_restore'
+                                and self.retry.get('allow_observed_cycle_restore') is True)
             restore_continuous_stop = (self.retry.get('mode') == 'continuous_cast_stop_retry'
                                        and self.retry.get('allow_continuous_cancel') is True)
             restore_return_entry = (self.retry.get('mode') == 'return_entry_restore'
                                     and self.retry.get('allow_return_entry_restore') is True)
-            screen = self._expected(frame,entry=restore_route or restore_route_open or restore_fishing or restore_post_start or restore_startup or restore_first or restore_first_map or restore_first_idle or restore_first_entry)
+            screen = self._expected(frame,entry=restore_route or restore_startup or restore_first or restore_first_map or restore_first_idle or restore_first_entry)
             original_retry = bool(self.retry.get('mode') == 'return_retry'
-                                  and self.completed_rank_40 and self._original(frame))
+                                  and self.restarting_gate and self._original(frame))
             settings = self.settings_key(frame) if screen and screen['menu'] else None
             if restore_observed:
                 if not self.observed_restore_allowed():
@@ -2247,9 +1888,8 @@ class StoneFarm(ParallelScreen):
                           and self.defense._match(frame,'timer',(188,125,610,165),.94)
                           and self.defense._match(frame,'damage-sword',(153,205,192,245),.96)
                           and self.defense._match(frame,'swords',(307,962,415,1057),.96))
-                current_scope = bool(screen and (
-                    restore_observed_lower and (screen['stage'],screen['rank']) == (self.journal['to_stage'],39)
-                    or restore_observed_cycle and screen['stage'] == self.journal['to_stage'] and 1 <= screen['rank'] < 39))
+                current_scope = bool(screen and screen['stage'] == self.journal['to_stage']
+                                     and 1 <= screen['rank'] < 39)
                 stopped = bool(current_scope
                     and not screen['menu'] and not screen['completion'] and screen['route'] is True
                     and self.fishing._main_visible(frame) and not self.fishing.at_port(frame)
@@ -2259,10 +1899,6 @@ class StoneFarm(ParallelScreen):
                 stopped = bool(screen and (screen['stage'],screen['rank']) == (self.journal['to_stage'],1)
                     and not screen['menu'] and screen['route'] is False and self._off_icon(frame)
                     and self._idle_fishing(frame) and not self._moving(frame))
-            elif restore_post_start:
-                stopped = bool(screen and not screen['menu'] and screen['route'] is False
-                    and self.signature(frame) == self.journal.get('restore_signature')
-                    and self.fishing.post_start_evidence(frame))
             elif restore_route_result:
                 # Only consume already restored, currently visible fishing.
                 # This repair posts no input and renews no expired deadline.
@@ -2273,12 +1909,6 @@ class StoneFarm(ParallelScreen):
                                and (self.fishing.blue_fill(frame,main_known=True) or self._battle(frame)))
             elif restore_first_entry:
                 stopped = self._first_unselected_idle(frame) is not None
-            elif restore_lower_first_result:
-                # Observe the existing cast only. No new cast, cancellation,
-                # meter input, return or lowering is permitted by this repair.
-                screen = self._first_result_screen(frame)
-                stopped = bool(screen and screen['stage'] == self.journal['to_stage'] and screen['rank'] == 39
-                               and not screen['menu'] and screen['route'] is False)
             elif restore_first_result:
                 # The original 15-second cast observation remains expired.
                 # A separate restoration may only consume the now-real RANK1
@@ -2287,11 +1917,6 @@ class StoneFarm(ParallelScreen):
                 stopped = bool(screen and not screen['menu'] and screen['stage'] == self.journal['to_stage']
                                and screen['rank'] == 1 and screen['route'] is False
                                and self._off_icon(frame) and self.fishing._main_visible(frame))
-            elif restore_route_open:
-                stopped = bool(screen and not screen['menu'] and screen['route'] is False
-                               and self._off_icon(frame) and self.fishing._main_visible(frame)
-                               and self.signature(frame) == self.journal.get('first_signature')
-                               and (self._battle(frame) or self.fishing.blue_fill(frame)))
             elif restore_first_idle:
                 stopped = bool(self._first_idle(frame) is not None
                                and self.fishing.idle_icon(frame) == 'hook'
@@ -2308,8 +1933,6 @@ class StoneFarm(ParallelScreen):
                 stopped = bool(self._first_map_ready(frame)
                                or self._first_map_origin(frame) is not None
                                and self.signature(frame) == self.journal.get('first_signature'))
-                if self.retry.get('allow_map_target_repair'):
-                    stopped = bool(self._first_map_ready(frame) and self._map_task_target(frame))
             elif restore_first:
                 stopped = bool(screen and not screen['menu'] and self._first_idle(frame,allow_running=True) is not None)
             elif restore_startup:
@@ -2317,7 +1940,7 @@ class StoneFarm(ParallelScreen):
                     and (self._no_destination(frame) and self._idle_fishing(frame)
                          or self._first_unselected_idle(frame,ordinary=True) is not None))
             elif restore_gate:
-                stopped = bool(self.completed_rank_40 and self._off_icon(frame)
+                stopped = bool(self.restarting_gate and self._off_icon(frame)
                                and self._gate_manager(frame) is False and self._gate_stage(frame) == self.journal['to_stage'])
             elif restore_route:
                 stopped = bool(settings and self._off_icon(frame))
@@ -2327,11 +1950,6 @@ class StoneFarm(ParallelScreen):
                 # OFF and idle again before any return input.
                 stopped = bool(screen and not screen['menu'] and not screen['completion']
                     and screen['route'] is not None and self.fishing._main_visible(frame))
-            elif restore_fishing:
-                stopped = bool(screen and not screen['menu'] and screen['route'] is not None
-                    and (self._first_idle(frame,allow_running=True) is not None
-                         or not self.training.boss_mode(frame) and not self._battle(frame)
-                         and not self.fishing.blue_fill(frame) and self.fishing.idle_icon(frame)))
             else:
                 stopped = bool(original_retry or screen and screen['route'] is False and not screen['menu'])
             key = ('retry-gate' if restore_gate else 'retry-original' if original_retry else 'retry',self.signature(frame),settings) if stopped else None
@@ -2344,35 +1962,33 @@ class StoneFarm(ParallelScreen):
                 raise RuntimeError('只读接续已停止或到期，原超时记录未修改')
             raw = self.path.read_bytes()
             if hashlib.sha256(raw).hexdigest() != self.retry['failed_sha256']:
-                raise RuntimeError('降阶失败记录已变化，不重置限额')
+                raise RuntimeError('重开失败记录已变化，不重置限额')
             folder = self.path.parent/'logs/stone-farm-failed'
             folder.mkdir(parents=True,exist_ok=True)
             archive = folder/(self.retry['failed_sha256']+'.json')
             if archive.exists() and archive.read_bytes() != raw:
-                raise RuntimeError('原降阶失败归档冲突')
+                raise RuntimeError('原重开失败归档冲突')
             archive.write_bytes(raw)
             approval = self.retry
             if restore_observed:
                 # Resolve the now-real scene only. The original failed window,
                 # inputs and automatic handoff/cycle counts stay unchanged.
-                scope = 'lower' if restore_observed_lower else 'cycle'
                 rank,stage = screen['rank'],screen['stage']
                 self.journal.update(pending=False,phase='idle',
-                    resolution=('observed_fishing_after_expired_lower_handoff' if restore_observed_lower
-                                else 'observed_fishing_after_expired_first_cast'),
+                    resolution='observed_fishing_after_expired_first_cast',
                     recovery_source='unverified_after_timeout',restored_fishing=True,
                     restored_stage=stage,restored_rank=rank,recovered_at=time.time(),
                     previous_failed_sha256=approval['failed_sha256'],retry_approved_at=approval['approved_at'],
                     recoveries=self.journal.get('recoveries',0)+1)
-                self.journal['observed_'+scope+'_restore_runs']=1
-                self.journal['observed_'+scope+'_proof']=dict(frames=self.seen,
+                self.journal['observed_cycle_restore_runs']=1
+                self.journal['observed_cycle_proof']=dict(frames=self.seen,
                     seconds=time.monotonic()-self.since,stage=stage,rank=rank,route=True,game_inputs=0)
                 self._save()
                 self.phase,self.rank,self.current_stage='idle',rank,stage
                 self.off_verified=False
                 self.key=None
                 self.retry=None
-                self.event('次元石：只读确认超时后已有航巡与实际钓鱼，保留旧期限和输入记录；不计自动降阶或完整循环')
+                self.event('次元石：只读确认超时后已有航巡与实际钓鱼，保留旧期限和输入记录；本次记为恢复')
                 return True
             elif restore_manual_progress:
                 now=time.time()
@@ -2401,20 +2017,6 @@ class StoneFarm(ParallelScreen):
                 self.rank,self.current_stage=0,self.journal['to_stage']
                 self.key=self.since=self.last_seen=None
                 self.seen=0
-            elif restore_post_start:
-                # Archive the expired window exactly; this one-shot repair
-                # only restores the route after three seconds of real fishing.
-                # All old meter/portal inputs, start time and deadlines survive.
-                now = time.time()
-                self.journal.update(post_start_restore_runs=1,post_start_restore_started_at=now,
-                    post_start_previous_deadline=self.journal['deadline'],
-                    post_start_previous_phase_deadline=self.journal['phase_deadline'],
-                    deadline=now+90,phase_deadline=now+45,phase='route_open',
-                    restored_fishing_proof='observed_fishing_after_prior_hold',fishing_recovery=True)
-                self.phase,self.off_verified = 'route_open',True
-                self.rank,self.current_stage = screen['rank'],screen['stage']
-                self.key = self.since = self.last_seen = None
-                self.seen = 0
             elif restore_continuous_stop:
                 # A separately bounded repair archives the failed run and
                 # retains all reservations, receipts and the original start.
@@ -2427,7 +2029,7 @@ class StoneFarm(ParallelScreen):
                 self.rank,self.current_stage = screen['rank'],screen['stage']
                 self.phase = 'stop'
                 self.off_verified = self.fishing_stopped = False
-                self.cancel_anchor = self.boss_abandon_key = None
+                self.cancel_anchor = None
                 self.key = self.since = self.last_seen = None
                 self.seen = 0
             elif restore_return_entry:
@@ -2441,25 +2043,7 @@ class StoneFarm(ParallelScreen):
                 self.rank,self.current_stage = screen['rank'],screen['stage']
                 self.phase = 'stop'
                 self.off_verified = self.fishing_stopped = False
-                self.cancel_anchor = self.boss_abandon_key = None
-                self.key = self.since = self.last_seen = None
-                self.seen = 0
-            elif restore_boss_menu:
-                receipt = self._boss_abandon_receipt(self.path.parent,self.journal)
-                if receipt is None or receipt != approval.get('native_abandon_receipt_sha256'):
-                    raise RuntimeError('原生放弃输入回执已变化，不能追加接触')
-                # This new explicit approval has its own bounded observation.
-                # Preserve every old reservation/receipt and archive the old deadlines.
-                now = time.time()
-                self.journal.pop('stop_fishing_deadline',None)
-                self.journal.update(boss_abandon_menu_retry=True,boss_abandon_menu_started_at=now,
-                                    native_abandon_receipt_sha256=receipt,
-                                    deadline=now+self.LIMIT,return_deadline=now+180,
-                                    phase='stop',phase_deadline=now+180)
-                self.rank,self.current_stage = screen['rank'],screen['stage']
-                self.phase = 'stop'
-                self.off_verified = self.fishing_stopped = False
-                self.boss_abandon_key = None
+                self.cancel_anchor = None
                 self.key = self.since = self.last_seen = None
                 self.seen = 0
             elif restore_route_result:
@@ -2470,21 +2054,21 @@ class StoneFarm(ParallelScreen):
                 self._finish(frame)
                 self.retry = None
                 return False
-            elif restore_route or restore_route_open or restore_fishing or restore_startup or restore_first or restore_first_map or restore_first_idle or restore_first_result or restore_lower_first_result or restore_first_entry:
+            elif restore_route or restore_startup or restore_first or restore_first_map or restore_first_idle or restore_first_result or restore_first_entry:
                 # A separate bounded restoration run retains every original
                 # input count and completed portal proof. It never returns or
-                # lowers again, and the failed run remains byte-for-byte saved.
+                # opens a gate again. The failed run stays archived.
                 now = time.time()
                 # First-task selection/casting keeps its 60-second deadline.
                 # An explicitly repaired, interrupted map-open also needs the
                 # existing route-menu/running phases after that task succeeds.
                 # Allocate this at repair creation, never renew a live deadline.
                 map_open_restore = restore_first_map and approval.get('map_open_interrupted') is True
-                limit = 180 if restore_fishing or restore_startup or restore_first or restore_first_entry or map_open_restore else 60 if restore_first_map or restore_first_idle else 90
+                limit = 180 if restore_startup or restore_first or restore_first_entry or map_open_restore else 60 if restore_first_map or restore_first_idle else 90
                 self.journal.update(started_at=now,deadline=now+limit,phase_deadline=now+limit,
                                     restoration_only=True)
                 self.journal.pop('native_extras',None)
-                self.off_verified = restore_route or restore_route_open or restore_startup or restore_first_map or restore_first_idle or restore_first_result or restore_lower_first_result or restore_first_entry
+                self.off_verified = restore_route or restore_startup or restore_first_map or restore_first_idle or restore_first_result or restore_first_entry
                 self.current_stage = self._stage(frame) if restore_first_map else screen['stage']
                 self.key = self.since = self.last_seen = None
                 self.seen = 0
@@ -2492,14 +2076,7 @@ class StoneFarm(ParallelScreen):
                     self.journal.update(first_entry_repair_runs=1,first_unselected=True,
                                         first_signature=self.signature(frame),first_deadline=now+60)
                     self._set('first_map',30)
-                elif restore_route_open:
-                    self.journal.update(route_open_repair_runs=1,fishing_recovery=True)
-                    self.phase=self.journal['phase']='route_open'
-                elif restore_first_result or restore_lower_first_result:
-                    if restore_lower_first_result:
-                        self.journal['first_result_previous_started_at'] = json.loads(raw)['started_at']
-                        self.journal['first_result_previous_deadline'] = json.loads(raw)['deadline']
-                        self.journal['first_result_previous_phase_deadline'] = json.loads(raw)['phase_deadline']
+                elif restore_first_result:
                     self.journal.update(first_result_repair_runs=1,fishing_recovery=True,
                                         first_cast_verified_at=now,first_cast_verified_rank=screen['rank'])
                     self.rank = screen['rank']
@@ -2510,8 +2087,6 @@ class StoneFarm(ParallelScreen):
                     self.phase='first_idle'
                 elif restore_first_map:
                     self.journal.update(first_deadline=now+60,first_map_repair_runs=1)
-                    if approval.get('allow_map_target_repair'):
-                        self.journal['first_map_target_repair_runs'] = 1
                     # Re-enter the explicitly new repair phase even when its
                     # name equals the archived failure's phase. _set otherwise
                     # returns early and leaves the total window as its limit.
@@ -2521,11 +2096,6 @@ class StoneFarm(ParallelScreen):
                 elif restore_first:
                     self.journal['first_recovery'] = True
                     self.journal['fishing_recovery'] = True
-                    self.phase = self.journal['phase'] = 'fishing_stop'
-                elif restore_fishing:
-                    self.journal['fishing_recovery'] = True
-                    if self._first_idle(frame,allow_running=True) is not None:
-                        self.journal['first_recovery'] = True
                     self.phase = self.journal['phase'] = 'fishing_stop'
                 elif restore_startup:
                     if self._first_unselected_idle(frame,ordinary=True) is not None:
@@ -2555,9 +2125,7 @@ class StoneFarm(ParallelScreen):
                 self.key = self.since = self.last_seen = None
                 self.seen = 0
             else:
-                self._begin(screen,reserve_return_time=False)
-                if approval.get('allow_boss_abandon') is True:
-                    self.journal['allow_boss_abandon'] = True
+                self._begin(screen,reserve_return_time=False,saved_retry=self.journal)
             self.journal.update(previous_failed_sha256=approval['failed_sha256'],
                                 retry_approved_at=approval['approved_at'])
             self._save()
@@ -2568,18 +2136,16 @@ class StoneFarm(ParallelScreen):
             if restore_first_close:
                 self.event('首任务关图：已原样归档旧失败，另开获准的180秒恢复；首任务最多60秒，保留全部已用次数')
                 return True  # The close must use another new frame.
-            self.event('次元石：已原样归档失败记录，连续新图核对后另开获准的安全停钓降阶观察')
-            if restore_post_start:
-                return True  # Every subsequent route input needs a new frame.
+            self.event('次元石：已原样归档失败记录，按获准范围接续重开')
+
         if not self.active:
             if not self.enabled():
                 return False
             screen = self.screen(frame)
             if screen:
                 self.rank, self.current_stage = screen['rank'], screen['stage']
-            self.observe_stage_policy(frame, screen)
             retirement = self.journal.get('retirement')
-            if retirement and not retirement.get('released'):
+            if retirement and not retirement.get('released') and self.journal.get('reason') != 'lower':
                 context = [screen['stage'],screen['rank']] if screen and not screen['menu'] else None
                 if context is None:
                     self._confirmed(None)
@@ -2589,7 +2155,7 @@ class StoneFarm(ParallelScreen):
                 # same archived screen stays blocked for the retry backoff and
                 # is then released only on independently re-confirmed frames,
                 # never blindly. The block is bounded so a context that is its
-                # own next working position (e.g. the [8,40] lowering) cannot
+                # next working position cannot
                 # deadlock the task forever.
                 backoff = retirement.setdefault('backoff_seconds', handoff_journal.BACKOFF_SECONDS)
                 archived_at = retirement.get('at')
@@ -2606,12 +2172,11 @@ class StoneFarm(ParallelScreen):
                 self._save()
                 self._confirmed(None)
                 self.hold = None
-            trigger = bool(screen and (screen['stage'],screen['rank']) in
-                           ((self.START_STAGE,39),(self.FINAL_STAGE,40)) and not screen['menu'])
+            trigger = self.handoff_due(screen) and not screen['menu']
             if not trigger:
                 self._confirmed(None)
                 return False
-            if not self._confirmed((screen['stage'],screen['rank'])):
+            if not self._confirm_restart((screen['stage'],screen['rank']), frame):
                 self.hold = '连续核对当前阶段与RANK，暂缓新的菜单任务'
                 return True
             self._begin(screen)
@@ -2709,7 +2274,7 @@ class StoneFarm(ParallelScreen):
                 self._set('stop',180)
             return True
         if phase == 'stop':
-            screen = self._expected(frame)
+            screen = self._expected(frame, advance=True)
             if not screen or screen['menu']:
                 return True
             if screen['route'] is True:
@@ -2738,13 +2303,13 @@ class StoneFarm(ParallelScreen):
             # exact strokes bind each capture to that proof without delaying
             # the fleeting cast window with another full numeric batch.
             screen = (dict(stage=self.journal['from_stage'],rank=self.journal['rank'],
-                           route=False,menu=False) if anchored else self._expected(frame))
+                           route=False,menu=False) if anchored else self._expected(frame, advance=True))
             if not screen or screen['menu']:
-                self._confirmed(None)
+                if screen:
+                    self._confirmed(None)
                 return True
             if screen['route'] is True:
                 self.off_verified = self.fishing_stopped = False
-                self.boss_abandon_key = None
                 self.cancel_anchor = None
                 self._set('stop',180)
                 return True
@@ -2754,7 +2319,6 @@ class StoneFarm(ParallelScreen):
                     self.cancel_anchor = (self.signature(frame),context)
                 return True
             if idle:
-                self.boss_abandon_key = None
                 if self._confirmed(('fishing-idle',self.signature(frame))) and time.time() <= stop_cutoff:
                     self.fishing_stopped = True
                     self.journal['fishing_stopped_at'] = time.time()
@@ -2762,25 +2326,12 @@ class StoneFarm(ParallelScreen):
                     self._set('return',180)
                 return True
             if self.continuous_cancel_allowed:
-                self.boss_abandon_key = None
                 self._confirmed(None)
                 if context is not None and self.journal.get('attempts',{}).get('handoff-cancel',0) < self.INPUT_LIMITS['handoff-cancel']:
                     self.cancel_anchor = (self.signature(frame),context)
                     self._click('handoff-cancel',690,1090,'等待甩竿时右下鱼形红叉停止持续钓鱼',
                                 frame,cancel_context=context,continuous_stop=True)
                 return True
-            if (self.boss_abandon_handoff
-                    and not self.journal.get('attempts',{}).get(self.boss_abandon_kind)):
-                context = self.boss_abandon_context(frame)
-                if context is not None:
-                    if self._confirmed((self.boss_abandon_kind,context)):
-                        self.boss_abandon_key = context
-                        self._click(self.boss_abandon_kind,*context[1],
-                            '获准降阶时仅放弃本场海神，随后核对实际停钓',frame,abandon_context=context)
-                        self.boss_abandon_key = None
-                        self._confirmed(None)
-                    return True
-            self.boss_abandon_key = None
             self._confirmed(None)
             if self.ordinary_cancel_allowed:
                 context = self.cancel_context(frame)
@@ -2792,17 +2343,17 @@ class StoneFarm(ParallelScreen):
                 raise RetryableStage('次元石返回已到期，保留进度，等待新图安全归档本轮；最近等待：'+str(self.return_wait_reason or self.hold),
                                      task='stone_farm', retry_seconds=1800)
             if self._original(frame):
+                if (self.journal['reason'] == 'restart'
+                        and not any(a['kind'] == 'return-confirm' for a in self.journal.get('issued_inputs', []))):
+                    self._report_return_wait('返回确认输入未核实，保留原门等待确认')
+                    return True
                 self._set('original')
-                return True
-            confirmation_only = self.journal.get('return_confirm_restore_runs') == 1
-            if confirmation_only and self.journal.get('attempts',{}).get('return-confirm'):
-                self._report_return_wait('本次返回确认额度已用，等待实际原世界画面')
                 return True
             # Saved flags do not prove either stop after a restart. A modal
             # without this in-memory proof cannot authorise confirmation.
             if not self.off_verified or not self.fishing_stopped:
                 self._report_return_wait('等待重新确认停航及停钓；保存标记不能代替当前画面')
-                if not confirmation_only and self._expected(frame) and self.sailing.running(frame) is False:
+                if self._expected(frame) and self.sailing.running(frame) is False:
                     self._set('stop_fishing',180)
                 return True
             if not self._parallel(frame) or not self._off_icon(frame):
@@ -2817,10 +2368,9 @@ class StoneFarm(ParallelScreen):
                 else:
                     self._report_return_wait('返回确认的新截图守卫未通过，未发出输入')
                 return True
-            if confirmation_only:
-                self._report_return_wait('原返回确认弹窗不再匹配，等候实际原世界画面')
-                return True
             if self.sailing.running(frame) is False and self._idle_fishing(frame):
+                if self.journal['reason'] == 'restart' and self._expected(frame, advance=True) is None:
+                    return True
                 point = self._return_button(frame)
                 if point:
                     if phase != 'return':
@@ -2866,31 +2416,8 @@ class StoneFarm(ParallelScreen):
             key = ('manager',stage) if active is True and stage is not None else None
             if not self._confirmed(key):
                 return True
-            if self.journal['reason'] == 'lower':
-                if stage == self.journal['to_stage']:
-                    self.journal['verified_gate_stage'] = stage
-                    self._save()
-                    self._set('panel_close')
-                elif stage == self.journal['from_stage'] and self._click('lower',357,873,'只降低当前世界一阶，不关闭传送门',frame):
-                    self._set('lower_confirm')
-            elif stage == self.journal['from_stage'] and self._click('close-gate',354,739,'RANK40通关后关闭旧传送门',frame):
-                self._set('close_confirm',90)
-            return True
-        if phase == 'lower_confirm':
-            target = self._lower_prompt(frame)
-            if self._confirmed(('lower',target) if target == self.journal['to_stage'] else None):
-                if self._click('lower-confirm',208,788,f'确认第{self.journal["from_stage"]}阶段降至第{self.journal["to_stage"]}阶段',frame):
-                    self._set('lower_verify')
-            elif self._gate_manager(frame) is True and self._gate_stage(frame) == self.journal['to_stage']:
-                self._set('lower_verify')
-            return True
-        if phase == 'lower_verify':
-            stage = self._gate_stage(frame) if self._gate_manager(frame) is True else None
-            if self._confirmed(('lowered',stage) if stage == self.journal['to_stage'] else None):
-                self.journal['verified_gate_stage'] = stage
-                self.journal['lower_verified_at'] = time.time()
-                self._save()
-                self._set('panel_close')
+            if stage == self.journal['from_stage'] and self._click('close-gate',354,739,'关闭已核对的旧次元门',frame):
+                self._set('close_confirm')
             return True
         if phase in ('close_confirm','closed'):
             inactive = self._gate_manager(frame) is False
@@ -2900,10 +2427,10 @@ class StoneFarm(ParallelScreen):
                 self._save()
                 if phase != 'closed':
                     self._set('closed')
-                elif self._click('activate',355,803,f'重开新的第{self.journal["to_stage"]}阶段世界',frame):
+                elif self._click('activate',355,803,'打开新次元门',frame):
                     self._set('search')
             elif phase == 'close_confirm' and self._close_question(frame):
-                if self._click('close-confirm',208,788,'确认关闭已通关的旧门',frame):
+                if self._click('close-confirm',208,788,'确认关闭旧门并开启新一轮',frame):
                     self._set('closed')
             return True
         if phase == 'search':
@@ -2915,7 +2442,13 @@ class StoneFarm(ParallelScreen):
             return True
         if phase == 'new_gate':
             stage = self._gate_stage(frame) if self._gate_manager(frame) is True else None
-            if self._confirmed(('new-gate',stage) if stage == self.journal['to_stage'] else None):
+            expected = stage == self.journal['to_stage']
+            if self.journal['reason'] == 'restart':
+                # The game reopens the highest reached stage. Use its actual
+                # new gate, including any newly unlocked stage after RANK40.
+                expected = stage is not None and self.journal['from_stage'] <= stage <= 99
+            if self._confirmed(('new-gate',stage) if expected else None):
+                self.journal['to_stage'] = stage
                 self.journal['verified_gate_stage'] = stage
                 self._save()
                 self._set('panel_close')
@@ -3020,17 +2553,6 @@ class StoneFarm(ParallelScreen):
             return True
         if phase == 'route_running':
             screen = self.screen(frame)
-            # A fast final catch can finish before the three running frames.
-            # Its actual RANK40 notice proves fishing occurred; archive only
-            # the lower handoff, then establish the separate RANK40 cycle.
-            completed = bool(self.journal['reason'] == 'lower' and screen
-                             and (screen['stage'],screen['rank']) == (self.journal['to_stage'],40)
-                             and screen['completion'])
-            if completed:
-                if self._confirmed(('restored-and-completed',self.journal['to_stage'],40)):
-                    self.journal['handoff_rank40_notice_at'] = time.time()
-                    self._finish(frame)
-                return True
             # The native game can advance the first boss before three frames
             # arrive. Accept forward ranks only on the newly verified stage.
             valid = bool(screen and screen['stage'] == self.journal['to_stage']
@@ -3070,7 +2592,7 @@ class StoneFarm(ParallelScreen):
                 self.rank, self.current_stage = screen['rank'],screen['stage']
                 self._finish(frame)
             return True
-        raise RuntimeError('未知次元石降阶步骤：'+phase)
+        raise RuntimeError('未知次元石重开步骤：'+phase)
 
 # Shared reliability layer; retain all other deployed methods.
 def _save(self):

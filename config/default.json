@@ -4355,7 +4355,8 @@
     },
     {
       "id": "driftinggirl_stone_farm",
-      "name": "次元石：降阶刷最后BOSS",
+      "name": "次元石：按 RANK 重开",
+      "restart_rank": 35,
       "enabled": false,
       "asset": "assets/parallel/world-badge.png",
       "source_crop": [
@@ -4378,7 +4379,7 @@
       "stable_frames": 3,
       "stage": "stone_owned",
       "action": "observe",
-      "note": "从本轮实际阶段在RANK39安全停航停钓，保留进度降一阶；低一阶实际RANK40后返回并重开原阶段。"
+      "note": "连续确认到达设定 RANK 后，安全停航停钓，返回并关门重开。选 40 会等通关。"
     },
     {
       "id": "driftinggirl_pass_daily",
@@ -4435,6 +4436,32 @@
       "note": "18:00后执行一次；保留原世界和航巡，不打开任务进度、不购物、不关闭或重开次元门。"
     },
     {
+      "id": "driftinggirl_meal_delivery",
+      "name": "料理配送",
+      "enabled": false,
+      "asset": "assets/parallel/world-badge.png",
+      "source_crop": [
+        0,
+        0,
+        26,
+        26
+      ],
+      "search_area": [
+        10,
+        43,
+        70,
+        74
+      ],
+      "scales": [
+        1
+      ],
+      "threshold": 0.95,
+      "interval": 180,
+      "stable_frames": 3,
+      "stage": "controller_meal_delivery",
+      "action": "observe"
+    },
+    {
       "id": "driftinggirl_restaurant_upgrade",
       "name": "餐品强化：图鉴四种食材提交",
       "enabled": false,
@@ -4459,7 +4486,7 @@
       "stable_frames": 3,
       "stage": "restaurant_upgrade_owned",
       "action": "observe",
-      "note": "每三天检查所选类别，在料理图鉴提交四种食材强化永久效果；不制作、不食用、不购买食材。"
+      "note": "按设置间隔到餐馆，用天赋点补买当日食材，再在料理图鉴强化所选类别。"
     },
     {
       "id": "driftinggirl_update_prompt",

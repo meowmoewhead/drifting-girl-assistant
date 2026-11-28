@@ -4,6 +4,9 @@
 识别规则、执行模式绑在一起。根模块 ``features`` 现在只是转发到这里的兼容代理。
 """
 
+from drift.tasks.stone_options import DEFAULT_RESTART_RANK, restart_rank
+
+
 FEATURES = (
     dict(id="return_parallel", name="返回平行世界", icon="parallel", category="日常收取",
          description="普通世界停船且航巡停止后，航行到传送观测所进入次元门。开关独立于次元石循环模式。",
@@ -13,12 +16,18 @@ FEATURES = (
                 "确认平行世界画面后完成；超时保留记录"],
          rules=(), enabled=False),
     dict(id="restaurant_upgrade", name="餐品强化", icon="growth", category="日常收取",
-         description="定时前往当前世界的餐馆，在料理图鉴中长按交付四种食材，交满后确认强化永久效果。可只强化指定类别。不会制作或食用料理。",
-         summary="从左到右逐个强化 · 四种食材 · 满级或缺料后继续下一个",
-         steps=["等待当前事务结束，保存原地点和航巡设置", "在当前世界前往餐馆并打开料理图鉴",
+         description="定时前往当前世界的餐馆，用天赋点补买四类食材的当日剩余额度，再在料理图鉴内强化所选类别。",
+         summary="天赋点补料 · 从左到右逐个强化 · 交满四种食材",
+         steps=["等待当前事务结束，保存原地点和航巡设置", "到达餐馆后按天赋点档位补买食材，每种当日最多五份，再打开料理图鉴",
                 "依次检查九类已解锁餐品，可只强化指定类别，跳过未选类别和满级", "长按缺少的食材并核对实际交付数量，食材不足跳过",
                 "四项交满后确认强化，核对升级后继续该餐品，直到满级或无法继续交付", "关闭窗口并恢复原地点或原航巡，记录下次执行时间"],
          rules=("driftinggirl_restaurant_upgrade",)),
+    dict(id="meal_delivery", name="料理配送", icon="growth", category="日常收取",
+         description="每天北京时间 08:00 重置。读任务册，在餐馆制作一份，按任务箭头前往目的地。烹饪和到达都打勾后提交。目的地尚未发现时保留成品。确认交付三单后暂停检查至下次重置。",
+         summary="每天 08:00 重置 · 三单确认后暂停检查",
+         steps=["核对配送任务和任务册的四种食材数量", "停航后到餐馆制作一份",
+                "看烹饪绿勾和目的地箭头", "抵达后确认双绿勾，提交并恢复原航巡"],
+         rules=("driftinggirl_meal_delivery",)),
     dict(id="guild_daily", name="公会任务提交", icon="guild", category="日常收取",
          description="每天北京时间18:00前往公会，点击紫色与蓝色两类任务的已完成指标进行提交，跳过已领取和未达成项目，结束后恢复原世界和航巡。",
          summary="每天18:00 · 两类任务 · 保留原活动",
@@ -76,9 +85,11 @@ FEATURES = (
                 "读取本日钓鱼数，未满120则关闭，稍后再查", "只点击一次左侧免费奖励，不进入高级购买",
                 "确认30/60/90/120四档绿勾并返回", "保留完成记录，等待明日10:00"],
          rules=("driftinggirl_pass_daily",)),
-    dict(id="event_potion", name="活动药水", icon="coin", category="日常收取",
-         description="当期活动材料超过 500 时，购买商店第一个药水并返回游戏。",
-         summary="材料 > 500 · 每轮购买一瓶", steps=["连续读取活动材料", "超过 500 时打开活动商店", "选择第一个 500 材料药水", "确认购买", "关闭商店并返回主界面"],
+    dict(id="event_potion", name="活动商店", icon="coin", category="日常收取",
+         description="优先用 2000 活动材料兑换未拥有的皮肤，确认皮肤已收齐后再兑换药水。",
+         summary="皮肤优先 · 2000 活动材料", steps=["连续读取活动材料", "核对当前活动商品",
+                "优先选择未拥有的皮肤，材料不足时保留余额", "确认皮肤已收齐后才兑换药水",
+                "核对活动材料价格并关闭商店"],
          rules=("driftinggirl_event_potion_open", "driftinggirl_event_potion_select", "driftinggirl_event_potion_confirm",
                 "driftinggirl_event_potion_close", "driftinggirl_event_potion_return")),
     dict(id="guild_shop", name="公会点数商品", icon="coin", category="日常收取",
@@ -89,8 +100,8 @@ FEATURES = (
                 "driftinggirl_guild_material_select", "driftinggirl_guild_material_skip", "driftinggirl_guild_material_plus", "driftinggirl_guild_material_buy", "driftinggirl_guild_material_confirm",
                 "driftinggirl_guild_close", "driftinggirl_guild_return")),
     dict(id="raid", name="RAID 合作突袭", icon="swords", category="战斗任务",
-         description="进入合作突袭并准备，开始后核对战斗场地；BOSS未出现时点击圆盘抛竿，结算后接续原任务。",
-         summary="准备与开始 · 场内抛竿 · 战斗结算", steps=["发现可参加的 RAID 并进入准备页", "等待开始文字出现且按钮变蓝后参战", "进入场地后核对真实战斗；未开打时按限次点击圆盘抛竿", "出现真实战斗后等待结算", "确认结算或已自动返回主界面，接续原任务"],
+         description="参加合作突袭。每日三次突袭任务达标后，按任务指引到炼金术领取药水，再恢复原航巡。",
+         summary="合作突袭 · 战斗结算 · 三次任务药水", steps=["发现可参加的 RAID 并进入准备页", "等待开始文字出现且按钮变蓝后参战", "进入场地后核对真实战斗；未开打时按限次点击圆盘抛竿", "确认结算或已自动返回主界面", "核对三次突袭任务的完成勾，抵达炼金术后领取药水，恢复原航巡"],
          rules=("driftinggirl_raid_open", "driftinggirl_raid_prepare", "driftinggirl_raid_start",
                 "driftinggirl_raid_confirm", "driftinggirl_raid_return", "driftinggirl_raid_recover",
                 "driftinggirl_raid_entry_recover")),
@@ -110,9 +121,9 @@ FEATURES = (
          description="平行世界中，标尺落后角色超过触发差距时校准。保留航巡，只暂停持续钓鱼，调整到当前可用范围内的角色等级附近。",
          summary="等级差触发 · 保留航巡 · 成功后按设置冷却", steps=["冷却结束后连续读取角色等级与标尺，差距严格超过触发值才开始", "保留航巡，仅在普通鱼准备阶段停持续钓鱼；任务BOSS、港口或未知画面等待", "连续确认未钓鱼后读取当前范围，地点变化时重新核对", "圆球AUTO开启时调到可用范围内的角色等级附近", "长按启动后，以连续新图的真实填充或战斗确认恢复", "保留原航巡选项，成功后按保存间隔冷却"],
          rules=("driftinggirl_meter_calibration",)),
-    dict(id="stone_farm", name="次元石：降阶刷最后BOSS", icon="portal", category="战斗任务",
-         description="游戏自行航巡；连续确认当前阶段；RANK39保留进度降一阶，通关后重开本轮原阶段。",
-         summary="当前阶段RANK39 → 降一阶通关 → 重开原阶段", steps=["正常钓鱼、练级与BOSS挑战交给游戏航巡", "连续确认当前阶段与RANK39后，安全停航停钓，再返回观测所", "只降一阶并保留RANK39，重新进入本轮传送门", "按巡航设置恢复目标与自动项；未启用管理时沿用兼容路线", "降阶后的世界实际RANK40后，安全停航停钓并返回，确认旧门关闭", "打开新门并核对本轮原阶段，确认新轮后启动钓鱼及航巡"],
+    dict(id="stone_farm", name="次元石：按 RANK 重开", icon="portal", category="战斗任务",
+         description="游戏负责航巡和钓鱼。到达设定 RANK 后，安全停航停钓，返回观测所，关闭旧门并开启新一轮。",
+         summary="达到设定 RANK · 返回关门 · 开启新一轮", steps=["游戏自行航巡、练级、挑战 BOSS", "连续确认当前阶段和 RANK 已达到设定值", "确认停航和停钓，返回观测所并关闭旧门", "打开新门，核对游戏实际开启的阶段", "确认新轮钓鱼后恢复已保存的巡航设置"],
          rules=("driftinggirl_stone_farm",)),
     dict(id="parallel_world", name="任务导航与练级（旧模式）", icon="portal", category="战斗任务",
          description="沿地图任务升至 RANK 40，确认通关后关闭并重开次元门，循环获取次元石。",
@@ -135,11 +146,11 @@ TASK_GROUPS = (
          description='设置游戏航巡目标、自动贩卖/强化、补票及技能；标尺、法力和脚本满包出售分别控制。',
          features=('parallel_skills', 'meter_calibration', 'mana', 'backpack_sell')),
     dict(id='stone', name='次元石循环', icon='portal',
-         description='选择降阶刷最后BOSS或任务导航练级；自动返回平行世界、鱼饼武器强化分别开启。',
+         description='达到设定 RANK 后重开次元门，也可选任务导航练级。自动返回和鱼饼强化各有开关。',
          features=('stone_farm', 'parallel_world', 'return_parallel', 'equipment_upgrade')),
-    dict(id='restaurant', name='餐品强化', icon='growth',
-         description='按保存的间隔强化餐品，保留餐品选择、食材交付进度和下次执行时间。',
-         features=('restaurant_upgrade',)),
+    dict(id='restaurant', name='餐馆', icon='growth',
+         description='餐品强化按间隔执行，料理配送按游戏中的订单触发。',
+         features=('restaurant_upgrade','meal_delivery')),
     dict(id='rewards', name='奖励领取', icon='gift',
          description='每日奖励、PASS、邮箱分别记录领取；皇冠和救济品按画面实时触发。',
          features=('daily_reward', 'pass_daily', 'mailbox', 'achievements', 'relief')),
@@ -168,20 +179,20 @@ RECOVERY_RULE_IDS = FEATURE_BY_ID['task_popup']['rules']
 
 # Timing applies to starting a workflow, never to its follow-up or safety steps.
 TIMED_FEATURES = {'equipment_upgrade', 'parallel_skills', 'restaurant_upgrade'}
-# 每天只触发一次的功能:北京时间 08:00 刷新,本周期完成后等待下一次刷新。
+# 按北京时间 08:00 分周期，本周期完成后等待下一次刷新。
 # 邮箱由用户指定为每日一次(原先按新邮件提示实时触发,会一天领很多轮)。
-DAILY_FEATURES = {'daily_reward', 'guild_shop', 'mailbox', 'pass_daily', 'guild_daily'}
+DAILY_FEATURES = {'daily_reward', 'guild_shop', 'mailbox', 'pass_daily', 'guild_daily', 'meal_delivery'}
 REALTIME_CONDITIONS = {
     'task_popup': '任务弹窗出现时处理',
     'update_prompt': '出现「发现新版本」提示时点取消',
     'relief': '降落伞出现时收取',
     'mana': '法力低于设定阈值时补充',
     'achievements': '皇冠出现新奖励提示时领取',
-    'event_potion': '活动材料超过设定值时兑换',
+    'event_potion': '有未拥有皮肤时优先兑换，皮肤收齐后兑换药水',
     'raid': '可参加的 RAID 入口出现时处理',
     'backpack_sell': '背包满时处理',
     'meter_calibration': '冷却结束且角色与标尺的差距超过触发值时校准',
-    'stone_farm': '当前阶段RANK39降一阶；RANK40后重开原阶段',
+    'stone_farm': '达到设定 RANK 后返回并重开次元门',
     'parallel_world': '持续检查任务、练级与次元门状态',
     'growth_ad': '可领取的成长广告入口出现时处理',
     'potion_ad': '可领取的药水广告入口出现时处理',
@@ -193,6 +204,7 @@ REALTIME_CONDITIONS = {
 RULELESS_FEATURES = {'return_parallel'}
 # 每日功能的触发条件说明(它们不走 REALTIME_CONDITIONS)。
 DAILY_CONDITIONS = {
+    'meal_delivery': '每天北京时间08:00重置，确认交付三单后暂停检查',
     'guild_daily': '每天北京时间18:00提交紫色和蓝色两类公会任务',
     'daily_reward': '每天08:00刷新后检查免费及附赠奖励',
     'guild_shop': '每天 08:00 刷新后购买药水与天赋值',
@@ -237,6 +249,11 @@ def feature_states(config, schedules=None, executions=None):
             result[-1]['execution'] = {**result[-1]['execution']}
             if not enabled:
                 result[-1]['execution']['status'] = 'disabled'
+        if feature['id'] == 'stone_farm':
+            rank = restart_rank(entry.get('restart_rank', DEFAULT_RESTART_RANK))
+            result[-1]['restart_rank'] = rank
+            result[-1]['summary'] = f'达到 RANK {rank} 后重开次元门'
+            result[-1]['execution'] = {**result[-1]['execution'], 'condition': result[-1]['summary']}
         if feature['id'] == 'parallel_world':
             # 函数内延迟导入:features 与 boss_training 互相引用,只能在调用时解析。
             # 迁移过渡期 drift.tasks.boss_training 可能尚未落地,回退到根代理。
@@ -274,7 +291,7 @@ def feature_states(config, schedules=None, executions=None):
     for feature in result:
         feature['effective_enabled'] = feature['enabled'] and not (feature['id'] == 'parallel_world' and native)
         if feature['id'] == 'parallel_world' and feature['enabled'] and native:
-            feature['inactive_reason'] = '当前使用降阶刷最后BOSS，旧模式设置保留'
+            feature['inactive_reason'] = '当前使用按 RANK 重开'
     return result
 
 

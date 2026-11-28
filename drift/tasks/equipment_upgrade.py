@@ -226,6 +226,12 @@ class EquipmentUpgrade:
         self._set('close')
         self.event('武器强化：剩余时间不足以完成长按和收起面板，本轮先关闭；未完成强化不计完成')
 
+    def _skip_unreadable_list(self, reason):
+        self.interrupted = True
+        self._set('close')
+        self.event(f'武器强化：{reason}，安全收起鱼饼面板，本轮不计完成')
+        return True
+
     def step(self, frame):
         if frame.shape[:2] != (1280, 720):
             raise RuntimeError('武器强化只支持 720×1280 模拟器画面')
@@ -285,13 +291,18 @@ class EquipmentUpgrade:
         if (self.phase != 'close' and self.holds < self.MAX_HOLDS
                 and time.monotonic()-self.started_at >= self.CYCLE_SECONDS-self.CLOSE_RESERVE_SECONDS):
             self._close_for_budget()
-        if self.holds >= self.MAX_HOLDS:
+        if self.holds >= self.MAX_HOLDS and self.phase != 'close':
             self._set('close')
 
         if self.phase == 'close':
+            if now-self.phase_since > 30:
+                raise RuntimeError('武器强化未能重新确认可关闭的鱼饼面板，已停止')
+            fresh = self.capture() if self.capture is not None else frame
+            if not self.validate_battle_close(fresh):
+                return True
             self.click(360, 1166, '武器强化：关闭鱼饼面板')
             self._set('await_main')
-            self.next_action_at = now + 1.2
+            self.next_action_at = time.monotonic() + 1.2
             return True
 
         if self.phase in ('to_top', 'to_bottom'):
@@ -313,7 +324,7 @@ class EquipmentUpgrade:
                 self._set('upgrade')
                 return True
             if self.swipes >= 3:
-                raise RuntimeError('武器强化列表滚动后未确认武器名称，已停止')
+                return self._skip_unreadable_list('已用完三次滚动，仍未确认武器名称')
             self.swipe(360, 870 if self.page == 'top' else 1070,
                        360, 1070 if self.page == 'top' else 870,
                        '武器强化：滚动至' + ('钓鱼竿' if self.page == 'top' else '机关炮塔和魔法石'))
@@ -324,8 +335,9 @@ class EquipmentUpgrade:
 
         if self.phase == 'upgrade':
             if not self.page_visible(frame, self.page):
+                self.stable = 0
                 if now-self.phase_since > 25:
-                    raise RuntimeError('武器强化列表位置变化，已停止')
+                    return self._skip_unreadable_list('武器列表被遮挡或位置变化，连续未能确认')
                 return True
             keys = PAGES[self.page]
             if self.index >= len(keys):
@@ -362,163 +374,3 @@ class EquipmentUpgrade:
 # Reviewed source-sprite recognition; controller guards and input logic unchanged.
 from drift.perception.original_templates import install_original_templates as _install_original_templates
 _install_original_templates(EquipmentUpgrade, 'equipment', '_within')
-
-# Reviewed source-sprite recognition; controller guards and input logic unchanged.
-from drift.perception.original_templates import install_original_templates as _install_original_templates
-_install_original_templates(EquipmentUpgrade, 'equipment', '_within')
-
-# Bounded long-action budgets; preserve all other deployed methods.
-
-EquipmentUpgrade.CLOSE_RESERVE_SECONDS = 10
-
-EquipmentUpgrade.ACTION_SETTLE_SECONDS = 1
-
-def step(self, frame):
-    if frame.shape[:2] != (1280, 720):
-        raise RuntimeError('武器强化只支持 720×1280 模拟器画面')
-    now = time.monotonic()
-    if now < self.next_action_at:
-        return self.active
-    panel = self.panel(frame)
-    if self.phase == 'idle':
-        if now < self.next_check_at:
-            return False
-        if panel:
-            self._begin()
-        else:
-            self.stable = self.stable + 1 if self.main(frame) else 0
-            if self.stable < 2:
-                return False
-            if self.capture is not None:
-                frame = self.capture()
-                if frame.shape[:2] != (1280,720) or self.panel(frame) or not self.main(frame):
-                    self.stable = 0
-                    return False
-            if self.opening_guard is not None and not self.opening_guard(frame):
-                self.stable = 0
-                return False
-            self.click(360, 1166, '武器强化：打开鱼饼面板')
-            self._set('opening')
-            self.next_action_at = time.monotonic() + 1.2
-            return True
-
-    if self.phase == 'opening':
-        if panel:
-            self._begin()
-        else:
-            self.stable = self.stable+1 if self.main(frame) else 0
-            if self.stable >= 3:
-                self._finish(True)
-                self.event('武器强化入口未展开：已连续确认主画面，等待下个检查间隔；本次不记强化完成')
-                return False
-            if now-self.phase_since > 25:
-                raise RuntimeError('武器强化入口后未确认鱼饼面板')
-            return True
-
-    if not panel:
-        self.stable = self.stable + 1 if self.main(frame) else 0
-        if self.stable >= 3:
-            self._finish(self.phase != 'await_main')
-            return False
-        if now-self.phase_since > 35:
-            raise RuntimeError('武器强化界面被遮挡或未返回主画面，已停止')
-        return True
-
-    if self.phase == 'await_main':
-        if now-self.phase_since > 30:
-            raise RuntimeError('武器强化面板未关闭，已停止')
-        return True
-
-    if (self.phase != 'close' and self.holds < self.MAX_HOLDS
-            and time.monotonic()-self.started_at >= self.CYCLE_SECONDS-self.CLOSE_RESERVE_SECONDS):
-        self._close_for_budget()
-    if self.holds >= self.MAX_HOLDS:
-        self._set('close')
-
-    if self.phase == 'close':
-        self.click(360, 1166, '武器强化：关闭鱼饼面板')
-        self._set('await_main')
-        self.next_action_at = now + 1.2
-        return True
-
-    if self.phase in ('to_top', 'to_bottom'):
-        self.page = 'top' if self.phase == 'to_top' else 'bottom'
-        if self.capture is not None:
-            # Header OCR can consume the whole settling interval while the
-            # outer frame still shows the previous scroll's elastic bounce.
-            # Observe NEW pixels after that interval, before another swipe
-            # or exhausting the original three-swipe limit.
-            frame = self.capture()
-            if frame.shape[:2] != (1280,720) or not self.panel(frame) or (self.scroll_guard is not None
-                                         and not self.scroll_guard(frame)):
-                return True
-            if time.monotonic()-self.started_at >= self.CYCLE_SECONDS:
-                self._close_for_budget()
-                return True
-        if self.page_visible(frame, self.page):
-            self.index = self.swipes = 0
-            self._set('upgrade')
-            return True
-        if self.swipes >= 3:
-            raise RuntimeError('武器强化列表滚动后未确认武器名称，已停止')
-        self.swipe(360, 870 if self.page == 'top' else 1070,
-                   360, 1070 if self.page == 'top' else 870,
-                   '武器强化：滚动至' + ('钓鱼竿' if self.page == 'top' else '机关炮塔和魔法石'))
-        self.swipes += 1
-        # Count from the completed gesture, not from controller entry.
-        self.next_action_at = time.monotonic() + 1.
-        return True
-
-    if self.phase == 'upgrade':
-        if not self.page_visible(frame, self.page):
-            if now-self.phase_since > 25:
-                raise RuntimeError('武器强化列表位置变化，已停止')
-            return True
-        keys = PAGES[self.page]
-        if self.index >= len(keys):
-            if self.page == 'top':
-                self._set('to_bottom')
-            else:
-                self.passes += 1
-                self._set('close')
-                self.pass_holds = 0
-            return True
-        key = keys[self.index]
-        self.stable += 1
-        if self.stable < 2:
-            return True
-        if self.affordable(frame, key):
-            if not self.hold_budget_available(self.HOLD_SECONDS):
-                self._close_for_budget()
-                return True
-            name, _, _, y = WEAPONS[key]
-            if not self.hold(620, y, self.HOLD_SECONDS, key, '武器强化：长按'+name):
-                self.stable = 0
-                return True
-            self.last_weapon = name
-            self.holds += 1
-            self.pass_holds += 1
-            self.next_action_at = time.monotonic() + .8
-        self.index += 1
-        self.stable = 0
-        self.phase_since = time.monotonic()
-        return True
-    return True
-
-EquipmentUpgrade.step = step
-
-def hold_budget_available(self, seconds):
-    # A still-open cycle is not enough: leave time for release, settling
-    # and closing the panel. This does not renew the original cycle.
-    return (self.phase == 'upgrade' and 0 < seconds <= self.HOLD_SECONDS
-            and time.monotonic() + seconds + self.ACTION_SETTLE_SECONDS
-                + self.CLOSE_RESERVE_SECONDS <= self.started_at + self.CYCLE_SECONDS)
-
-EquipmentUpgrade.hold_budget_available = hold_budget_available
-
-def _close_for_budget(self):
-    self.interrupted = True
-    self._set('close')
-    self.event('武器强化：剩余时间不足以完成长按和收起面板，本轮先关闭；未完成强化不计完成')
-
-EquipmentUpgrade._close_for_budget = _close_for_budget

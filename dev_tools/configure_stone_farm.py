@@ -1,11 +1,13 @@
-"""Add native-route stage handoff without enabling legacy navigation."""
+"""Add the configurable RANK restart rule."""
 from copy import deepcopy
+from drift.tasks.stone_options import DEFAULT_RESTART_RANK
 
-RULE = dict(id='driftinggirl_stone_farm', name='次元石：降阶刷最后BOSS',
+RULE = dict(id='driftinggirl_stone_farm', name='次元石：按 RANK 重开',
     enabled=False, asset='assets/parallel/world-badge.png', source_crop=[0,0,26,26],
     search_area=[13,46,39,72], scales=[1], threshold=.92, interval=2,
     stable_frames=3, stage='stone_owned', action='observe',
-    note='连续确认当前阶段；RANK39保留进度降一阶打最后BOSS，实际RANK40后才关门重开原阶段。正常航巡交给游戏。')
+    restart_rank=DEFAULT_RESTART_RANK,
+    note='连续确认到达设定 RANK 后停航停钓，返回并关门重开。')
 
 
 def add(config, enabled=False):

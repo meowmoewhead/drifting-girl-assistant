@@ -286,11 +286,10 @@ class ActualFrameTests(unittest.TestCase):
                 self.assertIsNone(self.view.fishing_idle(self.frame,context))
         self.assertIsNone(self.view.observe_setup(self.frame//2))
 
-    def test_owed_lowering_never_starts_an_original_world_farming_route(self):
+    def test_old_archived_lowering_leaves_other_cruise_options_available(self):
         self.owner.journal.update(reason='lower',retirement=dict(released=False))
-        self.assertIsNone(self.view.observe_setup(self.frame))
-        self.owner.journal['retirement']['released']=True
         self.assertIsNotNone(self.view.observe_setup(self.frame))
+
 
     def test_battle_read_only_observation_keeps_menu_input_forbidden(self):
         context=self.view.observe_setup(self.frame)

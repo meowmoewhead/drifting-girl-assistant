@@ -95,7 +95,7 @@ class StartupControllerTests(unittest.TestCase):
 
     def test_fresh_confirmed_progress_releases_block_but_unknown_or_single_frame_cannot(self):
         self.expired();self.w.retire_expired_on_start()
-        progress=dict(stage=9,rank=38,menu=False,completion=False,route=True)
+        progress=dict(stage=8,rank=38,menu=False,completion=False,route=True)
         with patch.object(self.w,'screen',return_value=progress):
             self.tick();self.assertFalse(self.w.journal['retirement']['released'])
             self.tick();self.tick()
@@ -103,7 +103,7 @@ class StartupControllerTests(unittest.TestCase):
         # A new legitimate 8/R40 cycle can subsequently acquire ownership.
         with patch.object(self.w,'screen',return_value=dict(progress,stage=8,rank=40)),patch.object(self.w,'_expected',return_value=None):
             for _ in range(3):self.tick()
-        self.assertTrue(self.w.active);self.assertEqual(self.w.journal['reason'],'cycle')
+        self.assertTrue(self.w.active);self.assertEqual(self.w.journal['reason'],'restart')
 
     def test_valid_existing_explicit_retry_wins_over_startup_retirement(self):
         raw=self.expired();self.w.retry={'expires_at':self.now+60}

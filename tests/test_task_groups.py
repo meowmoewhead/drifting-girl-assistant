@@ -37,7 +37,7 @@ class TaskGroupTests(unittest.TestCase):
         stone=next(g for g in TASK_GROUPS if g['id']=='stone')
         self.assertIn('equipment_upgrade',stone['features'])
         restaurant=next(g for g in TASK_GROUPS if g['id']=='restaurant')
-        self.assertEqual(restaurant['features'],('restaurant_upgrade',))
+        self.assertEqual(restaurant['features'],('restaurant_upgrade','meal_delivery'))
         self.assertEqual(execution_mode('equipment_upgrade'),'timed')
         self.assertEqual(execution_mode('meter_calibration'),'realtime')
         self.assertEqual(execution_mode('pass_daily'),'daily')

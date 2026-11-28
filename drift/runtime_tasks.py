@@ -75,6 +75,37 @@ def build_services(_bindings,_globals):
             if owned:self.state['stage']='restaurant_'+restaurant.phase
         return owned
 
+    def step_meal(image,allow_start=True):
+        ctx=_bindings()
+        self=ctx['self']
+        task=ctx['meal_delivery']
+        feature='meal_delivery'
+        was_active=task.active
+        daily=task.daily_status()
+        if not was_active and daily['completed']:
+            return False
+        due=allow_start and self.task_schedule.ready(feature,daily)
+        try:
+            owned=ctx['runtime'].call(feature,task.step,image,due=due)
+        except RuntimeError as exc:
+            task.abandon(str(exc))
+            owned=False
+        if not was_active and task.active:
+            self.task_schedule.begin(feature,task.interval,daily)
+        if task.done is not None:
+            # Until the cap is reached, keep the existing offer-driven cadence.
+            self.task_schedule.finish(feature,0,task.daily_status(),success=task.done,
+                                      retry_seconds=0,controller=task)
+            if ctx['stop_on_main']:
+                with self.lock:
+                    self.state['stop_reason']='cycle_complete' if task.done else 'observation_complete'
+                self.stop_event.set()
+        with self.lock:
+            self.state[feature]=task.status()
+            if owned:
+                self.state['stage']='meal_delivery_'+task.phase
+        return owned
+
     def step_guild_daily(image,allow_start=True):
         _ctx=_bindings()
         self=_ctx['self']
@@ -129,4 +160,4 @@ def build_services(_bindings,_globals):
             self.task_schedule.finish('pass_daily', pass_task.interval, self.daily_schedule.status()['pass_daily'], success=bool(pass_task.done), retry_seconds=None if pass_task.done else pass_task.interval, controller=pass_task)
         return owned
 
-    return {'finish_scheduled_daily':finish_scheduled_daily,'step_scheduled_controller':step_scheduled_controller,'step_restaurant':step_restaurant,'step_guild_daily':step_guild_daily,'step_pass':step_pass}
+    return {'finish_scheduled_daily':finish_scheduled_daily,'step_scheduled_controller':step_scheduled_controller,'step_restaurant':step_restaurant,'step_meal':step_meal,'step_guild_daily':step_guild_daily,'step_pass':step_pass}

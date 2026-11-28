@@ -1,6 +1,5 @@
 """Replay the RANK37 resource battle interrupting the first guild entry."""
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import shutil
@@ -101,9 +100,6 @@ class ResourceGuildRecoveryTests(unittest.TestCase):
                     self.image = frames['main'].copy()
                 else:
                     self.after_frames += 1
-                    if scenario=='repeat' and self.after_frames==8 and clicker.state['recoveries']==len(self.taps):
-                        # Move past the scheduled retry while keeping the replay within five minutes.
-                        clock[0] += 60
                     if scenario=='expired' and self.after_frames==1:clock[0] += 31
                     if scenario=='unknown':self.image = np.zeros_like(frames['battle'])
                     elif scenario=='flicker' and self.after_frames==3:
@@ -172,13 +168,10 @@ class ResourceGuildRecoveryTests(unittest.TestCase):
         (root/'daily_state.json').write_text(json.dumps(daily),encoding='utf-8')
         daily_bytes = (root/'daily_state.json').read_bytes()
         clicker = Clicker(root,Device)
-        if scenario=='repeat':
-            wall_start=datetime.now(timezone.utc)
-            clicker.task_schedule.clock=lambda:wall_start+timedelta(seconds=clock[0])
         clicker.digit_reader = self.reader
         try:
             with patch('app.ParallelWorld',Parallel),patch('app.time',SimpleNamespace(monotonic=lambda:clock[0])):
-                clicker.start(preview=False,timeout=280 if scenario=='repeat' else 160)
+                clicker.start(preview=False,timeout=160)
                 clicker.thread.join(65)
                 self.assertFalse(clicker.running(),f'Replay did not finish: {clicker.state}')
             self.assertEqual((root/'daily_state.json').read_bytes(),daily_bytes)

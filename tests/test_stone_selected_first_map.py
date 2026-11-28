@@ -77,6 +77,39 @@ class SelectedFirstMapTests(unittest.TestCase):
         self.assertEqual(self.w.journal['phase_deadline'],old['phase_deadline'])
         self.assertEqual(self.w.journal['attempts']['first-select'],1)
 
+    def test_receipted_seoul_title_allows_closing_map_with_covered_skull(self):
+        frame = self.selected()
+        frame[426:465,400:437] = frame[426:465,444:481]
+        self.assertFalse(self.w._first_selected_map(frame))
+        self.w.journal['first_selected_seoul'] = True
+        self.assertTrue(self.w._first_selected_map(frame))
+        for _ in range(3):
+            self.tick(frame.copy())
+        self.assertEqual([action['kind'] for action in self.actions], ['first-close'])
+        action = self.actions[-1]
+        self.assertTrue(self.w.validate_portal(action,frame.copy()))
+
+        changed = frame.copy()
+        changed[12:34,286:434] = 210
+        self.assertFalse(self.w.validate_portal(action,changed))
+        self.assertFalse(self.w._first_selected_map(changed))
+        self.w.journal['issued_inputs'] = []
+        self.assertFalse(self.w._first_selected_map(frame))
+
+    def test_seoul_label_is_rechecked_in_the_first_selection_frame(self):
+        frame = self.selected()
+        self.w._set('first_select',30)
+        point = (416,444)
+        self.w.first_map_target = point
+        self.w.first_map_verified = True
+        action = {**self.action('first-select',point,frame), 'selected_seoul':True}
+        crop = self.w.seoul_title
+        frame[392:392+crop.shape[0],379:379+crop.shape[1]] = crop
+        with patch.object(self.w,'_map_task_target',return_value=(*point,1.0)):
+            self.assertTrue(self.w.validate_portal(action,frame))
+            frame[390:414,378:422] = 185
+            self.assertFalse(self.w.validate_portal(action,frame))
+
     def test_selected_full_skull_does_not_need_avatar_occlusion(self):
         frame = self.selected().copy()
         full = self.w.assets['map-boss']

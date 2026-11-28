@@ -291,6 +291,9 @@ class GuildShopTests(unittest.TestCase):
             def stuck_record_add(self,button):pass
         with tempfile.TemporaryDirectory(prefix='guild-replay-') as directory:
             root=Path(directory);shutil.copytree(ROOT/'assets'/'guild-shop',root/'assets'/'guild-shop')
+            for item in ('assets/parallel/map-close.png','assets/task-popup/map-legend.png'):
+                (root/item).parent.mkdir(parents=True,exist_ok=True)
+                shutil.copy2(ROOT/item,root/item)
             config=deepcopy(self.config);config['poll_interval']=.1;config['rules']=deepcopy(list(self.rules.values()))
             for r in config['rules']:r.update(enabled=True,interval=.2,next_delay=0,stage_timeout=5)
             (root/'config.json').write_text(json.dumps(config),encoding='utf-8')

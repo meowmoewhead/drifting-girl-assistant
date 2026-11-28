@@ -52,6 +52,12 @@ def restartable(state):
             and not foreground.startswith(PACKAGE + '/'))
 
 
+class RecoveryRateLimited(RuntimeError):
+    def __init__(self, retry_after):
+        super().__init__('游戏在 30 分钟内已恢复两次，已停止以避免反复重启')
+        self.retry_after = retry_after
+
+
 class GameRecovery:
     def __init__(self, root, device, event, click=None, capture=None):
         self.device, self.event = device, event
@@ -67,6 +73,7 @@ class GameRecovery:
         self.network=cv2.cvtColor(network,cv2.COLOR_BGR2RGB)
         self.root=Path(root)
         self.scene_probe=None
+        self.delivery_probe=None
         self.phase = 'idle'
         self.missing = self.title_frames = self.ready_frames = 0
         self.started_at = None
@@ -77,15 +84,24 @@ class GameRecovery:
         self.awaiting_self_exit = False
         self.device_waiting = False
 
-    def scene(self, frame):
+    def scene(self, frame, probe=None):
         """Recovery also works when only scheduled or reward tasks are enabled."""
-        if self.scene_probe is None:
+        if probe is None and self.scene_probe is None:
             from drift.tasks.meter_calibration import _ScreenContext
             from drift.tasks.training_sailing import TrainingSailing
             self.scene_probe=_ScreenContext(self.root,None,lambda:None)
             self.scene_probe.sailing=TrainingSailing(self.root,self.scene_probe.training,None,lambda *_:None)
-        probe=self.scene_probe
-        ready=probe.training.main(frame) or probe.sailing.running(frame) is not None
+        if probe is None:
+            probe=self.scene_probe
+        ready=(probe.training.main(frame)
+               or probe.sailing is not None and probe.sailing.running(frame) is not None)
+        if not ready:
+            # A freshly offered order can be the first playable screen after login.
+            if self.delivery_probe is None:
+                from drift.perception.meal_delivery import MealDeliveryVisual
+                self.delivery_probe=MealDeliveryVisual(self.root,None)
+            card=self.delivery_probe.order(frame)
+            ready=card is not None and card.npc is not None
         return ready or probe._parallel(frame) or probe._observatory(frame),ready
 
     def _network_error(self, frame):
@@ -147,7 +163,7 @@ class GameRecovery:
         while self.restarts and now - self.restarts[0] >= 1800:
             self.restarts.popleft()
         if len(self.restarts) >= 2:
-            raise RuntimeError('游戏在 30 分钟内已恢复两次，已停止以避免反复重启')
+            raise RecoveryRateLimited(self.restarts[0] + 1800 - now)
         fresh = self.device.game_state()
         self._stopped()
         if fresh != state or not restartable(fresh):

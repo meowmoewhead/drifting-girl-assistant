@@ -222,9 +222,37 @@ class EquipmentUpgradeTests(unittest.TestCase):
         self.u.capture = lambda:image('bottom')
         self.u.scroll_guard = lambda frame:True
         with patch('equipment_upgrade.time',SimpleNamespace(monotonic=lambda:10)):
-            with self.assertRaisesRegex(RuntimeError,'滚动后未确认'):
-                self.u.step(image('top'))
+            self.assertTrue(self.u.step(image('top')))
+        self.assertEqual(self.u.phase, 'close')
+        self.assertTrue(self.u.interrupted)
+        self.assertEqual(self.u.swipes, 3)
         self.assertEqual(self.actions,[])
+
+    def test_list_occlusion_abandons_only_this_pass_and_rechecks_close(self):
+        occluded = image('top').copy()
+        occluded[951:977,103:203] = (205,165,42)
+        self.assertTrue(self.u.panel(occluded))
+        self.assertFalse(self.u.page_visible(occluded, 'top'))
+        self.u.phase = 'upgrade'
+        self.u.phase_since = self.u.started_at = 0
+        now = [26.]
+        self.u.capture = lambda: image('main')
+        with patch('equipment_upgrade.time',SimpleNamespace(monotonic=lambda:now[0])):
+            self.assertTrue(self.u.step(occluded))
+            self.assertEqual(self.u.phase, 'close')
+            self.assertTrue(self.u.step(occluded))
+            self.assertEqual(self.actions, [])
+            self.u.capture = lambda: occluded.copy()
+            self.assertTrue(self.u.step(occluded))
+            self.assertEqual(self.u.phase, 'await_main')
+            for _ in range(3):
+                now[0] += 2
+                self.u.step(image('main'))
+            self.assertFalse(self.u.active)
+            self.assertEqual(self.u.next_check_at, now[0]+self.u.interval)
+        self.assertEqual(self.u.cycles, 0)
+        self.assertEqual(self.u.holds, 0)
+        self.assertEqual(self.actions, [('tap',360,1166,'武器强化：关闭鱼饼面板')])
 
     def test_scroll_settling_interval_starts_after_gesture_completion(self):
         clock, captures = [10.],[]

@@ -1,4 +1,4 @@
-"""Stage handoff must not discard RANK39 or credit attempted inputs as proof."""
+"""Gate restart must verify the scene and keep its action budgets."""
 from copy import deepcopy
 import hashlib
 import json
@@ -54,11 +54,15 @@ class StoneFarmTests(unittest.TestCase):
     def tick(self, frame=None):
         self.now += 1.6
         self.w.next_at = 0
-        return self.w.step(self.main if frame is None else frame)
+        return self.w.step(self.main.copy() if frame is None else frame)
 
-    def begin(self, *, cycle=False, completion=False):
-        self.w._begin(dict(stage=8 if cycle else 9, rank=40 if cycle else 39,
-                           completion=completion, menu=False, route=True))
+    def begin(self, *, cycle=False, completion=False, stage=None, rank=None):
+        stage = (8 if cycle else 9) if stage is None else stage
+        rank = (40 if cycle else 39) if rank is None else rank
+        screen = dict(stage=stage, rank=rank, completion=completion, menu=False, route=True)
+        prior = (dict(reason='cycle', rank=rank, from_stage=stage, to_stage=stage+1, entry_rank=0)
+                 if cycle else None)
+        self.w._begin(screen, saved_retry=prior)
 
     def action(self, kind, point, frame=None):
         frame = self.main if frame is None else frame
@@ -80,9 +84,9 @@ class StoneFarmTests(unittest.TestCase):
         notice=image('assets/recovery/parallel-complete.png')
         for _ in range(3):
             self.now+=1.6
-            self.assertTrue(self.w.completion_step(notice))
+            self.assertTrue(self.w.completion_step(notice.copy()))
         self.assertTrue(self.w.completed_rank_40)
-        self.assertEqual(self.w.journal['reason'],'cycle')
+        self.assertEqual(self.w.journal['reason'],'restart')
         self.assertEqual([a['kind'] for a in self.actions],['completion'])
 
     def test_rank39_and_dark_notice_do_not_seize_completion_priority(self):
@@ -91,7 +95,7 @@ class StoneFarmTests(unittest.TestCase):
         self.assertFalse(self.w.active)
         self.assertEqual(self.actions,[])
 
-    def test_pending_lower_handoff_cannot_be_reclassified_by_completion_priority(self):
+    def test_pending_restart_cannot_be_reclassified_by_unrelated_completion(self):
         self.begin()
         before=deepcopy(self.w.journal)
         self.assertFalse(self.w.completion_step(image('assets/recovery/parallel-complete.png')))
@@ -152,58 +156,22 @@ class StoneFarmTests(unittest.TestCase):
         self.assertFalse(self.w.active)
         self.assertEqual(self.actions,[])
 
-    def test_only_three_confirmed_seconds_trigger_rank39_handoff(self):
+    def test_only_three_confirmed_seconds_trigger_rank_cutoff(self):
         self.assertTrue(self.tick())
         self.assertTrue(self.tick())
         self.assertFalse(self.w.active)
         self.assertEqual(self.actions,[])
         self.tick()
         self.assertTrue(self.w.active)
-        self.assertEqual(self.w.journal['reason'],'lower')
-        self.assertEqual(self.w.journal['entry_rank'],39)
+        self.assertEqual(self.w.journal['reason'],'restart')
+        self.assertEqual(self.w.journal['entry_rank'],0)
         self.assertFalse(self.w.completed_rank_40)
 
     def test_normal_early_ranks_leave_native_game_alone(self):
-        for stage,rank in ((9,0),(9,38),(8,39),(8,12),(10,39),(9,40)):
+        for stage,rank in ((9,0),(9,34),(8,33),(8,12),(10,31),(9,1)):
             with patch.object(self.w,'screen',return_value=dict(stage=stage,rank=rank,menu=False,completion=False,route=True)):
                 for _ in range(4):self.assertFalse(self.tick())
         self.assertEqual(self.actions,[])
-
-    def test_rank39_can_never_close_or_activate_gate(self):
-        self.begin()
-        for phase,kind,point in (('manager','close-gate',(354,739)),('closed','activate',(355,803)),
-                                  ('close_confirm','close-confirm',(208,788))):
-            self.w._set(phase)
-            self.assertFalse(self.w.validate_portal(self.action(kind,point),self.main))
-
-    def test_lowering_is_exactly_9_to_8_on_actual_original_menu(self):
-        self.begin()
-        self.w._set('manager')
-        active9 = image('assets/recovery/parallel-manager.png')
-        active8 = image('tests/fixtures/parallel/gate-active-tier8.png')
-        self.assertTrue(self.w.validate_portal(self.action('lower',(357,873),active9),active9))
-        self.assertFalse(self.w.validate_portal(self.action('lower',(357,873),active8),active8))
-        self.assertFalse(self.w.validate_portal(self.action('lower',(357,873),active9),active9//2))
-
-    def test_lower_confirm_requires_actual_target8_prompt(self):
-        self.begin()
-        self.w._set('lower_confirm')
-        question=image('assets/recovery/parallel-lower-question.png')
-        self.assertTrue(self.w.validate_portal(self.action('lower-confirm',(208,788),question),question))
-        self.assertFalse(self.w.validate_portal(self.action('lower-confirm',(208,788)),self.main))
-
-    def test_lowering_keeps_rank39_and_waits_for_three_actual8_frames(self):
-        self.begin()
-        self.w._set('lower_verify')
-        active8=image('tests/fixtures/parallel/gate-active-tier8.png')
-        self.tick(active8)
-        self.tick(active8)
-        self.assertEqual(self.w.phase,'lower_verify')
-        self.tick(active8)
-        self.assertEqual(self.w.phase,'panel_close')
-        self.assertEqual(self.w.journal['entry_rank'],39)
-        self.assertEqual(self.w.journal['verified_gate_stage'],8)
-        self.assertEqual(self.w.journal['cycles'],0)
 
     def test_fresh_changed_rank_or_location_cannot_reuse_action(self):
         self.begin()
@@ -746,38 +714,19 @@ class StoneFarmTests(unittest.TestCase):
         self.assertFalse(self.w.off_verified)
         self.assertEqual(self.actions,[])
 
-    def test_retry_keeps_original_bytes_deadlines_and_counts_until_new_proof(self):
-        self.begin();self.w._set('return')
-        self.w.journal['attempts']['return-request']=8
-        self.w._save()
-        raw=self.path.read_bytes();digest=hashlib.sha256(raw).hexdigest()
-        (self.path.parent/'config.json').write_text(json.dumps(dict(rules=[dict(id='driftinggirl_stone_farm',enabled=True)])))
-        approval=StoneFarm.request_retry(self.path.parent,digest)
-        self.assertEqual(self.path.read_bytes(),raw)
-        resumed=StoneFarm(ROOT,self.reader,self.act,lambda _:None,state_path=self.path)
-        self.w=resumed
-        screen=dict(stage=9,rank=39,menu=False,completion=False,route=False)
-        with patch.object(resumed,'_expected',return_value=screen):
-            self.tick();self.tick()
-            self.assertEqual(self.path.read_bytes(),raw)
-            self.tick()
-        archived=self.path.parent/'logs/stone-farm-failed'/f'{digest}.json'
-        self.assertEqual(archived.read_bytes(),raw)
-        self.assertEqual(resumed.journal['previous_failed_sha256'],digest)
-        self.assertEqual(resumed.journal['attempts'],{})
-        self.assertGreater(resumed.journal['started_at'],json.loads(raw)['started_at'])
-        self.assertEqual(resumed.journal['retry_approved_at'],approval['approved_at'])
-
     def test_retry_rejects_changed_hash_unexhausted_run_and_disabled_feature(self):
         self.begin();self.w._set('return')
         config=self.path.parent/'config.json'
         config.write_text(json.dumps(dict(rules=[dict(id='driftinggirl_stone_farm',enabled=True)])))
         digest=hashlib.sha256(self.path.read_bytes()).hexdigest()
-        with self.assertRaises(ValueError):StoneFarm.request_retry(self.path.parent,digest)
-        self.w.journal['attempts']['return-request']=8;self.w._save()
-        with self.assertRaises(ValueError):StoneFarm.request_retry(self.path.parent,digest)
+        with self.assertRaises(ValueError):
+            StoneFarm.request_retry(self.path.parent,digest)
+        self.w.journal['return_deadline']=self.now-1;self.w._save()
+        with self.assertRaises(ValueError):
+            StoneFarm.request_retry(self.path.parent,digest)
         config.write_text(json.dumps(dict(rules=[dict(id='driftinggirl_stone_farm',enabled=False)])))
-        with self.assertRaises(ValueError):StoneFarm.request_retry(self.path.parent,hashlib.sha256(self.path.read_bytes()).hexdigest())
+        with self.assertRaises(ValueError):
+            StoneFarm.request_retry(self.path.parent,hashlib.sha256(self.path.read_bytes()).hexdigest())
 
     def test_two_cancel_inputs_cannot_be_renewed_by_restart(self):
         self.begin();self.w._set('stop_fishing',180)
@@ -805,16 +754,16 @@ class StoneFarmTests(unittest.TestCase):
         self.assertFalse(self.w.validate_portal(action,changed))
 
     def test_route_restoration_archives_timeout_and_keeps_all_portal_counts(self):
-        self.begin();self.w._set('route_menu')
-        self.w.journal.update(verified_gate_stage=8,entered_verified_at=self.now,
-                              issued_inputs=[dict(kind='enter-confirm')],attempts={'lower':1,'return-request':1,'route-open':1})
+        self.begin(cycle=True);self.w._set('route_menu')
+        self.w.journal.update(verified_gate_stage=9,entered_verified_at=self.now,
+                              issued_inputs=[dict(kind='enter-confirm')],attempts={'close-gate':1,'return-request':1,'route-open':1})
         self.w.journal['phase_deadline']=self.now-1;self.w._save()
         raw=self.path.read_bytes();digest=hashlib.sha256(raw).hexdigest()
         (self.path.parent/'config.json').write_text(json.dumps(dict(rules=[dict(id='driftinggirl_stone_farm',enabled=True)])))
         request=StoneFarm.request_retry(self.path.parent,digest)
         self.assertEqual(request['mode'],'route_restore')
         self.w=StoneFarm(ROOT,self.reader,self.act,lambda _:None,state_path=self.path)
-        frame=image('tests/fixtures/stone-farm/stage8-menu-0.png')
+        frame=image('tests/fixtures/stone-farm/stage9-rank0-menu-0.png')
         self.tick(frame);self.tick(frame)
         self.assertEqual(self.path.read_bytes(),raw)
         self.tick(frame)
@@ -835,28 +784,6 @@ class StoneFarmTests(unittest.TestCase):
         self.now=before['deadline']+1
         self.assertFalse(resumed.reserve_input(action))
         self.assertEqual(json.loads(self.path.read_text()),before)
-
-    def test_gray_hook_recovery_archives_expired_route_without_resetting_portal_attempts(self):
-        self.begin()
-        self.w.journal.update(phase='route_running',phase_deadline=self.now-1,
-            verified_gate_stage=8,entered_verified_at=self.now-20,
-            attempts={'route-start':1,'target:boss':1},
-            issued_inputs=[dict(kind='route-start',input_id='actual-start')])
-        self.w._save()
-        raw=self.path.read_bytes();digest=hashlib.sha256(raw).hexdigest()
-        (self.path.parent/'config.json').write_text(json.dumps(dict(rules=[dict(id='driftinggirl_stone_farm',enabled=True)])))
-        request=StoneFarm.request_retry(self.path.parent,digest)
-        self.assertEqual(request['mode'],'fishing_restore')
-        self.w=StoneFarm(ROOT,self.reader,self.act,lambda _:None,state_path=self.path)
-        frame=image('tests/fixtures/stone-farm/stage8-gray-hook.png')
-        self.tick(frame);self.tick(frame)
-        self.assertEqual(self.path.read_bytes(),raw)
-        self.tick(frame)
-        self.assertTrue(self.w.journal['fishing_recovery'])
-        self.assertEqual(self.w.journal['attempts']['route-start'],1)
-        self.assertEqual(self.w.journal['attempts']['target:boss'],1)
-        self.assertAlmostEqual(self.w.journal['deadline']-self.w.journal['started_at'],180)
-        self.assertEqual((self.path.parent/'logs/stone-farm-failed'/f'{digest}.json').read_bytes(),raw)
 
     def test_recovery_needs_stopped_ordinary_idle_and_exact_world_place_strokes(self):
         self.begin()
@@ -932,10 +859,10 @@ class StoneFarmTests(unittest.TestCase):
 
     def test_limits_reserve_before_input_and_do_not_reset(self):
         self.begin()
-        action=self.action('lower',(357,873))
+        action=self.action('close-gate',(354,739))
         self.assertTrue(self.w.reserve_input(action))
         with self.assertRaises(RuntimeError):self.w.reserve_input(action)
-        self.assertEqual(self.w.journal['attempts']['lower'],1)
+        self.assertEqual(self.w.journal['attempts']['close-gate'],1)
 
     def test_new_gate_must_be_actual9_before_entry(self):
         self.begin(cycle=True)
@@ -955,50 +882,39 @@ class StoneFarmTests(unittest.TestCase):
     def test_unknown_continue_cannot_confirm_gate_close(self):
         self.begin(cycle=True)
         self.w._set('close_confirm')
-        lower=image('assets/recovery/parallel-lower-question.png')
+        lower=image('tests/fixtures/parallel/obsolete-lower-question.png')
         self.w.journal['attempts']['close-gate']=1
         self.assertFalse(self.w.validate_portal(self.action('close-confirm',(208,788),lower),lower))
 
     def test_corrupt_saved_cross_stage_or_rank_is_rejected(self):
         self.begin()
         original=deepcopy(self.w.journal)
-        for field,value in (('rank',40),('to_stage',9),('entry_rank',0),('deadline',float('inf'))):
+        for field,value in (('rank',40),('to_stage',8),('entry_rank',39),('deadline',float('inf'))):
             bad={**original,field:value}
             self.path.write_text(json.dumps(bad),encoding='utf-8')
             with self.assertRaises(RuntimeError):StoneFarm(ROOT,self.reader,self.act,lambda _:None,state_path=self.path)
 
-    def test_native_route_must_show_fishing_before_handoff_is_finished(self):
-        self.begin()
+    def test_native_route_must_show_fishing_before_restart_is_finished(self):
+        self.begin(cycle=True)
+        self.w.journal.update(gate_closed=True, fishing_recovery=True, issued_inputs=[dict(kind=k) for k in
+            ('close-gate','return-request','return-confirm','activate','enter','enter-confirm','restore-route-start')])
         self.w._set('route_running',90)
-        frame=image('tests/fixtures/stone-farm/stage8-rank39-restored-battle.png')
-        self.assertFalse(self.w._moving(frame))
-        screen=dict(stage=8,rank=39,menu=False,completion=False,route=True)
+        frame=image('tests/fixtures/stone-farm/stage9-rank1-moving-filled.png')
+        screen=dict(stage=9,rank=1,menu=False,completion=False,route=True)
         with patch.object(self.w,'screen',return_value=screen), patch.object(self.w.fishing,'blue_fill',return_value=False), patch.object(self.w,'_battle',return_value=False):
             for _ in range(4):self.tick(frame)
         self.assertTrue(self.w.active)
-        self.assertEqual(self.w.journal['handoffs'],0)
+        self.assertEqual(self.w.journal['cycles'],0)
         with patch.object(self.w,'screen',return_value=screen), patch.object(self.w.fishing,'blue_fill',return_value=True):
             for _ in range(3):self.tick(frame)
         self.assertFalse(self.w.active)
-        self.assertEqual(self.w.journal['handoffs'],1)
-        self.assertEqual(self.w.journal['cycles'],0)
+        self.assertEqual(self.w.journal['cycles'],1)
 
     def test_disabled_task_sends_no_input_or_journal_rewrite(self):
         self.w.enabled=lambda:False
         for _ in range(4):self.assertFalse(self.tick())
         self.assertFalse(self.path.exists())
         self.assertEqual(self.actions,[])
-
-    def test_fast_final_boss_notice_finishes_only_lower_handoff(self):
-        self.begin()
-        self.w._set('route_running',90)
-        notice=dict(stage=8,rank=40,menu=False,completion=True,route=None)
-        with patch.object(self.w,'screen',return_value=notice):
-            for _ in range(3):self.tick()
-        self.assertFalse(self.w.active)
-        self.assertEqual(self.w.journal['handoffs'],1)
-        self.assertEqual(self.w.journal['cycles'],0)
-        self.assertFalse(self.w.completed_rank_40)
 
     def test_config_migration_is_idempotent_and_preserves_other_switches(self):
         config=dict(rules=[dict(id='driftinggirl_parallel_world',enabled=False,training={'parallel_stage_limit':8}),
@@ -1020,7 +936,7 @@ class StoneRuntimeTests(unittest.TestCase):
     rule = helpers.FrameworkTests.rule
     wait_for = helpers.FrameworkTests.wait_for
 
-    def run_owner(self, allowed, kind='route-open', context=True, slow=False, boss_handoff=False,
+    def run_owner(self, allowed, kind='route-open', context=True, slow=False,
                   continuous_handoff=False,ready_after=0,reserve_delay=0,change_after_reserve=False):
         entry=self.rule()
         entry.update(id='driftinggirl_stone_farm',stage='stone_owned',action='observe')
@@ -1042,7 +958,6 @@ class StoneRuntimeTests(unittest.TestCase):
         instances=[]
         class Controller:
             def retire_expired_on_start(self):return False
-            boss_abandon_handoff=boss_handoff
             handoff_stop_requested=continuous_handoff
             active=False
             phase='idle'
@@ -1052,8 +967,8 @@ class StoneRuntimeTests(unittest.TestCase):
                 self.action=action
                 self.defense=SimpleNamespace(action=None,scan=False,status=lambda:{},
                     encounter_rank=lambda frame:None,
-                    owns=lambda *args:boss_handoff or continuous_handoff,
-                    step=lambda *args:boss_handoff or continuous_handoff)
+                    owns=lambda *args:continuous_handoff,
+                    step=lambda *args:continuous_handoff)
                 self.asked=False
                 self.validations=self.reservations=self.issued=self.context_checks=0
                 self.world=SimpleNamespace(
@@ -1157,31 +1072,6 @@ class StoneRuntimeTests(unittest.TestCase):
         self.assertEqual((owner.reservations,owner.issued),(0,0))
         self.assertEqual(self.app.device.taps,[])
 
-    def test_approved_boss_abandon_uses_native_contact_and_yields_battle_priority(self):
-        owner=self.run_owner(True,kind='lower-boss-abandon',boss_handoff=True)
-        self.assertEqual((owner.reservations,owner.issued),(1,1))
-        self.assertEqual(owner.metadata['input_transport'],'mumu-native')
-        self.assertEqual(owner.metadata['hold_ms'],40)
-
-    def test_boss_abandon_stale_frame_consumes_no_input_or_reservation(self):
-        owner=self.run_owner(True,kind='lower-boss-abandon',slow=True,boss_handoff=True)
-        self.assertEqual((owner.reservations,owner.issued),(0,0))
-        self.assertEqual(self.app.device.taps,[])
-
-    def test_separately_approved_menu_contact_uses_one_stationary80ms_input(self):
-        owner=self.run_owner(True,kind='lower-boss-abandon-menu',boss_handoff=True)
-        self.assertEqual((owner.reservations,owner.issued),(1,1))
-        self.assertEqual(self.app.device.commands,[('shell','input','swipe','23','45','23','45','80')])
-        self.assertEqual(self.app.device.taps,[])
-        self.assertEqual(owner.metadata['input_transport'],'adb-stationary')
-        self.assertEqual(owner.metadata['hold_ms'],80)
-
-    def test_menu_contact_stale_frame_or_failed_guard_does_not_input(self):
-        owner=self.run_owner(True,kind='lower-boss-abandon-menu',slow=True,boss_handoff=True)
-        self.assertEqual((owner.reservations,owner.issued),(0,0))
-        self.assertEqual(self.app.device.commands,[])
-        self.assertEqual(self.app.device.taps,[])
-
     def test_retry_endpoint_requires_idle_worker_and_explicit_cancel_permission(self):
         with self.assertRaises(ValueError):self.app.retry_stone_farm(dict(failed_sha256='x',allow_ordinary_cancel=False))
         with patch.object(self.app,'running',return_value=True):
@@ -1190,19 +1080,14 @@ class StoneRuntimeTests(unittest.TestCase):
             self.assertEqual(self.app.retry_stone_farm(dict(failed_sha256='x',allow_ordinary_cancel=True)),dict(approved=True))
             approve.assert_called_once_with(self.root,'x')
 
-    def test_retry_endpoint_boss_permission_is_explicit_and_optional(self):
-        with patch('app.StoneFarm.request_retry',return_value={'approved':True}) as approve:
-            self.app.retry_stone_farm(dict(failed_sha256='x',allow_ordinary_cancel=True,allow_boss_abandon=True))
-            approve.assert_called_once_with(self.root,'x',allow_boss_abandon=True)
-        with self.assertRaises(ValueError):
-            self.app.retry_stone_farm(dict(failed_sha256='x',allow_ordinary_cancel=True,allow_boss_abandon=False))
-
-    def test_menu_retry_endpoint_passes_only_the_new_explicit_permission(self):
-        with patch('app.StoneFarm.request_retry',return_value={'approved':True}) as approve:
-            self.app.retry_stone_farm(dict(failed_sha256='x',allow_ordinary_cancel=True,allow_boss_abandon_menu=True))
-            approve.assert_called_once_with(self.root,'x',allow_boss_abandon_menu=True)
-        with self.assertRaises(ValueError):
-            self.app.retry_stone_farm(dict(failed_sha256='x',allow_ordinary_cancel=True,allow_boss_abandon_menu=False))
+    def test_retry_endpoint_rejects_removed_stage_lowering_approvals(self):
+        with patch('app.StoneFarm.request_retry') as approve:
+            for flag in ('allow_boss_abandon', 'allow_boss_abandon_menu', 'allow_post_start_restore',
+                         'allow_first_result_restore', 'allow_map_target_repair',
+                         'allow_observed_lower_restore', 'allow_return_confirm_restore'):
+                with self.subTest(flag=flag), self.assertRaises(ValueError):
+                    self.app.retry_stone_farm(dict(failed_sha256='x',allow_ordinary_cancel=True,**{flag: True}))
+            approve.assert_not_called()
 
     def test_continuous_stop_retry_endpoint_requires_explicit_flag(self):
         with patch('app.StoneFarm.request_retry',return_value={'approved':True}) as approve:
@@ -1311,15 +1196,6 @@ class RetiredBlockedContextTests(unittest.TestCase):
         saved=json.loads(self.path.read_text('utf-8'))
         self.assertEqual(saved['retirement']['blocked_contexts'],[[8,40]])
         self.assertNotIn([9,0],saved['retirement']['blocked_contexts'])
-
-    def test_startup_retirement_still_blocks_the_observed_lower_entry(self):
-        self.write(reason='lower',rank=39,from_stage=9,to_stage=8,entry_rank=39)
-        digest=hashlib.sha256(self.path.read_bytes()).hexdigest()
-        with patch('drift.tasks.handoff_journal.time.time',return_value=600.):
-            result=records.retire(self.path.parent,digest,source='startup_expired')
-        self.assertTrue(result['retired'])
-        saved=json.loads(self.path.read_text('utf-8'))
-        self.assertEqual(saved['retirement']['blocked_contexts'],[[9,39],[8,39]])
 
     def test_retryable_retirement_matches_the_same_context_rule(self):
         self.write(phase='route_running')

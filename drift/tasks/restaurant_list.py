@@ -118,16 +118,21 @@ def step_list(task, frame):
     previous = task.journal.get('previous_list')
     unchanged = (previous is not None and same_list(key, unpack(previous)[:, :, 0]))
     if task.phase == 'align':
-        if unchanged or task.journal['aligns'] >= 4:
+        if unchanged:
             task.journal['previous_list'] = None
             task._set('list', 1200)
             return True
-        if task._confirmed(('align', category), frame):
-            if task._act('align:'+str(category), (LEFT, Y), frame,
-                         swipe=[RIGHT, Y, DRAG_MS], list_key=pack(key)):
-                task.journal.update(previous_list=pack(key), aligns=task.journal['aligns']+1)
-                reset_settle(task)
-                task._save()
+        if task.journal['aligns'] >= 4:
+            task.order_hold = '已用完四次回卷，未确认左边界；保留次数，等待原窗口收尾'
+            return True
+        # settled() already confirmed this category and list position in
+        # three distinct frames over two seconds. The input still rechecks
+        # the complete scene and exact list on the fresh dispatch frame.
+        if task._act('align:'+str(category), (LEFT, Y), frame,
+                     swipe=[RIGHT, Y, DRAG_MS], list_key=pack(key)):
+            task.journal.update(previous_list=pack(key), aligns=task.journal['aligns']+1)
+            reset_settle(task)
+            task._save()
         return True
     task.order_hold = None
     for card in task._ordered_cards(frame):

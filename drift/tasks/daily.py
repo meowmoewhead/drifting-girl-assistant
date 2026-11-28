@@ -20,6 +20,16 @@ DAILY_RETURNS = {'daily_reward': 'driftinggirl_daily_return',
                  'mailbox': 'driftinggirl_mailbox_return'}
 
 
+def game_day_window(now):
+    if now.tzinfo is None:
+        raise ValueError('The daily schedule clock must include a timezone')
+    now = now.astimezone(BEIJING)
+    start = now.replace(hour=8, minute=0, second=0, microsecond=0)
+    if now < start:
+        start -= timedelta(days=1)
+    return start.date().isoformat(), start + timedelta(days=1)
+
+
 class DailySchedule:
     def __init__(self, root, serial, clock=None):
         self.path = Path(root) / 'daily_state.json'
@@ -58,14 +68,7 @@ class DailySchedule:
             self.warning = '每日完成记录无法读取，将重新核对游戏中的领取和限购状态。'
 
     def window(self):
-        now = self.clock()
-        if now.tzinfo is None:
-            raise ValueError('The daily schedule clock must include a timezone')
-        now = now.astimezone(BEIJING)
-        start = now.replace(hour=8, minute=0, second=0, microsecond=0)
-        if now < start:
-            start -= timedelta(days=1)
-        return start.date().isoformat(), start + timedelta(days=1)
+        return game_day_window(self.clock())
 
     def period(self):
         return self.window()[0]

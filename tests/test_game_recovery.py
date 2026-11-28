@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -16,7 +17,7 @@ from app import Clicker
 from digit_ocr import NumberReading
 from drift.core.exceptions import DeviceUnavailable
 from drift.device.adb import AdbDevice
-from game_recovery import GameRecovery, PACKAGE, COMPONENT, game_state, restartable
+from game_recovery import GameRecovery, PACKAGE, COMPONENT, RecoveryRateLimited, game_state, restartable
 from parallel_world import ParallelWorld
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +82,19 @@ class GameRecoveryTests(unittest.TestCase):
         for _ in range(3):
             result = self.r.step(self.d.images['main'], True, True)
         self.assertEqual(result, 'ready')
+
+    def test_new_delivery_offer_can_complete_login_without_dismissing_it(self):
+        frame = self.d.images['main']
+        probe = SimpleNamespace(training=SimpleNamespace(main=lambda _:False), sailing=None,
+                                _parallel=lambda _:False, _observatory=lambda _:False)
+        self.r.delivery_probe = SimpleNamespace(order=lambda _:SimpleNamespace(npc=None))
+        self.assertEqual(self.r.scene(frame,probe),(False,False))
+        self.r.delivery_probe.order = lambda _:SimpleNamespace(npc='cat')
+        self.d.state.update(foreground=COMPONENT,running=True)
+        self.r.phase='loading'
+        for expected in ('wait','wait','ready'):
+            self.assertEqual(self.r.step(frame.copy(),*self.r.scene(frame,probe)),expected)
+        self.assertEqual(self.d.actions,[])
 
     def test_real_android_exit_record_and_live_process_detection(self):
         native = json.loads((ROOT/'tests/fixtures/recovery/exit-record.json').read_text(encoding='utf-8-sig'))
@@ -392,8 +406,10 @@ class GameRecoveryTests(unittest.TestCase):
         self.d.state, self.d.screen = dead_state(), 'clash'
         for _ in range(2):
             self.r.step(self.d.images['clash'], False, False)
-        with self.assertRaisesRegex(RuntimeError, '30 分钟内已恢复两次'):
-            self.r.step(self.d.images['clash'], False, False)
+        with patch('game_recovery.time.monotonic', return_value=self.r.restarts[0]+120):
+            with self.assertRaisesRegex(RecoveryRateLimited, '30 分钟内已恢复两次') as stopped:
+                self.r.step(self.d.images['clash'], False, False)
+        self.assertEqual(stopped.exception.retry_after, 1680)
         self.assertEqual(len([a for a in self.d.actions if a[0]=='launch']), 2)
 
     def worker(self, preview=False, max_clicks=None, stone_only=False, expired_stone=False, equipment_only=False,
@@ -463,8 +479,8 @@ class GameRecoveryTests(unittest.TestCase):
             (root/'training_state.json').write_text(json.dumps(state), encoding='utf-8')
             failed = None
             if expired_stone:
-                failed = dict(version=1,pending=True,phase='route_running',reason='lower',
-                    rank=39,from_stage=9,to_stage=8,entry_rank=39,
+                failed = dict(version=1,pending=True,phase='route_running',reason='restart',
+                    rank=39,from_stage=9,to_stage=9,entry_rank=0,restart_rank=35,rank40_verified=False,
                     deadline=time.time()-1,phase_deadline=time.time()-1,
                     return_deadline=time.time()-1,attempts={'route-start':1})
                 (root/'stone_farm_state.json').write_text(json.dumps(failed),encoding='utf-8')

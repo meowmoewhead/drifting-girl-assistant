@@ -11,6 +11,7 @@ def _scope(ctx,name,owner=None):
         'fishing_action':'meter_calibration' if ctx.get('calibrator') and ctx['calibrator'].active else 'parallel',
         'equipment_hold':'equipment_upgrade','backpack_click':'backpack_sale','backpack_swipe':'backpack_sale',
         'skill_click':'parallel_skills','pass_click':'pass_daily','restaurant_click':'restaurant_upgrade',
+        'meal_delivery_click':'meal_delivery',
         'return_parallel_action':'return_parallel','guild_daily_click':'guild_daily'}
     if owner is not None:
         for key,task in ui.tasks.items():
@@ -66,8 +67,6 @@ def build_handlers(_bindings,_globals):
                         or st.run_deadline is not None and _time().monotonic() >= st.run_deadline):
                     raise InterruptedError('已停止')
                 returning = action['kind'].startswith('return-')
-                abandoning_boss = owner is stone and action['kind'] in ('lower-boss-abandon','lower-boss-abandon-menu')
-                fast_contact = returning or abandoning_boss
                 cancelling = owner is stone and action['kind'] == 'handoff-cancel'
                 def stopped():
                     return (self.stop_event.is_set()
@@ -105,7 +104,7 @@ def build_handlers(_bindings,_globals):
                         or max_clicks is not None and self.state['clicks'] >= max_clicks
                         or st.run_deadline is not None and _time().monotonic() >= st.run_deadline):
                     raise InterruptedError('已停止')
-                if (fast_contact or cancelling) and _time().monotonic()-started > .12:
+                if (returning or cancelling) and _time().monotonic()-started > .12:
                     return False
                 if cancelling and _time().monotonic() >= scan_deadline:
                     return False
@@ -113,7 +112,7 @@ def build_handlers(_bindings,_globals):
                     return False
                 if self.stop_event.is_set():
                     raise InterruptedError('已停止')
-                if (fast_contact or cancelling) and _time().monotonic()-started > .12:
+                if (returning or cancelling) and _time().monotonic()-started > .12:
                     return False
                 if cancelling and _time().monotonic() >= scan_deadline:
                     return False
@@ -128,8 +127,8 @@ def build_handlers(_bindings,_globals):
                     input_begin_time=_time().time(),capture_age_ms=round((_time().monotonic()-started)*1000,2))
                 if cancelling:
                     metadata['continuous_cast_stop'] = action.get('continuous_stop') is True
-                if fast_contact or cancelling:
-                    if action['kind']=='return-confirm' or owner is stone and action['kind']=='lower-boss-abandon-menu':
+                if returning or cancelling:
+                    if action['kind']=='return-confirm':
                         # Unity's modal button needs a complete stationary
                         # contact. Keep the battle SDK's 40 ms release intact;
                         # this is the existing 80 ms ADB menu gesture instead.
@@ -732,18 +731,21 @@ def build_handlers(_bindings,_globals):
                     self.pass_evidence.record(metadata,fresh,after)
                 return True
 
-    def restaurant_click(action):
+    def restaurant_click(action, owner='restaurant_upgrade'):
         _ctx=_bindings()
         self=_ctx['self']
         runtime=_ctx['runtime']
-        restaurant=_ctx['restaurant']
+        restaurant=_ctx['restaurant' if owner=='restaurant_upgrade' else owner]
         st=_ctx['st']
         max_clicks=_ctx['max_clicks']
         BossInputEvidence=_globals['BossInputEvidence']
         _time=_globals['_time']
         fresh_cruise_input=_globals['fresh_cruise_input']
         uuid=_globals['uuid']
-        with _scope(_ctx,'restaurant_click'):
+        label='餐品强化' if owner=='restaurant_upgrade' else '料理配送'
+        evidence_attr='restaurant_evidence' if owner=='restaurant_upgrade' else 'meal_evidence'
+        folder='restaurant-input' if owner=='restaurant_upgrade' else 'meal-delivery-input'
+        with _scope(_ctx,'restaurant_click' if owner=='restaurant_upgrade' else 'meal_delivery_click'):
             with self.device.io_lock:
                 def stopped():
                     return (self.stop_event.is_set() or not restaurant.allowed()
@@ -767,23 +769,23 @@ def build_handlers(_bindings,_globals):
                     if result is None:return False
                     fresh,contact=result;before_id=self.remember(fresh)
                     receipt=dict(input_id=uuid.uuid4().hex,frame_id=before_id,action=action,
-                        time=_time().time(),result='issued_only',controller='restaurant_upgrade',**contact)
+                        time=_time().time(),result='issued_only',controller=owner,**contact)
                     restaurant.input_issued(action,receipt)
                     with self.lock:self.state['clicks']+=1
-                    self.event('餐品强化输入：stop (%s,%s) 40ms native/fresh' % (action['x'],action['y']))
+                    self.event(label+'输入：stop (%s,%s) 40ms native/fresh' % (action['x'],action['y']))
                     after=None
                     if not self.stop_event.is_set():
                         after=runtime.capture();receipt['after_frame_id']=self.remember(after)
-                    if self.restaurant_evidence is None:
-                        self.restaurant_evidence=BossInputEvidence(self.root,self.event,limit=180,
-                            folder='restaurant-input',label='餐品强化')
-                    self.restaurant_evidence.record(receipt,fresh,after)
+                    if getattr(self,evidence_attr,None) is None:
+                        setattr(self,evidence_attr,BossInputEvidence(self.root,self.event,limit=180,
+                            folder=folder,label=label))
+                    getattr(self,evidence_attr).record(receipt,fresh,after)
                     return True
                 fresh=runtime.capture();before_id=self.remember(fresh)
                 if not restaurant.validate(action,fresh) or stopped():return False
                 if not restaurant.reserve(action) or stopped():return False
                 receipt=dict(input_id=uuid.uuid4().hex,frame_id=before_id,action=action,
-                    time=_time().time(),result='uncertain',controller='restaurant_upgrade')
+                    time=_time().time(),result='uncertain',controller=owner)
                 after=None
                 try:
                     x,y=action['x'],action['y']
@@ -792,15 +794,19 @@ def build_handlers(_bindings,_globals):
                     with self.lock:self.state['clicks']+=1
                     receipt['result']='issued_only'
                     restaurant.input_issued(action,receipt)
-                    self.event('餐品强化输入：'+action['kind']+f' ({x},{y}) {ms}ms')
+                    self.event(label+'输入：'+action['kind']+f' ({x},{y}) {ms}ms')
                     if not self.stop_event.is_set():
+                        if action['kind'] in ('meal-route','meal-submit'):
+                            self.stop_event.wait(.32 if action['kind']=='meal-route' else .67)
                         after=runtime.capture();receipt['after_frame_id']=self.remember(after)
                         if action['kind'].startswith('scan:'):restaurant.observe_map_scan(fresh,after)
+                        elif action['kind']=='meal-route':restaurant.observe_route_reply(after)
+                        elif action['kind']=='meal-submit':restaurant.observe_submit_reply(after,before=fresh)
                 finally:
-                    if self.restaurant_evidence is None:
-                        self.restaurant_evidence=BossInputEvidence(self.root,self.event,limit=180,
-                            folder='restaurant-input',label='餐品强化')
-                    self.restaurant_evidence.record(receipt,fresh,after)
+                    if getattr(self,evidence_attr,None) is None:
+                        setattr(self,evidence_attr,BossInputEvidence(self.root,self.event,limit=180,
+                            folder=folder,label=label))
+                    getattr(self,evidence_attr).record(receipt,fresh,after)
                 return True
 
     def return_parallel_action(action):

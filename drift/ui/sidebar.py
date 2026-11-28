@@ -104,7 +104,16 @@ class SidebarLayoutButton(Button):
 
 
 def adapt_sidebar(rule, button):
-    expected=SUPPORTED.get(rule.get('id'))
+    name = rule.get('id')
+    if (name == 'driftinggirl_achievements_fold_cleanup'
+            and rule.get('cleanup_origin') == 'driftinggirl_achievements_fold'
+            and rule.get('stage') == rule.get('next_stage') == 'optional_cleanup'
+            and rule.get('action') == 'click'
+            and rule.get('click_source_area') == [650,550,690,587]):
+        # The close-only copy uses the same menu and entry geometry. Keep
+        # its stricter footer, brightness and absence guards in both layouts.
+        name = rule['cleanup_origin']
+    expected=SUPPORTED.get(name)
     if (expected is None or (rule.get('asset'),tuple(rule.get('source_crop',()))) != expected
             or rule.get('scales',[1]) != [1] or rule.get('kind','template') != 'template'):
         return button

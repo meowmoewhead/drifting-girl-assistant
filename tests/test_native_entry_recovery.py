@@ -1,6 +1,5 @@
 """An unopened shop may return to game AUTO without legacy training state."""
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -163,7 +162,6 @@ class NativeEntryRecoveryTests(unittest.TestCase):
             entry['skip_on_timeout'] = False
         entry['interval'] = .2 if scenario=='repeat' else 3600
         clock,devices,contexts = [0.],[],[]
-        event_shop = self.feature == 'event_potion'
         world,main,battle,shop = self.world,self.main,self.battle,self.shop
         label_variant=self.label_variant
         if scenario=='actual_label_variation':battle=self.battle36
@@ -178,12 +176,6 @@ class NativeEntryRecoveryTests(unittest.TestCase):
                 if not self.taps:self.image=main.copy()
                 else:
                     self.after_frames += 1
-                    if scenario=='repeat' and clicker.state['recoveries']==len(self.taps):
-                        if event_shop and len(self.taps)==4:
-                            raise InterruptedError('Bounded replay reached optional entry backoff')
-                        if not event_shop and self.after_frames==8:
-                            # Daily tasks wait at least a minute after a failed entry.
-                            clock[0] += 60
                     if scenario=='expired' and self.after_frames==1:clock[0] += 31
                     if scenario=='unknown':self.image=np.zeros_like(battle)
                     elif scenario=='flicker' and self.after_frames==3:self.image=battle//2
@@ -239,14 +231,11 @@ class NativeEntryRecoveryTests(unittest.TestCase):
         (root/'daily_state.json').write_text(daily,encoding='utf-8')
         clicker = Clicker(root,Device)
         clicker.digit_reader=self.reader
-        if scenario=='repeat' and not event_shop:
-            wall_start=datetime.now(timezone.utc)
-            clicker.task_schedule.clock=lambda:wall_start+timedelta(seconds=clock[0])
         try:
             with patch('app.StoneFarm',Native), \
                  patch('app.ParallelWorld',side_effect=AssertionError('Legacy training must stay disabled')), \
                  patch('app.time',SimpleNamespace(monotonic=lambda:clock[0])):
-                clicker.start(preview=False,timeout=280 if scenario=='repeat' else 160)
+                clicker.start(preview=False,timeout=160)
                 clicker.thread.join(65)
                 self.assertFalse(clicker.running(),'Bounded replay did not finish')
             self.assertEqual((root/'daily_state.json').read_text(encoding='utf-8'),daily)
@@ -309,16 +298,10 @@ class NativeEntryRecoveryTests(unittest.TestCase):
         self.assertIsNone(state['last_error'])
         self.assertEqual(state['recoveries'],1)
         self.assertEqual(taps,[self.prefix+'open'])
-        state,taps,events,_contexts=self.replay('repeat')
+        state,taps,_events,_contexts=self.replay('repeat')
+        self.assertIn('五分钟内已恢复三次',state['last_error'])
+        self.assertEqual(state['recoveries'],3)
         self.assertEqual(taps,[self.prefix+'open']*4)
-        if self.feature=='event_potion':
-            self.assertIsNone(state['last_error'])
-            self.assertEqual(state['stage'],'main')
-            self.assertEqual(state['recoveries'],4)
-            self.assertTrue(any('本轮跳过并按间隔重试' in event['message'] for event in events))
-        else:
-            self.assertIn('五分钟内已恢复三次',state['last_error'])
-            self.assertEqual(state['recoveries'],3)
 
     def test_stop_before_or_during_proof_never_finishes_or_repeats_input(self):
         for scenario in ('stopped','stop_during_proof'):

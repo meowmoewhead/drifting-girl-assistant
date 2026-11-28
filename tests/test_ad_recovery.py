@@ -123,7 +123,9 @@ class AdvertisementRecoveryTests(unittest.TestCase):
             def stuck_record_add(self,button):pass
         with tempfile.TemporaryDirectory(prefix='ad-replay-') as folder:
             root=Path(folder)
-            for path in {r['asset'] for r in config['rules']}:
+            assets = {r['asset'] for r in config['rules']} | {
+                'assets/parallel/map-close.png', 'assets/task-popup/map-legend.png'}
+            for path in assets:
                 (root/path).parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(ROOT/path,root/path)
             (root/'config.json').write_text(json.dumps(config),encoding='utf-8')
             app=Clicker(root,Device)

@@ -116,11 +116,9 @@ class ObservedCycleTests(unittest.TestCase):
 
     def test_approval_is_narrow_single_use_and_cannot_reuse_old_lower_approval(self):
         raw,digest=self.failed()
-        for options in ({'allow_observed_cycle_restore':'yes'},
-                        {'allow_observed_cycle_restore':True,'allow_observed_lower_restore':True},
-                        {'allow_observed_cycle_restore':True,'allow_continuous_cancel':True},
-                        {'allow_observed_lower_restore':True}):
-            with self.subTest(options=options),self.assertRaises(ValueError):
+        for options in ({'allow_observed_cycle_restore':True,'allow_manual_rank_progress':True},
+                        {'allow_observed_cycle_restore':True,'allow_continuous_cancel':True}):
+            with self.subTest(options=options), self.assertRaises(ValueError):
                 StoneFarm.request_retry(self.path.parent,digest,**options)
         with self.assertRaises(ValueError):
             StoneFarm.request_retry(self.path.parent,'0'*64,allow_observed_cycle_restore=True)

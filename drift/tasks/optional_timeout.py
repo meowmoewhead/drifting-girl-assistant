@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 from drift.ui.button import CroppedTemplateButton
+from drift.ui.event_shop import TOY_SHOP, TOY_DETAIL, TOY_CLOSE, TOY_HELP, TOY_CURRENCY, DETAIL_CLOSE
 
 PREFIXES = ('driftinggirl_achievements_', 'driftinggirl_mailbox_', 'driftinggirl_event_potion_')
 CLOSES = {
@@ -172,6 +173,25 @@ class OptionalCleanup:
                 rule['threshold'] = max(.94, rule['threshold'])
                 if rule.get('absent_rule') == 'driftinggirl_event_potion_confirm':
                     rule.pop('absent_rule')
+                # Explicit exit geometries for the toy list and the skin
+                # details. These rules never point at either purchase button.
+                toy_exits = (
+                    (TOY_SHOP, TOY_HELP, TOY_CLOSE, [TOY_CURRENCY, TOY_CLOSE]),
+                    (TOY_DETAIL, DETAIL_CLOSE, DETAIL_CLOSE, [(390,881,532,930), (193,880,274,929)]),
+                )
+                root = getattr(getattr(load_rule, '__self__', None), 'root', None)
+                for asset, box, exit_box, companions in toy_exits:
+                    if root is None or not (Path(root) / asset).is_file():
+                        continue
+                    x, y, right, bottom = box
+                    alternatives.append(dict(rule, id=rid+'_'+Path(asset).stem,
+                        asset=asset, asset_variants=[], source_crop=list(box),
+                        search_area=[x-3, y-3, right+3, bottom+3],
+                        required_source_areas=[list(area) for area in companions],
+                        click_source_area=list(exit_box), color_condition={
+                            'source_area': list(companions[0]),
+                            'hsv': [[0,0,140],[179,255,255]], 'minimum_fraction': .25,
+                        }))
                 # The confirm modal covers the shop/help template. Recognize
                 # its existing title/price/button, but replace the buy target
                 # with the whitelisted close cross. No new click geometry.

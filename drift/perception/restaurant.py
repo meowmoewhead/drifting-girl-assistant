@@ -21,6 +21,7 @@ class RestaurantVisual:
             self.images[name]=cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
         self.reader=reader
         self.frame=None;self.cache={}
+        self.name_only_identity=False
 
     def find(self, frame, name, area=None):
         if frame is not self.frame:self.frame=frame;self.cache={}
@@ -97,11 +98,17 @@ class RestaurantVisual:
         hits=[i for i in range(9) if self.find(frame,'category-'+str(i))]
         return hits[0] if len(hits)==1 else None
 
-    @staticmethod
-    def identity(frame):
-        # Full fixed dish name, excluding the changing level, arrow and art.
+    def identity(self,frame):
+        # Different dishes can render the same missing-glyph square in the
+        # name. Include the fixed foreground portrait, outside all counters.
         ink=(frame[480:510,209:530].max(axis=2)<100).astype('uint8')
-        return hashlib.sha256(ink.tobytes()).hexdigest() if ink.sum()>25 else None
+        if ink.sum()<=25:return None
+        digest=hashlib.sha256(ink.tobytes())
+        if not self.name_only_identity:
+            portrait=(frame[489:548,82:187].max(axis=2)<112)
+            if np.count_nonzero(portrait)<150:return None
+            digest.update(portrait.tobytes())
+        return digest.hexdigest()
 
     @staticmethod
     def binary(crop,threshold,white=False):

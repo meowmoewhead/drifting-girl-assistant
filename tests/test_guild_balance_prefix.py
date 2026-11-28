@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import cv2
 import numpy as np
 from digit_ocr import DigitReader, NumberReading
-from purchase_checks import read_guild_balance
+from purchase_checks import currency_floor, read_anchored_guild_balance, read_guild_balance
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -37,5 +37,22 @@ class GuildBalancePrefixTests(unittest.TestCase):
             reader=Mock();reader.read.return_value=raw
             self.assertEqual(read_guild_balance(reader,self.crop),raw)
             self.assertEqual(reader.read.call_count,1)
+
+    def test_blue_coin_anchors_both_abbreviated_and_shifted_integer_amounts(self):
+        def frame(path):
+            return cv2.cvtColor(cv2.imread(str(ROOT/path)),cv2.COLOR_BGR2RGB)
+        original=frame('assets/guild-shop/guild.png')
+        coin=original[348:377,525:554]
+        shifted=frame('tests/fixtures/guild-selection/close-balance-980-20261019.png')
+        for screenshot,balance in ((original,4210),(shifted,980)):
+            lane=screenshot[342:381,460:643]
+            self.assertEqual(currency_floor(read_anchored_guild_balance(self.reader,lane,coin),.93),balance)
+        unknown=original[342:381,460:643].copy()
+        unknown[:,65:96]=220
+        wrong=Mock()
+        self.assertIsNone(read_anchored_guild_balance(wrong,unknown,coin))
+        wrong.read.assert_not_called()
+        wrong.read.side_effect=[NumberReading('4.22k',None,.99),NumberReading('4.72k',None,.99)]
+        self.assertIsNone(read_anchored_guild_balance(wrong,original[342:381,460:643],coin))
 
 if __name__=='__main__':unittest.main()

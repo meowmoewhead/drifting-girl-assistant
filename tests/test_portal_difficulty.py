@@ -25,7 +25,7 @@ ROOT=Path(__file__).resolve().parents[1]
 
 def frame(name):
     paths={'active9':ROOT/'assets/recovery/parallel-manager.png',
-           'question8':ROOT/'assets/recovery/parallel-lower-question.png',
+           'question8':ROOT/'tests/fixtures/parallel/obsolete-lower-question.png',
            'npc':ROOT/'assets/recovery/observatory-npc.png',
            'inactive9':ROOT/'tests/fixtures/parallel/gate-inactive-tier9.png',
            'active8':ROOT/'tests/fixtures/parallel/gate-active-tier8.png',
@@ -57,84 +57,24 @@ class PortalDifficultyTests(unittest.TestCase):
         self.w.next_action_at=0
         return self.w.step(self.current)
 
-    def test_actual_active_inactive_stage_and_lower_question_are_distinct(self):
+    def test_actual_gate_manager_and_deprecated_difficulty_prompt(self):
         for name,active,stage in [('active9',True,9),('active8',True,8),('inactive9',False,9)]:
             self.assertIs(self.w._gate_manager(frame(name)),active)
             self.assertEqual(self.w._gate_stage(frame(name)),stage)
-            self.assertIsNone(self.w._lower_prompt(frame(name)))
-        self.assertEqual(self.w._lower_prompt(frame('question8')),8)
-        self.assertIsNone(self.w._gate_stage(frame('question8')))
-        for name in ('npc','parallel'):
-            self.assertIsNone(self.w._gate_manager(frame(name)))
-        for name in ('active9','inactive9','question8'):
-            self.assertIsNone(self.w._gate_stage(frame(name)//2))
-            self.assertIsNone(self.w._lower_prompt(frame(name)//2))
+        self.assertIsNone(self.w._gate_manager(frame('question8')))
+        self.assertFalse(self.w.validate_portal(dict(kind='lower',stage=9),frame('active9')))
+        self.assertFalse(self.w.validate_portal(dict(kind='lower-confirm',stage=8),frame('question8')))
 
-    def test_new_gate_is_lowered_once_and_verified_before_entering(self):
-        self.w.phase='verify_gate_stage'
-        before=deepcopy(self.w.training.state)
-        for _ in range(2):self.step('active9')
-        self.assertEqual(self.actions,[])
+    def test_old_stage_cap_cannot_trigger_difficulty_changes(self):
         self.step('active9')
-        self.assertEqual(self.w.phase,'lower_stage_confirm')
-        self.assertEqual([(a['kind'],a['stage']) for a in self.actions],[('lower',9)])
-        for _ in range(3):self.step('question8')
-        self.assertEqual(self.w.phase,'await_lower_stage')
-        self.assertEqual([(a['kind'],a['stage']) for a in self.actions],[('lower',9),('lower-confirm',8)])
-        for _ in range(5):self.step('active9')
-        self.assertEqual(len(self.actions),2)
-        self.assertEqual(self.w.phase,'await_lower_stage')
-        for _ in range(3):self.step('active8')
-        self.assertEqual(self.w.phase,'verify_gate_stage')
-        self.step('active8')
-        self.assertEqual(self.w.phase,'close_gate_panel')
-        self.step('active8')
+        self.assertEqual([a['kind'] for a in self.actions],['panel-close'])
         self.assertEqual(self.w.phase,'enter_gate')
-        self.assertEqual(self.actions[-1]['kind'],'panel-close')
-        self.assertEqual(self.w.training.state,before)
-        self.assertFalse(self.w.completed_rank_40)
-        self.assertEqual(self.w.rounds,0)
+        self.assertNotIn('parallel_stage_limit',self.w.training.options)
 
-    def test_at_or_below_limit_and_default_zero_never_lower(self):
-        for limit in (0,8,9):
-            self.w.training.options['parallel_stage_limit']=limit
-            self.w.phase='verify_gate_stage'
-            self.w.gate_stage_readings.clear()
-            self.actions.clear()
-            for _ in range(3):self.step('active8')
-            self.assertEqual(self.w.phase,'close_gate_panel')
-            self.assertEqual(self.actions,[])
-
-    def test_fresh_changed_stage_cannot_submit_an_old_lowering_action(self):
-        self.w.phase='verify_gate_stage'
-        self.w.portal_action=lambda action:self.w.validate_portal(action,frame('active8'))
-        for _ in range(3):self.step('active9')
-        self.assertEqual(self.w.phase,'verify_gate_stage')
-        self.assertIsNone(self.w.lower_from)
-        self.assertEqual(self.actions,[])
-        self.assertFalse(self.w.validate_portal(dict(kind='lower',stage=9),frame('question8')))
-
-    def test_wrong_prompt_number_and_unknown_frame_keep_original_deadline(self):
-        self.w.phase='lower_stage_confirm';self.w.phase_since=100;self.w.lower_from=9
-        class Reader:
-            def read(self,_):return NumberReading('7',7,.999)
-        self.w.reader=Reader()
-        with patch('parallel_world.time.monotonic',return_value=105):
-            for _ in range(4):self.step('question8')
-        self.assertEqual(self.actions,[])
-        self.assertEqual(self.w.phase_since,100)
-        with patch('parallel_world.time.monotonic',return_value=131):
-            with self.assertRaisesRegex(RuntimeError,'确认降低.*30 秒'):
-                self.step('npc')
-        self.assertEqual(self.actions,[])
-
-    def test_resume_inactive_manager_activates_and_keeps_limit(self):
+    def test_resume_inactive_manager_activates_gate(self):
         self.step('inactive9')
-        self.assertEqual(self.actions[0]['kind'],'activate')
+        self.assertEqual([a['kind'] for a in self.actions],['activate'])
         self.assertEqual(self.w.phase,'search_confirm')
-        self.assertEqual(self.w.training.options['parallel_stage_limit'],8)
-        self.assertFalse(self.w.completed_rank_40)
-        self.assertIsNone(self.w.rank)
 
     def test_cat_retry_has_three_frames_two_retries_and_unchanged_timeout(self):
         self.w.phase='cat_menu';self.w.phase_since=100;self.w.cat_attempts=1
@@ -177,24 +117,9 @@ class PortalDifficultyTests(unittest.TestCase):
             with patch.object(self.w.defense,'_match',return_value=True):
                 self.assertFalse(self.w._npc_ready(a))
 
-    def test_conflicting_stage_crops_do_not_lower(self):
-        class Reader:
-            def read(self,crop):
-                n=9 if crop.shape[1]==85 else 8
-                return NumberReading(str(n),n,.999)
-        self.w.reader=Reader()
-        self.w.phase='verify_gate_stage'
-        for _ in range(4):self.step('active9')
-        self.assertEqual(self.actions,[])
-        self.assertFalse(self.w.gate_stage_verified)
-
-    def test_stage_limit_is_strict_and_other_options_are_preserved(self):
+    def test_old_stage_limit_is_ignored_and_other_options_are_preserved(self):
         original=training_options(dict(battle_tap=True,boss_interrupt=False))
-        wanted=training_options({**original,'parallel_stage_limit':8})
-        self.assertEqual({k:v for k,v in wanted.items() if k!='parallel_stage_limit'},
-                         {k:v for k,v in original.items() if k!='parallel_stage_limit'})
-        for invalid in (-1,101,8.5,True,'8'):
-            with self.assertRaises(ValueError):training_options(dict(parallel_stage_limit=invalid))
+        self.assertEqual(training_options({**original,'parallel_stage_limit':8}),original)
 
     def replay_worker(self,expire=False,changed=False):
         manager=frame('inactive9')

@@ -1,7 +1,7 @@
 """Bounded continuous cookbook enhancement, all four slots required per level.
 
-Stays in the current world. No crafting, food use, ingredient buying, portal,
-fishing cancel, or manual changes to another controller's save records.
+Stays in the current world. Restocks ingredients with talent points before
+enhancing the selected cookbook categories.
 """
 from pathlib import Path
 import base64
@@ -15,6 +15,7 @@ from drift.core.journal import archive_bytes
 from drift.perception.restaurant import RestaurantVisual, CATEGORIES, INGREDIENT_X
 from drift.tasks.backpack_sale import BackpackSale
 from drift.tasks.guild_daily import GuildVisual
+from drift.tasks.restaurant_ingredients import RestaurantIngredients
 from drift.tasks.stone_farm import StoneFarm
 from drift.tasks.training_sailing import TARGETS
 
@@ -53,7 +54,7 @@ class RestaurantUpgrade:
     # 恢复原航巡的总上限：owned 阶段不能无限期挡住标尺校准等其它任务。
     RESTORE_LIMIT=60
     PHASES={'idle','stop','settings_open','settings','settings_close','map_open','map',
-            'map_close','travel','open','atlas','align','list','detail','feed_wait',
+            'map_close','travel','open','ingredient_shop','atlas','align','list','detail','feed_wait',
             'upgrade_wait','detail_close','category_next','close','restore','restore_menu',
             'restore_verify','cleanup','blocked','menu_retire'}
 
@@ -72,6 +73,10 @@ class RestaurantUpgrade:
         self.phase=self.journal['phase'] if self.journal['pending'] else 'idle'
         self._check_startup=self.active
         self.visual=RestaurantVisual(root,reader);self.guild=GuildVisual(root)
+        self.ingredients=RestaurantIngredients(self,root,reader)
+        # Do not assign a new identity to previously reserved feed/upgrade
+        # inputs. Only a new run uses the corrected identity scheme.
+        self.visual.name_only_identity=self.active and self.journal.get('identity_schema')!=2
         self.view=StoneFarm(root,reader,lambda _:False,event,state_path=self.root/'restaurant-probe-unused.json')
         self.bag=BackpackSale(root,lambda *a:False,event,reader,state_path=self.root/'restaurant-bag-unused.json')
         self.sailing,self.fishing=self.view.sailing,self.view.fishing
@@ -95,6 +100,7 @@ class RestaurantUpgrade:
             retirement=self.journal.get('retirement'),cleanup_deadline=self.journal.get('cleanup_deadline'),
             attempts=self.journal.get('attempts',{}),order='left_to_right_complete_one',
             order_hold=getattr(self,'order_hold',None),
+            ingredient_purchases=self.journal.get('ingredient_shop',{}).get('results',{}),
             current_dish={k:v for k,v in self.journal.get('card',{}).items() if k!='art'})
 
     def _checked_unique(self):
@@ -144,8 +150,9 @@ class RestaurantUpgrade:
             key+=(hashlib.sha256(strokes.tobytes()).hexdigest(),)
         return key
 
-    def same_world(self,frame):
-        origin=self.journal.get('origin',self.journal.get('startup',{}))
+    def same_world(self,frame,*,journal=None):
+        record=self.journal if journal is None else journal
+        origin=record.get('origin',record.get('startup',{}))
         if frame.shape!=(1280,720,3) or self.view._parallel(frame)!=origin.get('parallel'):return False
         for data,(x,y,X,Y) in zip(origin.get('header',[]),((71,9,136,59),(13,45,68,72))):
             reference=unpack(data);current=frame[y:Y,x:X]
@@ -392,6 +399,7 @@ class RestaurantUpgrade:
     @staticmethod
     def input_limit(kind):
         if kind in ('stop','stop-toggle','stop-close','menu-leak-close'):return 1
+        if kind.startswith('ingredient-'):return 1
         if kind.startswith('feed:'):return 24
         if kind.startswith('upgrade:'):return 1
         if kind.startswith('scan:'):return SCAN_LIMIT
@@ -402,6 +410,7 @@ class RestaurantUpgrade:
     def reserve(self,action):
         if not self.allowed():return False
         kind=action['kind'];attempts=self.journal['attempts']
+        if kind.startswith(('ingredient-select:','ingredient-max:','ingredient-confirm:')) and not self.ingredients.can_buy():return False
         if self.phase=='menu_retire' and kind!='menu-leak-close':return False
         if attempts.get(kind,0)>=self.input_limit(kind):return False
         attempts[kind]=attempts.get(kind,0)+1
@@ -435,6 +444,12 @@ class RestaurantUpgrade:
         if self.phase=='menu_retire':
             return k=='menu-leak-close' and p==MENU_CLOSE and self._menu_visible(frame)
         if not self.same_world(frame):return False
+        if k.startswith('ingredient-'):
+            if self.phase!='ingredient_shop' and not (self.phase=='cleanup' and k.startswith('ingredient-dismiss:')):
+                return False
+            return (self.view._off_icon(frame) and not self.view._battle(frame)
+                    and not self.bag.moving(frame) and bool(self.visual.find(frame,'location'))
+                    and self.ingredients.validate(a,frame))
         if self.journal.get('cleanup_deadline'):
             permitted=('cleanup-detail-close','cleanup-panel-close','cleanup-map-close',
                 'cleanup-settings-close','restore-open','restore-start',
@@ -466,7 +481,10 @@ class RestaurantUpgrade:
             return False
         if not self.view._off_icon(frame):return False
         if k=='cleanup-detail-close':return self.visual.detail(frame) and p==self.visual.point(frame,'detail-close')
-        if k=='cleanup-panel-close':return self.visual.panel(frame) and not self.visual.detail(frame) and p==self.visual.point(frame,'panel-close')
+        if k=='cleanup-panel-close':
+            return ((self.visual.panel(frame) or self.ingredients.visual.panel(frame))
+                    and not self.visual.detail(frame) and not self.ingredients.visual.dialog(frame)
+                    and p==self.visual.point(frame,'panel-close'))
         if k=='cleanup-map-close':return self.map_ready(frame) and p==(668,1187)
         if k=='cleanup-settings-close':return self.sailing.menu(frame) and self.settings(frame)==self.journal.get('settings') and p==MENU_CLOSE
         if k in ('settings-open','restore-open'):
@@ -516,6 +534,12 @@ class RestaurantUpgrade:
         self.journal.pop('scan_state',None);self.journal.pop('scan_pending',None)
         self._scan_frames=None;self._scan_before=None
         self._set('map_open',120)
+
+    def needs_map_origin(self):
+        return not self.route_was_running()
+
+    def scan_start_direction(self, frame):
+        return None
 
     @staticmethod
     def _scan_image(frame):
@@ -594,6 +618,9 @@ class RestaurantUpgrade:
             if candidate not in edges:
                 direction=candidate;source='hint';break
             state['hint_index']+=1
+        if direction is None and not self.journal['scans']:
+            direction=self.scan_start_direction(frame)
+            if direction is not None:source='visible-edge'
         if direction is None:
             if state['row']<SCAN_ROWS and state['step']<SCAN_STEPS_PER_ROW:
                 east=state['row']%2==0
@@ -610,6 +637,8 @@ class RestaurantUpgrade:
         if source=='hint':
             state['hint_index']+=1
             label=f'路径重放第 {state["hint_index"]} 步'
+        elif source=='visible-edge':
+            label='从画面边缘的餐馆图标开始'
         elif direction in ('east','west'):
             state['step']+=1
             label=f'第 {state["row"]+1} 行 第 {state["step"]} 步'
@@ -805,10 +834,12 @@ class RestaurantUpgrade:
                 raw=self.path.read_bytes();archive_bytes(self.root/'logs/restaurant-history'/(hashlib.sha256(raw).hexdigest()+'.json'),raw,'餐品强化')
             scan_hint=self.journal.get('scan_hint')
             self.journal=dict(version=1,serial=self.serial,pending=True,phase='idle',run_id=uuid.uuid4().hex,
+                identity_schema=2,
                 started_at=self.clock(),deadline=self.clock()+self.LIMIT,startup=startup,
                 resume_route=startup['route'],
                 attempts={},visited=[],categories=[],skipped=[],upgraded=0,submitted=0,
                 exhausted_dishes=[],dish_upgrades={},category_stats={},stall=0)
+            self.visual.name_only_identity=False
             if scan_hint is not None:self.journal['scan_hint']=scan_hint
             if origin is not None:self.journal['origin']=origin
             self._set('open' if panel_start else 'stop',self.STOP_ORIGIN_LIMIT);return True
@@ -826,8 +857,14 @@ class RestaurantUpgrade:
         self.hold=None
         phase=self.phase
         if phase=='cleanup':
-            if self.visual.detail(frame):self._act('cleanup-detail-close',self.visual.point(frame,'detail-close'),frame)
-            elif self.visual.panel(frame):self._act('cleanup-panel-close',self.visual.point(frame,'panel-close'),frame)
+            order=(self.ingredients.record or {}).get('order')
+            if self.ingredients.visual.dialog(frame):
+                if order is not None:
+                    slot=order['slot']
+                    self._act(f'ingredient-dismiss:{slot}',self.ingredients.visual.cancel(frame,slot),frame,slot=slot)
+            elif self.visual.detail(frame):self._act('cleanup-detail-close',self.visual.point(frame,'detail-close'),frame)
+            elif self.visual.panel(frame) or self.ingredients.visual.panel(frame):
+                self._act('cleanup-panel-close',self.visual.point(frame,'panel-close'),frame)
             elif self.map_ready(frame):self._act('cleanup-map-close',(668,1187),frame)
             elif self.sailing.menu(frame):
                 value=self.settings(frame)
@@ -867,7 +904,7 @@ class RestaurantUpgrade:
             else:self._act('map-open:'+self.journal['destination'],(350,30),frame)
         elif phase=='map':
             if not self.map_ready(frame):return True
-            if not self.journal.get('origin_map') and not self.route_was_running():
+            if not self.journal.get('origin_map') and self.needs_map_origin():
                 player=(self.bag._find(frame,'map-player-current',(20,175,700,1115),.94)
                         or self.bag._find(frame,'map-player',(20,175,700,1115),.94))
                 if not player or not(90<=player[0]<=630 and 230<=player[1]<=1090):return True
@@ -888,9 +925,13 @@ class RestaurantUpgrade:
             if self._confirmed('arrived' if arrived else None,frame,3):
                 self._set('open' if self.journal['destination']=='restaurant' else 'restore')
         elif phase=='open':
+            if (self.visual.panel(frame) or self.ingredients.visual.panel(frame)) and self.ingredients.start(frame):
+                return True
             if self.visual.atlas(frame):self._set('atlas')
             elif self.visual.panel(frame):self._act('atlas-tab',self.visual.point(frame,'atlas-tab'),frame)
             else:self._act('restaurant-open',self.visual.point(frame,'entry'),frame)
+        elif phase=='ingredient_shop':
+            self.ingredients.step(frame)
         elif phase=='atlas':
             category=self.visual.category(frame)
             if self._confirmed(category if category is not None else None,frame):

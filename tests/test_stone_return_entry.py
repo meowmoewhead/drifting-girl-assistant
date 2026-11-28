@@ -75,7 +75,7 @@ class ReturnEntryTests(unittest.TestCase):
         self.w.journal['return_deadline']=self.now-1
         self.assertFalse(self.w.validate_portal(action,frame))
 
-    def test_late_lower_return_has_a_fixed_reserve_without_extra_cancel_time(self):
+    def test_late_restart_return_has_a_fixed_reserve_without_extra_cancel_time(self):
         self.begin()
         start = self.w.journal['started_at']
         self.assertEqual(self.w.journal['stop_fishing_deadline'],start+180)
@@ -164,8 +164,6 @@ class ReturnEntryTests(unittest.TestCase):
 
     def test_repair_rejects_unknown_scene_and_cannot_repeat_or_add_boss_permission(self):
         raw,digest=self.failed_return()
-        with self.assertRaises(ValueError):
-            StoneFarm.request_retry(self.path.parent,digest,allow_return_entry_restore=True,allow_boss_abandon=True)
         StoneFarm.request_retry(self.path.parent,digest,allow_return_entry_restore=True)
         self.w=StoneFarm(base.ROOT,self.reader,self.act,lambda _:None,state_path=self.path)
         with patch.object(self.w,'_expected',return_value=None):

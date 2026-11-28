@@ -102,6 +102,52 @@ def read_guild_balance(reader, rgb, confidence=.93):
     return NumberReading(primary.text, primary.value, min(r.confidence for r in readings))
 
 
+def _guild_coin_rims(rgb):
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    mask = cv2.inRange(hsv, (85, 75, 90), (125, 255, 255))
+    _, labels, stats, _ = cv2.connectedComponentsWithStats(mask)
+    for i, (x, y, w, h, area) in enumerate(stats[1:], 1):
+        if 24 <= w <= 28 and 24 <= h <= 28 and 130 <= area <= 265:
+            # Use the rim's outer outline; ignore antialiasing and holes inside
+            # it while still requiring the real component's size and hue.
+            yy, xx = np.where(labels[y:y+h, x:x+w] == i)
+            hull = cv2.convexHull(np.column_stack((xx, yy)).astype('int32'))
+            outline = cv2.fillConvexPoly(np.zeros((h,w), dtype='uint8'), hull, 1)
+            yield (x, y), outline.astype(bool)
+
+
+def read_anchored_guild_balance(reader, lane, coin_reference, confidence=.93):
+    """Read the whole balance after its verified, horizontally moving coin."""
+    references = list(_guild_coin_rims(coin_reference))
+    if len(references) != 1:
+        return None
+    ref = references[0][1]
+    hits = []
+    for (x, y), rim in _guild_coin_rims(lane):
+        if (rim.shape == ref.shape
+                and np.count_nonzero(rim & ref) >= .94 * np.count_nonzero(rim | ref)):
+            hits.append((x, y, rim.shape[1], rim.shape[0]))
+    if len(hits) != 1:
+        return None
+    x, y, w, h = hits[0]
+    if x < 2 or y < 3 or y+h+3 > lane.shape[0] or lane.shape[1]-(x+w+3) < 28:
+        return None
+    gray = cv2.cvtColor(lane[y+1:y+h+2, x+w+3:], cv2.COLOR_RGB2GRAY)
+    readings = []
+    for threshold in (95, 115):
+        ink = gray < threshold
+        if not ink.any() or ink[:, 0].any() or ink[:, -1].any():
+            return None  # potentially clipped numeral or covered balance
+        cut = np.repeat(np.where(ink, 0, 255).astype('uint8')[:, :, None], 3, axis=2)
+        parsed = reader.read(quantity_crop(cut))
+        if currency_floor(parsed, confidence) is None:
+            return None
+        readings.append(parsed)
+    if readings[0].text.strip().lower() != readings[1].text.strip().lower():
+        return None
+    return min(readings, key=lambda value: value.confidence)
+
+
 def stock_counter_crop(rgb):
     # Sold-out cards dim their background and glyphs without changing the count.
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)

@@ -45,6 +45,10 @@ def should_restart(status, now, history):
         return False, 'user_stop'
     if status.get('stop_reason') in NORMAL_STOPS:
         return False, 'stop_reason:' + status['stop_reason']
+    if status.get('stop_reason') == 'recovery_cooldown':
+        until = status.get('restart_not_before')
+        if type(until) not in (int, float) or not math.isfinite(until) or now < until:
+            return False, 'game_recovery_cooldown'
     if history and now - max(history) < COOLDOWN:
         return False, 'cooldown'
     if sum(now - stamp < WINDOW for stamp in history) >= BUDGET:

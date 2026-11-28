@@ -136,6 +136,9 @@ class EventPotionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='event-potion-replay-') as directory:
             root = Path(directory)
             shutil.copytree(ROOT/'assets'/'event-potion', root/'assets'/'event-potion')
+            for name in ('assets/parallel/map-close.png', 'assets/task-popup/map-legend.png'):
+                (root/name).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT/name, root/name)
             config = deepcopy(self.config)
             config['poll_interval'] = .1
             config['rules'] = deepcopy(list(self.rules.values()))

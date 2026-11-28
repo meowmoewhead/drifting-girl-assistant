@@ -78,7 +78,9 @@ class PotionReturnHomeTests(unittest.TestCase):
                 pass
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            assets = {r['asset'] for r in config['rules']} | {'assets/potion-ad/return-world-confirm-source.png'}
+            assets = {r['asset'] for r in config['rules']} | {
+                'assets/potion-ad/return-world-confirm-source.png',
+                'assets/parallel/map-close.png', 'assets/task-popup/map-legend.png'}
             for name in assets:
                 (root/name).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT/name, root/name)

@@ -2,6 +2,7 @@
 from copy import deepcopy
 from http.server import ThreadingHTTPServer
 import json
+from pathlib import Path
 import re
 import threading
 import unittest
@@ -32,8 +33,8 @@ class FeatureTests(unittest.TestCase):
     def test_all_presets_are_mapped_exactly_once(self):
         # 84 = 原79条 + 每日PASS、公会任务提交、餐品强化 + 更新提示（识别/返回）。
         identifiers = [rule for f in FEATURES for rule in f["rules"]]
-        self.assertEqual(len(identifiers), 84)
-        self.assertEqual(len(set(identifiers)), 84)
+        self.assertEqual(len(identifiers), 85)
+        self.assertEqual(len(set(identifiers)), 85)
         self.assertEqual(set(RULE_FEATURE), set(identifiers))
 
     def test_feature_switch_is_atomic_persistent_and_isolated(self):
@@ -58,6 +59,22 @@ class FeatureTests(unittest.TestCase):
         self.app.load_rule(rule)
         with self.assertRaises(ValueError):
             self.app.change_feature({'id':'restaurant_upgrade','interval':259201})
+
+    def test_meal_delivery_rule_loads_for_new_and_previous_profiles(self):
+        from drift.tasks.meal_delivery import MEAL_RULE
+
+        self.app.config['resolution'] = [720,1280]
+        asset = Path(MEAL_RULE['asset'])
+        (self.root/asset).parent.mkdir(parents=True, exist_ok=True)
+        (self.root/asset).write_bytes((Path(__file__).resolve().parents[1]/asset).read_bytes())
+        for crop in ([0,0,26,26], [16,48,35,67]):
+            with self.subTest(crop=crop):
+                rule = {**MEAL_RULE, 'source_crop':crop, 'enabled':True, 'interval':245}
+                loaded, _, _ = self.app.load_rule(rule)
+                self.assertEqual(loaded['source_crop'], [0,0,26,26])
+                self.assertTrue(loaded['enabled'])
+                self.assertEqual(loaded['interval'], 245)
+                self.assertEqual(rule['source_crop'], crop)
 
     def test_legacy_rule_switch_controls_whole_workflow_and_cannot_delete_step(self):
         rules = self.feature("mailbox")
@@ -116,7 +133,7 @@ class FeatureTests(unittest.TestCase):
         options = {'enabled': True, 'failure_limit': 3, 'level_gain': 15, 'minutes': 5,
                    'retry_level_gap': 15, 'final_boss_retry_level_gap': 0, 'auto_sailing': True,
                    'meter_auto_adjust': False, 'boss_interrupt': False, 'battle_tap': True,
-                   'parallel_stage_limit': 8, 'boss_auto_sailing_until_rank': 35}
+                   'boss_auto_sailing_until_rank': 35}
         result = self.app.change_feature({'id': 'parallel_world', 'interval': 3, 'training': options})
         self.assertEqual(result['training'], options)
         self.assertEqual(result['interval'], 3)

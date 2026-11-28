@@ -33,10 +33,12 @@ from meter_calibration import MeterCalibration
 from drift.tasks.cruise_watchdog import CruiseWatchdog, CruiseView, fresh_cruise_input
 from drift.tasks.cruise_gate import cruise_blockers as cruise_gate_blockers
 from drift.tasks.raid_cast import RaidBattleHud, RaidCastAssist
+from drift.tasks.raid_reward import RAID_ENTRY, RaidReward
 from drift.tasks.cruise_setup import CruiseSetup
 from drift.tasks.cruise_options import from_rule as cruise_options, normalize as normalize_cruise
 from drift.tasks.cruise_settings import CruiseSettings, SettingsView
 from drift.tasks.stone_farm import StoneFarm
+from drift.tasks.stone_options import DEFAULT_RESTART_RANK, restart_rank
 from drift.tasks import handoff_journal, meter_journal
 from drift.tasks.meter_limits import MeterWorkflowLimit
 from drift.tasks.optional_timeout import OptionalCleanup, CLOSES as OPTIONAL_CLOSES, apply_policy as optional_timeout_policy
@@ -48,8 +50,12 @@ from drift.device.evidence import BossInputEvidence
 from native_capture import MuMuCapture, NativeUnavailable
 from frame_runtime import FrameRuntime
 from backpack_sale import BackpackSale
-from drift.tasks.game_recovery import GameRecovery, PACKAGE, game_state
-from drift.ui.button import CroppedTemplateButton
+from drift.tasks.game_recovery import GameRecovery, PACKAGE, RecoveryRateLimited, game_state
+from drift.ui.button import CroppedTemplateButton, PotionAdEntryButton, include_top_ad_position
+from drift.ui.event_shop import (
+    OPEN as EVENT_SHOP_OPEN, SELECT as EVENT_SHOP_SELECT, CONFIRM as EVENT_SHOP_CONFIRM,
+    CLOSE as EVENT_SHOP_CLOSE, TOY_MAIN, adapt_event_shop, toy_entry_icon, toy_entry_number,
+)
 from drift.ui.sidebar import adapt_sidebar
 from drift.ui.resource_battle import adapt_resource_battle
 from drift.ui.guild_selection import GuildSelectionGuard, GuildReturnGuard, SELECTORS as GUILD_SELECTORS
@@ -77,6 +83,7 @@ from drift.perception.daily_bonus import BONUS_ID, DailyBonusVisual, DailyCoinSh
 from drift.tasks.pass_daily import PASS_ID, PassDaily
 from drift.tasks.guild_daily import GUILD_ID, GuildDaily
 from drift.tasks.restaurant_upgrade import RESTAURANT_ID, RestaurantUpgrade
+from drift.tasks.meal_delivery import MEAL_ID, MEAL_RULE, MealDelivery, saved_meal_day_status
 from drift.tasks.return_parallel import ReturnParallel
 from drift.perception.restaurant import CATEGORIES
 from drift.core.winruntime import prefer_system_msvc_runtime
@@ -156,6 +163,7 @@ def fresh_run_state(*, mode, active_rule_ids, revision, scoped):
                 backpack=None, skills=None, meter=None, stone=None, defense=None,
                 pass_daily=None, guild_selection=None, active_rule_ids=active_rule_ids,
                 stop_reason=None, last_stop_request=None, applied_revision=revision,
+                restart_not_before=None,
                 scoped=scoped)
 
 
@@ -194,6 +202,11 @@ class Clicker:
         from drift.device.profiles import recover_switch
         recover_switch(self.root)
         self.config = json.loads((self.root / "config.json").read_text(encoding="utf-8-sig"))
+        if ((self.root/'assets/meal-delivery/title.png').is_file()
+                and not any(rule['id']==MEAL_ID for rule in self.config['rules'])):
+            # Old profiles acquire the disabled switch when loaded. Materialize
+            # it only when the user saves settings through the existing API.
+            self.config['rules'].append(deepcopy(MEAL_RULE))
         self.daily_schedule = _lookup("DailySchedule")(self.root, self.config['serial'])
         self.daily_schedule.require_bonus = any(supported_bonus(r) and r['enabled'] for r in self.config['rules'])
         self.task_schedule = _lookup("TaskSchedule")(self.root, self.config['serial'])
@@ -225,19 +238,19 @@ class Clicker:
         with self.lock:
             self.idle_only()
             required = {'failed_sha256','allow_ordinary_cancel'}
-            optional = ('allow_boss_abandon','allow_boss_abandon_menu','allow_continuous_cancel','allow_post_start_restore','allow_first_result_restore','allow_manual_rank_progress','allow_observed_lower_restore','allow_observed_cycle_restore','allow_return_entry_restore','allow_map_target_repair')
-            single_scope = [name for name in ('allow_observed_lower_restore','allow_observed_cycle_restore',
-                                             'allow_return_confirm_restore') if data.get(name) is True]
-            if single_scope:
-                if len(single_scope) != 1 or set(data) != {'failed_sha256',single_scope[0]}:
+            optional = ('allow_continuous_cancel','allow_manual_rank_progress','allow_return_entry_restore')
+            observed = data.get('allow_observed_cycle_restore') is True
+            if observed:
+                if set(data) != {'failed_sha256','allow_observed_cycle_restore'}:
                     raise ValueError('指定的接续只接受原失败哈希与单一授权')
             elif (not required.issubset(data) or set(data)-required-set(optional)
                     or data['allow_ordinary_cancel'] is not True
                     or any(name in data and data[name] is not True for name in optional)):
                 raise ValueError('需要明确允许普通鱼安全停钓及原失败记录哈希')
-            options = {name:True for name in (*optional,*single_scope) if data.get(name) is True}
+            options = ({'allow_observed_cycle_restore': True} if observed else
+                       {name:True for name in optional if data.get(name) is True})
             result = _lookup('StoneFarm').request_retry(self.root, data['failed_sha256'], **options)
-            self.event('已登记一次降阶重试授权；原失败记录、次数和截止时间未修改')
+            self.event('已登记一次重开接续；原失败记录、次数和截止时间保留')
             return result
     def clear_stone_farm(self, data):
         with self.lock:
@@ -355,8 +368,13 @@ class Clicker:
                     "lifecycle": lifecycle.status() if lifecycle is not None else None,
                     "stone_record": handoff_journal.status(self.root),
                     "meter_record": meter_journal.status(self.root)}
-    def feature_status(self):
+    def feature_daily_status(self):
         daily = self.daily_schedule.status()
+        daily['meal_delivery'] = saved_meal_day_status(self.root, self.config['serial'],
+                                                       self.daily_schedule.clock())
+        return daily
+    def feature_status(self):
+        daily = self.feature_daily_status()
         return feature_states(self.config, daily,
                               self.task_schedule.status(self.config, daily, self.running()))
     def change_task_time(self, data):
@@ -369,7 +387,7 @@ class Clicker:
             if feature is None or not feature['available']:
                 raise ValueError('任务不存在或规则不完整')
             self.task_schedule.set_next(data['id'], data['next_run'],
-                                        self.daily_schedule.status().get(data['id']))
+                                        self.feature_daily_status().get(data['id']))
             self.event(f"已保存{feature['name']}的下次开启时间")
             return next(f for f in self.feature_status() if f['id'] == data['id'])
     def change_portal_mode(self, data):
@@ -377,7 +395,7 @@ class Clicker:
         with self.lock:
             self.idle_only()
             if set(data) != {'mode'} or data['mode'] not in ('off', 'stone', 'legacy'):
-                raise ValueError('次元石模式必须为关闭、降阶刷最后BOSS或旧版任务练级')
+                raise ValueError('次元石模式必须为关闭、按 RANK 重开或任务导航练级')
             updated = deepcopy(self.config)
             by_id = {rule['id']: rule for rule in updated['rules']}
             for feature_id, mode in (('stone_farm', 'stone'), ('parallel_world', 'legacy')):
@@ -387,7 +405,7 @@ class Clicker:
                 for key in identifiers:
                     by_id[key]['enabled'] = data['mode'] == mode
             self.commit_config(updated)
-            label = {'off':'关闭', 'stone':'降阶刷最后BOSS', 'legacy':'旧版任务练级'}[data['mode']]
+            label = {'off':'关闭', 'stone':'到达 RANK 后重开', 'legacy':'旧版任务练级'}[data['mode']]
             self.event('已保存次元石循环模式：' + label + '；各项进度和武器强化设置保留')
             return {'mode': data['mode']}
 
@@ -399,7 +417,7 @@ class Clicker:
             cruise_change = feature['id'] == 'parallel_skills'
             if self.running() and self.state["scoped"] and not cruise_change:
                 raise ValueError("请先停止单项测试，再调整功能")
-            if not set(data) <= {"id", "enabled", "interval", "mana_threshold", "training", "growth_points", "targets", "cruise_settings"}:
+            if not set(data) <= {"id", "enabled", "interval", "mana_threshold", "training", "growth_points", "targets", "cruise_settings", "restart_rank"}:
                 raise ValueError("不支持的功能设置")
             if "enabled" in data and not isinstance(data["enabled"], bool):
                 raise ValueError("功能开关必须为布尔值")
@@ -418,7 +436,7 @@ class Clicker:
                 interval = number(data["interval"], 0.2, 259200 if feature['id']=='restaurant_upgrade' else
                                   86400 if feature['id'] in ('meter_calibration','guild_daily') else 3600)
                 for rule in members.values():
-                    if rule.get("stage", "main") == "main" or rule['id'] in ('driftinggirl_parallel_world', 'driftinggirl_equipment_upgrade', 'driftinggirl_backpack_sell', 'driftinggirl_parallel_skills', 'driftinggirl_meter_calibration', 'driftinggirl_stone_farm', RESTAURANT_ID):
+                    if rule.get("stage", "main") == "main" or rule['id'] in ('driftinggirl_parallel_world', 'driftinggirl_equipment_upgrade', 'driftinggirl_backpack_sell', 'driftinggirl_parallel_skills', 'driftinggirl_meter_calibration', 'driftinggirl_stone_farm', RESTAURANT_ID, MEAL_ID):
                         rule["interval"] = interval
             if "mana_threshold" in data:
                 value = data["mana_threshold"]
@@ -431,6 +449,10 @@ class Clicker:
                 if feature['id'] != 'parallel_world':
                     raise ValueError('练级设置仅用于平行世界')
                 members['driftinggirl_parallel_world']['training'] = training_options(data['training'])
+            if 'restart_rank' in data:
+                if feature['id'] != 'stone_farm':
+                    raise ValueError('重开 RANK 仅用于次元石循环')
+                members['driftinggirl_stone_farm']['restart_rank'] = restart_rank(data['restart_rank'])
             if 'growth_points' in data:
                 if feature['id'] != 'parallel_skills' or not isinstance(data['growth_points'], bool):
                     raise ValueError('技能点加速开关仅用于平行世界技能，且必须为布尔值')
@@ -530,6 +552,12 @@ class Clicker:
                 rule["enabled"] = bool(data["enabled"])
             self.persist()
     def load_rule(self, rule):
+        if rule['id'] == 'driftinggirl_stone_farm':
+            restart_rank(rule.get('restart_rank', DEFAULT_RESTART_RANK))
+        if (rule['id'] == MEAL_ID and rule.get('asset') == MEAL_RULE['asset']
+                and rule.get('source_crop') == [16,48,35,67]):
+            # The first recipe preset stored screen coordinates for a 26x26 sprite.
+            rule = {**rule, 'source_crop': list(MEAL_RULE['source_crop'])}
         mailbox_guarded = False
         guild_confirm_titles = {
             'driftinggirl_guild_potion_confirm': ('potion', [309,410,410,438]),
@@ -586,6 +614,12 @@ class Clicker:
             # companions, brightness, absent notice and consecutive frames.
             rule={**rule,'asset_variants':[*rule.get('asset_variants',[]),
                                          'assets/task-popup/main-idle.png']}
+        if (rule['id'] == EVENT_SHOP_OPEN and rule.get('asset') == 'assets/event-potion/main.png'
+                and rule.get('source_crop') == [650, 280, 701, 320]
+                and (self.root/TOY_MAIN).is_file()):
+            variants = list(rule.get('asset_variants', []))
+            if TOY_MAIN not in variants:
+                rule = {**rule, 'asset_variants': [*variants, TOY_MAIN], 'recheck_before_click': True}
         bonus_supported = any(supported_bonus(r) for r in self.config.get('rules', []))
         if (bonus_supported and rule.get('id') == 'driftinggirl_daily_unavailable'
                 and rule.get('asset') == 'assets/daily-reward/premium-claimed.png'
@@ -641,6 +675,15 @@ class Clicker:
         if kind not in ("template", "green_reward_list"):
             raise ValueError("识别规则类型无效")
         search = _lookup("rectangle")(rule["search_area"], width, height)
+        if (rule.get('id') == PotionAdRecovery.ENTRY
+                and rule.get('asset') == 'assets/potion-ad-source.png'
+                and rule.get('source_crop') == [659, 930, 688, 954]
+                and rule.get('search_area') == [600, 650, 720, 1115]
+                and rule.get('scales', [1]) == [1] and (width, height) == (720, 1280)):
+            # Each hidden sidebar item can move the whole icon and count up by
+            # 90 px. Cover two more rows with the same bright bottle template.
+            # Compatibility for shipped settings; custom search areas stay put.
+            search = (search[0], 470, search[2], search[3])
         file = (self.root / rule["asset"]).resolve()
         if not file.is_relative_to((self.root / "assets").resolve()):
             raise ValueError("目标图片必须位于 assets 目录内")
@@ -861,11 +904,18 @@ class Clicker:
             if any(low > high for low, high in zip(*match_hsv)):
                 raise ValueError("HSV 下限不能超过上限")
         if cropped:
-            button = CroppedTemplateButton(patch, search, rule.get("scales", [1]), rule["id"],
-                                           source_area=area, click_source_area=click_source_area,
-                                           required_templates=required_templates, match_hsv=match_hsv,
-                                           color_condition=color_condition, required_tolerance=required_tolerance)
+            button_type = PotionAdEntryButton if rule['id'] == PotionAdRecovery.ENTRY else CroppedTemplateButton
+            button = button_type(patch, search, rule.get("scales", [1]), rule["id"],
+                                 source_area=area, click_source_area=click_source_area,
+                                 required_templates=required_templates, match_hsv=match_hsv,
+                                 color_condition=color_condition, required_tolerance=required_tolerance)
             button.mailbox_close_guarded = mailbox_guarded
+            if (rule['id'] in {*GUILD_SELECTORS,'driftinggirl_guild_potion_skip','driftinggirl_guild_material_skip'}
+                    and rule.get('asset') == 'assets/guild-shop/guild.png'
+                    and rule.get('source_crop') == [175,337,328,374]
+                    and rule.get('purchase_condition', {}).get('balance_area') == [560,350,641,377]
+                    and rule.get('scales', [1]) == [1] and (width,height)==(720,1280)):
+                button.guild_balance_coin = reference[348:377,525:554].copy()
             if (guild_confirm is not None
                     and rule.get('asset')==f'assets/guild-shop/{guild_confirm[0]}-confirm.png'):
                 # Both products use blue guild points. The material reference
@@ -909,7 +959,13 @@ class Clicker:
                                                (reference.shape[1], reference.shape[0]), rule["id"])
             if supported_bonus(rule):
                 button.daily_bonus_visual = DailyBonusVisual(self.root)
-            return rule, adapt_sidebar(rule, adapt_resource_battle(rule, button, reference)), (1, 1)
+            button = include_top_ad_position(rule, button)
+            button = adapt_sidebar(rule, adapt_resource_battle(rule, button, reference))
+            if rule['id'] == EVENT_SHOP_OPEN and TOY_MAIN in rule.get('asset_variants', []):
+                button.toy_event_icon = toy_entry_icon(self.root)
+            if rule['id'] in (EVENT_SHOP_SELECT, EVENT_SHOP_CONFIRM, EVENT_SHOP_CLOSE):
+                button = adapt_event_shop(rule, button, self.root, lambda: getattr(self, 'digit_reader', None))
+            return rule, button, (1, 1)
         if kind == "green_reward_list":
             raise ValueError("绿色奖励列表需要裁图定位模板")
         button = Button(area=area, color=(0, 0, 0), button=area,
@@ -1000,7 +1056,10 @@ class Clicker:
             if self.digit_reader is None:
                 from digit_ocr import DigitReader
                 self.digit_reader = DigitReader(self.root)
-            reading = self.digit_reader.read(frame[box[1]:box[3], box[0]:box[2]])
+            if rule['id'] == EVENT_SHOP_OPEN:
+                reading = toy_entry_number(self.digit_reader, frame, button, box)
+            else:
+                reading = self.digit_reader.read(frame[box[1]:box[3], box[0]:box[2]])
         value = reading.value if reading is not None else None
         confidence = reading.confidence if reading is not None else 0.0
         passed = value is not None and confidence >= condition.get("confidence", 0.93)
@@ -1062,7 +1121,7 @@ class Clicker:
         return passed, (current, total)
     def purchase_condition(self, rule, button, frame):
         from purchase_checks import (stock_check, quantity_check, quantity_crop, guild_price_crop,
-                                     QuantityTemplates, read_stock_counter, read_guild_balance,
+                                     QuantityTemplates, read_stock_counter, read_guild_balance, read_anchored_guild_balance,
                                      confirmation_price_crop, confirmation_check, read_moving_confirmation_price)
         if self.digit_reader is None:
             from digit_ocr import DigitReader
@@ -1077,7 +1136,11 @@ class Clicker:
         if condition is not None:
             counter = read_stock_counter(self.digit_reader, crop(condition['counter_area']), condition.get('confidence', .93))
             balance_image = crop(condition['balance_area'])
-            if (rule.get('id') in {'driftinggirl_guild_potion_select','driftinggirl_guild_potion_skip',
+            coin = getattr(button, 'guild_balance_coin', None)
+            if coin is not None:
+                balance = read_anchored_guild_balance(self.digit_reader, crop([460,342,643,381]),
+                                                     coin, condition.get('confidence', .93))
+            elif (rule.get('id') in {'driftinggirl_guild_potion_select','driftinggirl_guild_potion_skip',
                                   'driftinggirl_guild_material_select','driftinggirl_guild_material_skip'}
                     and condition.get('balance_area') == [560,350,641,377]):
                 balance = read_guild_balance(self.digit_reader, balance_image, condition.get('confidence', .93))
@@ -1249,6 +1312,7 @@ class Clicker:
         guild_cleanup_rule = None
         optional_cleanup = None
         event_potion_skips = 0
+        potion_ad_skip_log_at = float('-inf')
         cleanup_evidence = None
         guild_orphan_used = False
         guild_orphan_key, guild_orphan_since, guild_orphan_frames = None, None, 0
@@ -1538,11 +1602,68 @@ class Clicker:
         stone = None
         cruise = None
         raid = None
+        raid_reward = None
+        raid_reward_evidence = None
         setup = None
         pass_task = None
         guild_daily = None
         restaurant = None
         return_parallel = None
+
+        def reward_click(kind, point, options):
+            nonlocal raid_reward_evidence
+            def allowed():
+                return (raid_reward.in_window(kind) and not self.stop_event.is_set()
+                        and st.stage == 'main' and not st.handling_interrupt
+                        and (max_clicks is None or self.state['clicks'] < max_clicks)
+                        and (st.run_deadline is None or _time().monotonic() < st.run_deadline))
+
+            def touch(fresh, began):
+                if not raid_reward.reserve(kind, fresh) or not allowed():
+                    return None
+                return self.device.touch_fast(*point, began, lambda: not allowed())
+
+            with self.device.io_lock:
+                result = fresh_cruise_input(capture=runtime.capture,
+                    validate=lambda fresh: raid_reward.validate(kind, point, fresh, options),
+                    allowed=allowed, touch=touch, clock=_time().monotonic)
+                if result is None:
+                    return False
+                before, contact = result
+                receipt = dict(input_id=uuid.uuid4().hex, frame_id=self.remember(before),
+                               kind=kind, point=list(point), at=_time().time(), result='issued_only', **contact)
+                with self.lock:
+                    self.state['clicks'] += 1
+                self.event(f'RAID任务输入：{kind} {point}')
+                after = None
+                if not self.stop_event.is_set():
+                    if kind == 'finish':
+                        self.stop_event.wait(.42)
+                    after = runtime.capture()
+                    receipt['after_frame_id'] = self.remember(after)
+                    if kind == 'finish':
+                        raid_reward.observe_claim(after, before)
+                if raid_reward_evidence is None:
+                    raid_reward_evidence = BossInputEvidence(self.root,self.event,limit=32,
+                        folder='raid-reward-input',label='RAID任务奖励')
+                raid_reward_evidence.record(receipt,before,after)
+                return True
+
+        def make_raid_reward():
+            if raid_reward is not None and raid_reward.active:
+                return raid_reward
+            enabled = lambda: any(r['id'] == RAID_ENTRY and r['enabled'] for r in self.config['rules'])
+            if preview or not follow_settings or not enabled() or not callable(getattr(self.device,'touch_fast',None)):
+                return None
+            if self.digit_reader is None:
+                from digit_ocr import DigitReader
+                self.digit_reader = DigitReader(self.root)
+            scene = stone if isinstance(stone, StoneFarm) else StoneFarm(self.root, self.digit_reader,
+                lambda _: False, self.event, state_path=self.root/'raid-reward-probe-unused.json')
+            bag = BackpackSale(self.root, lambda *args: False, self.event, self.digit_reader,
+                               state_path=self.root/'raid-reward-move-probe-unused.json')
+            return RaidReward(self.root, scene, bag.moving, reward_click, self.event, enabled, self.config['serial'])
+
         def make_parallel():
             entry = next((rule for rule, _, _ in rules
                           if rule['id'] == 'driftinggirl_parallel_world'), None)
@@ -1754,7 +1875,7 @@ class Clicker:
                 setup_busy=getattr(setup, 'busy', False),
                 daily_cleanup=st.daily_cleanup_deadline is not None, calibrator=calibrator,
                 stone=stone,
-                tasks=(equipment, backpack, skills, pass_task, guild_daily, restaurant, parallel))
+                tasks=(equipment, backpack, skills, pass_task, guild_daily, restaurant, meal_delivery, parallel))
 
         def observe_meter_candidate(reason, *, finish=False, detail=None):
             method = getattr(calibrator, 'finish_candidate_observation' if finish
@@ -1961,6 +2082,7 @@ class Clicker:
                 self.digit_reader = DigitReader(self.root)
             controller = _lookup('StoneFarm')(self.root, self.digit_reader,
                 lambda action: portal_click(action, owner=controller), self.event, entry['interval'])
+            controller.restart_rank = restart_rank(entry.get('restart_rank', DEFAULT_RESTART_RANK))
             controller.defense.action = lambda target: defense_click(
                 target,owner=controller,rank=controller.defense.active_rank)
             controller.defense.scan = True
@@ -2030,6 +2152,21 @@ class Clicker:
                                    self.config['serial'],entry['interval'],targets=entry.get('targets'))
             task.retire_expired_on_start()
             task.enabled=lambda:any(r['id']==RESTAURANT_ID and r['enabled'] for r in self.config['rules'])
+            return task
+
+        def make_meal():
+            entry=next((r for r,_,_ in rules if r['id']==MEAL_ID),None)
+            if preview or entry is None:
+                return None
+            if self.digit_reader is None:
+                from digit_ocr import DigitReader
+                self.digit_reader=DigitReader(self.root)
+            task=MealDelivery(self.root,self.digit_reader,
+                              lambda action:restaurant_click(action,owner='meal_delivery'),
+                              self.event,self.config['serial'],entry['interval'])
+            task.enabled=lambda:any(r['id']==MEAL_ID and r['enabled'] for r in self.config['rules'])
+            with self.lock:
+                self.state['meal_delivery'] = task.status()
             return task
 
 
@@ -2110,7 +2247,7 @@ class Clicker:
         from drift.runtime_inputs import build_handlers
         from drift.runtime_tasks import build_services
         def task_bindings():
-            return {'backpack':backpack,'calibrator':calibrator,'equipment':equipment,'guild_daily':guild_daily,'max_clicks':max_clicks,'parallel':parallel,'parallel_click':parallel_click,'parallel_swipe':parallel_swipe,'pass_task':pass_task,'restaurant':restaurant,'return_parallel':return_parallel,'return_parallel_enabled':return_parallel_enabled,'runtime':runtime,'self':self,'skills':skills,'st':st,'stone':stone,'stop_on_main':stop_on_main}
+            return {'backpack':backpack,'calibrator':calibrator,'equipment':equipment,'guild_daily':guild_daily,'max_clicks':max_clicks,'parallel':parallel,'parallel_click':parallel_click,'parallel_swipe':parallel_swipe,'pass_task':pass_task,'restaurant':restaurant,'meal_delivery':meal_delivery,'return_parallel':return_parallel,'return_parallel_enabled':return_parallel_enabled,'runtime':runtime,'self':self,'skills':skills,'st':st,'stone':stone,'stop_on_main':stop_on_main}
         handlers=build_handlers(task_bindings,globals())
         services=build_services(task_bindings,globals())
         backpack_click=handlers['backpack_click']
@@ -2132,6 +2269,7 @@ class Clicker:
         step_guild_daily=services['step_guild_daily']
         step_pass=services['step_pass']
         step_restaurant=services['step_restaurant']
+        step_meal=services['step_meal']
         step_scheduled_controller=services['step_scheduled_controller']
         try:
             runtime.start_engine()
@@ -2145,7 +2283,9 @@ class Clicker:
             pass_task = make_pass()
             guild_daily = make_guild_daily()
             restaurant = make_restaurant()
+            meal_delivery = make_meal()
             return_parallel = make_return_parallel()
+            raid_reward = make_raid_reward()
             recovery = (_lookup("GameRecovery")(self.root, self.device, self.event, parallel_click,
                                      capture=runtime.capture)
                         if not preview and rules
@@ -2155,9 +2295,9 @@ class Clicker:
             def ownership_snapshot():
                 return st.stage, dict(equipment_upgrade=equipment,backpack_sale=backpack,
                     parallel_skills=skills,pass_daily=pass_task,guild_daily=guild_daily,
-                    restaurant_upgrade=restaurant,return_parallel=return_parallel,
+                    restaurant_upgrade=restaurant,meal_delivery=meal_delivery,return_parallel=return_parallel,
                     meter_calibration=calibrator,stone_farm=stone,parallel=parallel,
-                    cruise_setup=setup,cruise_watchdog=cruise,game_recovery=recovery), bool(
+                    cruise_setup=setup,cruise_watchdog=cruise,game_recovery=recovery,raid_reward=raid_reward), bool(
                         st.handling_interrupt or st.interrupt_started_at is not None
                         or st.daily_cleanup_deadline is not None)
             def lifecycle_budget():
@@ -2212,6 +2352,10 @@ class Clicker:
                             raid = make_raid_cast()
                         if raid is not None:
                             raid.arm()
+                    if (raid_reward is not None and st.stage == 'main' and
+                            (previous == 'raid_return' or previous == 'raid_battle' and raid is not None
+                             and raid.hold == 'RAID：战斗已在进行')):
+                        raid_reward.arm()
                 if progress is not None and progress.note(st.stage):
                     # 阶段时间都够,却一直 A→B→A 往返:这是"画面没进展",
                     # 比等到某个 deadline 更早暴露问题,也避免整轮静默空转。
@@ -2308,6 +2452,7 @@ class Clicker:
                             and (pass_task is None or not pass_task.active)
                             and (guild_daily is None or not guild_daily.active)
                             and (restaurant is None or not restaurant.active)
+                            and (meal_delivery is None or not meal_delivery.active)
                             and not getattr(setup,'busy',False)
                             and (return_parallel is None or not return_parallel.active or not return_parallel_enabled())
                             and (sailing is None or not sailing.active
@@ -2342,6 +2487,8 @@ class Clicker:
                         pass_task = make_pass()
                         guild_daily = make_guild_daily()
                         restaurant = make_restaurant()
+                        meal_delivery = make_meal()
+                        raid_reward = make_raid_reward()
                         return_parallel = make_return_parallel()
                         if recovery is None and not preview and rules and callable(getattr(self.device, 'game_state', None)):
                             recovery = _lookup("GameRecovery")(self.root, self.device, self.event, parallel_click,
@@ -2359,12 +2506,7 @@ class Clicker:
                 recovery_owner = (parallel if parallel is not None else
                                   stone if stone is not None and stone.enabled() else None)
                 if recovery is not None and rules:
-                    if recovery_owner is not None:
-                        ready = (recovery_owner.training.main(frame)
-                                 or recovery_owner.sailing is not None and recovery_owner.sailing.running(frame) is not None)
-                        known = ready or recovery_owner._parallel(frame) or recovery_owner._observatory(frame)
-                    else:
-                        known,ready=recovery.scene(frame)
+                    known,ready=recovery.scene(frame,recovery_owner)
                     if (st.stage=='raid_battle' and raid is not None and raid.observe_battle(frame)):
                         known = True
                     # Recovery's fresh login guard holds device.io_lock.
@@ -2405,6 +2547,7 @@ class Clicker:
                         pass_task=make_pass()
                         guild_daily=make_guild_daily()
                         restaurant=make_restaurant()
+                        meal_delivery=make_meal()
                         return_parallel=make_return_parallel()
                         cruise=make_cruise_watchdog()
                         with self.lock:
@@ -2473,12 +2616,28 @@ class Clicker:
                 # consume the frame. Closing it does not renew any saved
                 # portal/fishing deadline or allow an expired input again.
                 interruption = None
+                meal_panel = False
+                raid_panel = False
                 if not preview and not st.handling_interrupt:
+                    if raid_reward is not None and st.stage == 'main' and self.lifecycle.ui.can_call('raid_reward'):
+                        raid_panel = raid_reward.offered(raid_reward.visual.card(frame), frame)
+                    if meal_delivery is not None and st.stage=='main':
+                        if meal_delivery.active:
+                            meal_panel = meal_delivery.owns_order_panel(frame)
+                        else:
+                            meal_day = meal_delivery.daily_status()
+                            meal_panel = (not meal_day['completed']
+                                          and self.task_schedule.ready('meal_delivery', meal_day)
+                                          and not self.lifecycle.ui.refresh().owners
+                                          and meal_delivery.offered(frame))
                     for rule, button, offset in rules:
+                        if (meal_panel or raid_panel) and rule['id']==PopupRaidReturn.CLOSE:
+                            continue
                         if rule.get('interrupt') and module.appear(button, offset=offset, similarity=rule['threshold']):
                             if rule['id'] == WORLD_MAP_CLOSE_ID and map_navigation_owned(
                                     parallel=parallel, stone=stone, backpack=backpack,
-                                    restaurant=restaurant, return_parallel=return_parallel):
+                                    restaurant=restaurant, meal_delivery=meal_delivery,
+                                    return_parallel=return_parallel):
                                 continue
                             interruption = rule['id']
                             break
@@ -2828,13 +2987,10 @@ class Clicker:
                     defense_owner = parallel if parallel is not None else (
                         stone if stone is not None and stone.enabled() else None)
                     if (defense_owner is stone and stone is not None
-                            and (getattr(stone,'boss_abandon_handoff',False)
-                                 or getattr(stone,'handoff_stop_requested',False)
-                                  or getattr(stone,'first_result_observation_pending',False)
+                            and (getattr(stone,'handoff_stop_requested',False)
+                                 or getattr(stone,'first_result_observation_pending',False)
                                  or getattr(stone,'first_route_resume_requested',False))):
-                        # The one explicitly approved lower handoff must reach
-                        # its OFF/battle/idle confirmation; combat bursts cannot
-                        # starve it or renew its original return deadline.
+                        # Stop and verify existing casts within the handoff window.
                         defense_owner = None
                     attack_rank = (stone.defense.encounter_rank(frame) if defense_owner is stone and stone is not None
                                    else parallel.rank if parallel is not None else None)
@@ -2994,7 +3150,7 @@ class Clicker:
                 if (return_parallel is not None and return_parallel_enabled()
                         and st.stage == 'main' and interruption is None
                         and not any(task is not None and task.active for task in
-                                    (equipment, backpack, skills, calibrator, stone, pass_task, guild_daily, restaurant))
+                                    (equipment, backpack, skills, calibrator, stone, pass_task, guild_daily, restaurant, meal_delivery, raid_reward))
                         and not getattr(setup, 'busy', False)
                         and (parallel is None or parallel.phase in ('detect', 'play'))):
                     owned = runtime.call('return_parallel', return_parallel.step, frame)
@@ -3005,6 +3161,23 @@ class Clicker:
                         observe_meter_candidate('task_owned', detail='return_parallel')
                         if runtime.wait(self.config['poll_interval']):break
                         continue
+                if (raid_reward is not None and st.stage == 'main' and interruption is None
+                        and self.lifecycle.ui.can_call('raid_reward')):
+                    owned = runtime.call('raid_reward', raid_reward.step, frame, self.state['frame_id'])
+                    with self.lock:
+                        self.state['raid_reward'] = raid_reward.status()
+                        if owned:
+                            self.state['stage'] = 'raid_reward_'+raid_reward.phase
+                    if owned:
+                        observe_meter_candidate('task_owned',detail='raid_reward')
+                        if runtime.wait(self.config['poll_interval']):break
+                        continue
+                if (not preview and meal_delivery is not None and (meal_delivery.active or meal_panel)
+                        and st.stage=='main' and interruption is None):
+                    step_meal(frame,allow_start=meal_panel and not meal_delivery.active)
+                    observe_meter_candidate('task_owned',detail='meal_delivery')
+                    if runtime.wait(self.config['poll_interval']):break
+                    continue
                 if (not preview and restaurant is not None and restaurant.active
                         and st.stage=='main' and interruption is None):
                     step_restaurant(frame,allow_start=False)
@@ -3174,7 +3347,8 @@ class Clicker:
                     map_visible = world_map_open(frame, self.root)
                     map_owned = map_navigation_owned(
                         parallel=parallel, stone=stone, backpack=backpack,
-                        restaurant=restaurant, return_parallel=return_parallel)
+                        restaurant=restaurant, meal_delivery=meal_delivery,
+                        return_parallel=return_parallel)
                     if map_visible and not map_owned:
                         st.world_map_frames = int(getattr(st, 'world_map_frames', 0)) + 1
                         if st.world_map_frames >= 3:
@@ -3226,6 +3400,8 @@ class Clicker:
                         owned = stone_owned
                     if not owned and guild_daily is not None:
                         owned=step_guild_daily(frame,allow_start=(parallel is None or parallel.phase=='play'))
+                    if not owned and meal_delivery is not None:
+                        owned=step_meal(frame,allow_start=(parallel is None or parallel.phase=='play'))
                     if not owned and restaurant is not None:
                         restaurant_owned=step_restaurant(frame,allow_start=(parallel is None or parallel.phase=='play'))
                         owned=restaurant_owned
@@ -3326,19 +3502,26 @@ class Clicker:
                             break
                         continue
                 guild_missed = False
+                guild_unreadable = None
                 if (not preview and interruption is None and not st.handling_interrupt
                         and guild_cleanup_deadline is None):
                     guild_missed = guild_selection.observe(frame, st.matchers, self.purchase_condition,
                             stage=st.stage, trigger=st.stage_trigger, started=st.stage_started_at,
                             deadline=st.stage_deadline, now=_time().monotonic(),
                             stopped=self.stop_event.is_set())
+                    if not guild_missed:
+                        guild_unreadable = guild_selection.observe_unreadable_stock(
+                            frame, st.matchers, self.purchase_condition, stage=st.stage,
+                            started=st.stage_started_at, ready_at=st.stage_ready_at,
+                            deadline=st.stage_deadline, now=_time().monotonic(),
+                            stopped=self.stop_event.is_set())
                     with self.lock:self.state['guild_selection'] = guild_selection.status()
-                if guild_missed:
+                if guild_missed or guild_unreadable is not None:
                     # Close an unchanged list without retrying selection or purchase.
                     # Both close and return share the original, unextended deadline.
                     guild_cleanup_deadline = st.stage_deadline
-                    guild_cleanup_origin = guild_selection.origin
-                    guild_cleanup_rule = guild_selection.rule_id
+                    guild_cleanup_origin = guild_selection.origin if guild_missed else guild_unreadable
+                    guild_cleanup_rule = guild_selection.rule_id if guild_missed else None
                     guild_selection.clear()
                     finish_scheduled_daily(False)
                     st.daily_attempt, st.daily_verified = None, False
@@ -3347,7 +3530,9 @@ class Clicker:
                     st.stable = {key: 0 for key in st.stable}
                     st.number_values.clear(); st.target_keys.clear()
                     with self.lock: self.state['stage'] = st.stage
-                    self.event('公会商品：选择后仍是同一商品列表，连续三秒确认库存未变；不重复购买，按原截止关闭并延后重试')
+                    self.event('公会商品：选择后仍是同一商品列表，连续三秒确认库存未变；不重复购买，按原截止关闭并延后重试'
+                               if guild_missed else
+                               '公会商品：连续确认同一列表，但限购或余额仍读不清；按原截止只关闭，本次不记完成')
                 stage_expired = (interruption is None and st.stage_deadline is not None
                                  and _time().monotonic() >= st.stage_deadline)
                 if not preview and interruption is None and _time().monotonic() < st.stage_ready_at:
@@ -3388,6 +3573,19 @@ class Clicker:
                     number_condition=self.number_condition, counter_condition=self.counter_condition,
                     purchase_condition=self.purchase_condition,
                     daily_entries=DAILY_ENTRIES, clock=_time)
+                if (not preview and st.stage == 'main' and interruption is None
+                        and _time().monotonic() >= potion_ad_skip_log_at):
+                    # Only report an entry whose bottle passed in this very
+                    # frame. Missing icons are normal between game offers.
+                    with self.lock:
+                        ad_count = self.state['numbers'].get(PotionAdRecovery.ENTRY)
+                        count_rejected = (ad_count is not None and not ad_count['passed']
+                                          and ad_count['frame'] == self.state['frames'])
+                    if count_rejected:
+                        self.event('药水广告：已识别瓶身，本帧跳过（'
+                                   f"{ad_count['skip_reason']}；OCR={ad_count['text']!r}；"
+                                   f"计数区域={ad_count['box']}）")
+                        potion_ad_skip_log_at = _time().monotonic() + 120
                 if optional_cleanup is not None and (candidate is None or interruption is not None):
                     optional_cleanup.reset_input_proof()
                 if (not preview and st.stage == 'mailbox_return'
@@ -3546,6 +3744,7 @@ class Clicker:
                         raise RuntimeError("同一目标连续点击次数达到限制，已停止；请检查界面或调整规则")
                     ready_to_act = True
                     potion_entry = rule['id'] == PotionAdRecovery.ENTRY
+                    event_action = getattr(button, 'event_action', None)
                     sidebar_click = (getattr(button, 'sidebar_layout', False)
                                      and rule.get('action', 'click') == 'click')
                     guild_select = rule['id'] in GUILD_SELECTORS
@@ -3556,7 +3755,7 @@ class Clicker:
                     mailbox_context = None
                     mailbox_return_window = (st.stage_started_at, st.stage_deadline)
                     guild_context = None
-                    if not preview and (potion_entry or cleanup_click or rule.get('recheck_before_click') or sidebar_click or guild_select or guild_close or popup_close or mailbox_close):
+                    if not preview and (potion_entry or cleanup_click or rule.get('recheck_before_click') or sidebar_click or guild_select or guild_close or popup_close or mailbox_close or event_action):
                         previous_box = tuple(button.button)
                         previous_cleanup = optional_cleanup.input_context(frame) if cleanup_click else None
                         previous_popup = PopupRaidReturn.notice_identity(frame) if popup_close else None
@@ -3569,7 +3768,7 @@ class Clicker:
                         with self.lock:
                             self.state['frames'] += 1
                         visible = module.appear(button, offset=offset, similarity=rule['threshold'])
-                        if visible and (sidebar_click or cleanup_click) and rule.get('absent_rule'):
+                        if visible and (sidebar_click or cleanup_click or event_action) and rule.get('absent_rule'):
                             guard_rule,guard_button,guard_offset=st.matchers[rule['absent_rule']]
                             module.appear(guard_button,offset=guard_offset,similarity=guard_rule['threshold'])
                             visible=guard_button.last_similarity<=guard_rule['threshold']
@@ -3581,6 +3780,14 @@ class Clicker:
                                         and tuple(button.button) == previous_box
                                         and (not (sidebar_click or guild_select or guild_close) or st.stage_deadline is None
                                              or _time().monotonic() < st.stage_deadline))
+                        if ready_to_act and event_action:
+                            ready_to_act = (
+                                event_action == button.event_action
+                                and (st.stage_deadline is None or _time().monotonic() < st.stage_deadline)
+                                and (st.run_deadline is None or _time().monotonic() < st.run_deadline)
+                                and (max_clicks is None or self.state['clicks'] < max_clicks)
+                                and (event_action.kind != 'confirm' or event_action.confirms(st.event_purchase))
+                            )
                         if ready_to_act and guild_select:
                             guild_context = GuildSelectionGuard.context(
                                 frame, st.matchers, rule['id'], self.purchase_condition)
@@ -3619,6 +3826,11 @@ class Clicker:
                                 and (max_clicks is None or self.state['clicks'] < max_clicks)
                                 and not self.stop_event.is_set())
                         if not ready_to_act:
+                            if potion_entry and not self.stop_event.is_set():
+                                reason = ('瓶身不再可见' if not visible else '次数未通过复核' if not passed
+                                          else '次数已变化' if value != st.number_values.get(rule['id'])
+                                          else '入口已移位')
+                                self.event(f'药水广告：新图发现{reason}，取消本次点击并重新识别')
                             if cleanup_click:
                                 optional_cleanup.reset_input_proof()
                             if mailbox_retry:
@@ -3628,7 +3840,8 @@ class Clicker:
                             st.target_keys.clear()
                             with self.lock:
                                 self.state['last_match'] = None
-                            self.event('入口位置或触发条件已变化，取消本次点击并重新识别')
+                            if not potion_entry:
+                                self.event('入口位置或触发条件已变化，取消本次点击并重新识别')
                     if not ready_to_act:
                         acted = False
                     elif preview:
@@ -3793,6 +4006,27 @@ class Clicker:
                             from alas_core.timer import Timer
                             module.interval_timer['driftinggirl_mailbox_open'] = Timer(900).start()
                             self.event('邮箱物品超过获取上限，保留未领邮件，15 分钟后再检查')
+                        if not preview and did_click and event_action:
+                            if event_action.kind == 'skip':
+                                from alas_core.timer import Timer
+                                module.interval_timer[EVENT_SHOP_OPEN] = Timer(300).start()
+                                self.event('活动商店：' + event_action.reason + '，关闭后稍后再查')
+                                rule = {**rule, 'name': '活动商店：关闭并等待材料',
+                                        'next_stage': 'event_potion_return'}
+                                st.event_purchase = None
+                            elif event_action.kind == 'select':
+                                st.event_purchase = event_action
+                                if event_action.layout == 'toys':
+                                    item = '皮肤' if event_action.price == 2000 else '药水'
+                                    self.event(f'活动商店：余额 {event_action.balance}，打开 {event_action.price} 材料{item}')
+                            elif event_action.kind == 'confirm':
+                                self.event(f'活动商店：已发出 {event_action.price} 材料兑换，等待余额核对')
+                            elif st.event_purchase is not None:
+                                selected = st.event_purchase
+                                if (selected.balance is not None and event_action.balance is not None
+                                        and event_action.balance == selected.balance - selected.price):
+                                    self.event(f'活动商店：余额 {selected.balance}→{event_action.balance}，已确认扣除 {selected.price} 材料')
+                                st.event_purchase = None
                         if recovery_entry:
                             now = _time().monotonic()
                             if crown_entry_recovery:
@@ -3925,6 +4159,13 @@ class Clicker:
             if (not self.stop_event.is_set() and calibrator is not None
                     and calibrator.active and not calibrator.input_allowed()):
                 record_failure(RuntimeError('标尺校准或航巡恢复窗口已到期，已停止并保留原记录'))
+        except RecoveryRateLimited as exc:
+            # Keep the original launch budget. The watchdog should not start
+            # another worker just to hit the same bound five minutes later.
+            with self.lock:
+                self.state['stop_reason'] = 'recovery_cooldown'
+                self.state['restart_not_before'] = _time().time() + exc.retry_after
+            record_failure(exc)
         except GameStuck as exc:
             # 同一对画面反复往返:保留现场并明确建议重启游戏,不要当成代码故障。
             record_failure(exc)
@@ -3953,6 +4194,8 @@ class Clicker:
             self.device.input_issued=None
             if cleanup_evidence is not None:
                 cleanup_evidence.close()
+            if raid_reward_evidence is not None:
+                raid_reward_evidence.close()
             if coin_close_evidence is not None:
                 coin_close_evidence.close()
             if self.boss_evidence is not None:

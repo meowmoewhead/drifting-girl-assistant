@@ -46,6 +46,7 @@ class LoopState:
     daily_cleanup_deadline: object = None
     daily_orphan_key: object = None
     daily_orphan_frames: int = 0
+    event_purchase: object = None
 
     # --- 中断(任务弹窗)占用 ---
     handling_interrupt: bool = False

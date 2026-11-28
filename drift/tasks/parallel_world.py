@@ -80,16 +80,13 @@ class ParallelWorld(ParallelScreen):
         self.portal_action = portal_action
         self.portal_frames = {}
         for name in ('parallel-manager', 'parallel-manager-inactive',
-                     'parallel-lower-question', 'observatory-npc', 'observatory-npc-day'):
+                     'observatory-npc', 'observatory-npc-day'):
             path = Path(root)/'assets/recovery'/f'{name}.png'
             self.portal_frames[name] = (cv2.cvtColor(cv2.imread(str(path)),cv2.COLOR_BGR2RGB)
                                         if path.is_file() else None)
         if portal_action is not None and any(value is None or value.shape[:2] != (1280,720)
                                              for value in self.portal_frames.values()):
-            raise RuntimeError('传送门管理与降阶模板不完整，已停止')
-        self.gate_stage_verified = False
-        self.gate_stage_readings = deque(maxlen=3)
-        self.lower_from = None
+            raise RuntimeError('传送门管理模板不完整，已停止')
         self.cat_frames = self.cat_attempts = 0
         self.return_since = None
         self.quest_idle_key = self.quest_idle_since = None
@@ -187,15 +184,6 @@ class ParallelWorld(ParallelScreen):
         dy = 0 if active else 66
         return self._portal_number(frame,((323,377+dy,408,475+dy),(328,382+dy,403,469+dy)))
 
-    def _lower_prompt(self, frame):
-        if (self._parallel(frame) or not self._observatory(frame)
-                or not self._portal_words(frame,'parallel-lower-question',
-                    ((211,539,508,568),(313,580,416,615),(202,623,514,648)))
-                or not self._fixed(frame,'continue',(63,741,356,834),.92)
-                or float((frame[480:510,150:180].max(axis=2)>=210).mean()) < .8):
-            return None
-        return self._portal_number(frame,((282,584,308,615),(284,586,307,614)))
-
     def _npc_ready(self, frame):
         return (not self._parallel(frame) and self._observatory(frame) and not self._map(frame)
                 and self.sailing is not None and self.sailing.running(frame) is False
@@ -245,18 +233,8 @@ class ParallelWorld(ParallelScreen):
                     and action.get('signature') == self._return_signature(frame))
         if kind == 'npc':
             return self._npc_ready(frame)
-        if kind == 'lower':
-            return (self._gate_manager(frame) is True
-                    and self._gate_stage(frame) == action['stage']
-                    and 0 < self.training.options['parallel_stage_limit'] < action['stage'])
-        if kind == 'lower-confirm':
-            return (self.lower_from == action['stage']+1
-                    and self._lower_prompt(frame) == action['stage']
-                    and 0 < self.training.options['parallel_stage_limit'] <= action['stage'])
         if kind == 'panel-close':
-            limit = self.training.options['parallel_stage_limit']
-            stage = self._gate_stage(frame) if limit else None
-            return self._gate_manager(frame) is True and (not limit or stage is not None and stage <= limit)
+            return self._gate_manager(frame) is True
         if kind == 'activate':
             return self._gate_manager(frame) is False
         if kind == 'close-gate':
@@ -895,8 +873,6 @@ class ParallelWorld(ParallelScreen):
                 'quest_recoveries': self.quest_recoveries,
                 'quest_wake_attempts': len(self.quest_wake_ranks),
                 'quest_cast_attempts': len(self.quest_cast_ranks),
-                'stage_limit': self.training.options['parallel_stage_limit'],
-                'gate_stage_verified': self.gate_stage_verified,
                 'training': self.training.status(),
                 'sailing': self.sailing.status() if self.sailing else None,
                 'fishing': self.fishing.status() if self.fishing else None,
@@ -1137,8 +1113,7 @@ class ParallelWorld(ParallelScreen):
             if parallel:
                 self._set('play', '已识别平行世界，开始按 RANK 寻找下一任务')
             elif self.portal_action is not None and self._gate_manager(frame) is not None:
-                self._set(('verify_gate_stage' if self.training.options['parallel_stage_limit']
-                           else 'close_gate_panel') if self._gate_manager(frame) else 'activate_click')
+                self._set('close_gate_panel' if self._gate_manager(frame) else 'activate_click')
             elif self._observatory(frame) and not self._map(frame):
                 self._set('enter_gate' if self._gate_active(frame) else 'open_gate')
             else:
@@ -1205,7 +1180,7 @@ class ParallelWorld(ParallelScreen):
 
         if self.phase == 'await_gate_active':
             if self._fixed(frame, 'panel-close', (548, 352, 638, 433), .85):
-                self._set('verify_gate_stage' if self.training.options['parallel_stage_limit'] else 'close_gate_panel')
+                self._set('close_gate_panel')
                 return True
             if self._observatory(frame) and self._gate_active(frame):
                 self._set('enter_gate')
@@ -1221,75 +1196,12 @@ class ParallelWorld(ParallelScreen):
                 self._set('enter_gate')
             return True
 
-        if self.phase == 'verify_gate_stage':
-            self._timeout(45,'读取并核对传送门阶段')
-            stage = self._gate_stage(frame) if self._gate_manager(frame) is True else None
-            self.gate_stage_readings.append(stage)
-            if (stage is None or len(self.gate_stage_readings) < 3
-                    or not all(value == stage for value in self.gate_stage_readings)):
-                return True
-            limit = self.training.options['parallel_stage_limit']
-            if limit and stage > limit:
-                if self._portal_act('lower',357,873,'平行世界：降低当前传送门难度',stage=stage):
-                    self.lower_from = stage
-                    self.gate_stage_readings.clear()
-                    self._set('lower_stage_confirm')
-                return True
-            self.gate_stage_verified = True
-            self._set('close_gate_panel',f'已连续确认传送门第 {stage} 阶，保留当前难度')
-            return True
-
-        if self.phase == 'lower_stage_confirm':
-            self._timeout(30,'确认降低平行世界难度')
-            target = self._lower_prompt(frame)
-            self.gate_stage_readings.append(target)
-            if (self.lower_from is None or target != self.lower_from-1
-                    or len(self.gate_stage_readings) < 3
-                    or not all(value == target for value in self.gate_stage_readings)):
-                return True
-            if self._portal_act('lower-confirm',208,788,'平行世界：确认降低一阶',stage=target):
-                self.gate_stage_readings.clear()
-                self._set('await_lower_stage')
-            return True
-
-        if self.phase == 'await_lower_stage':
-            self._timeout(30,'确认降阶实际结果')
-            stage = self._gate_stage(frame) if self._gate_manager(frame) is True else None
-            self.gate_stage_readings.append(stage)
-            if (stage is not None and stage == self.lower_from-1
-                    and len(self.gate_stage_readings) == 3
-                    and all(value == stage for value in self.gate_stage_readings)):
-                self.lower_from = None
-                self._set('verify_gate_stage',f'新截图连续确认已降到第 {stage} 阶')
-            return True
-
-        if self.phase == 'stage_menu':
-            self._timeout(30,'打开阶段管理菜单')
-            if self._gate_manager(frame) is False:
-                self._set('activate_click')
-                return True
-            if self._gate_manager(frame) is True:
-                self.cat_frames = 0
-                self.gate_stage_readings.clear()
-                self._set('verify_gate_stage')
-                return True
-            self.cat_frames = self.cat_frames+1 if self._npc_ready(frame) else 0
-            if self.cat_frames >= 3 and self.cat_attempts < 3:
-                if self._portal_act('npc',482,548,'平行世界：查看当前传送门阶段',delay=3):
-                    self.cat_frames = 0
-                    self.cat_attempts += 1
-            return True
-
         if self.phase == 'enter_gate':
             if not self._observatory(frame):
                 self._timeout(40, '进入传送门')
                 return True
             if not self._gate_active(frame):
                 self._set('open_gate')
-                return True
-            if self.training.options['parallel_stage_limit'] and not self.gate_stage_verified:
-                self.cat_frames = self.cat_attempts = 0
-                self._set('stage_menu')
                 return True
             self._set('enter_confirm')
             return self._act(354, 482, '平行世界：进入已激活传送门', 2)
@@ -1660,8 +1572,6 @@ class ParallelWorld(ParallelScreen):
                 self._set('cat_menu')
                 return True
             if self._portal_act('activate',355,803,'平行世界：激活新一轮传送门'):
-                self.gate_stage_verified = False
-                self.gate_stage_readings.clear()
                 self._set('search_confirm')
                 self.rounds += 1
             return True

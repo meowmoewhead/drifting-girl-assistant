@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 import cv2
 import math
 
@@ -121,5 +122,30 @@ class CroppedTemplateButton(Button):
         sx, sy = (x2 - x1) / (right - left), (y2 - y1) / (bottom - top)
         return (round(x1 + (area[0] - left) * sx), round(y1 + (area[1] - top) * sy),
                 round(x1 + (area[2] - left) * sx), round(y1 + (area[3] - top) * sy))
+
+
+class PotionAdEntryButton(CroppedTemplateButton):
+    @property
+    def target_key(self):
+        # A sidebar relayout breaks the consecutive-frame proof even if the
+        # new counter reads the same value. Only a matched frame uses this key.
+        return tuple(self.button)
+
+
+def include_top_ad_position(rule, button):
+    """Add the relocated ad strip while keeping the original relative counter."""
+    geometry = {
+        'driftinggirl_bottom_right_arrow': ('assets/ad-entry-source.png', (639, 921, 660, 945)),
+        'driftinggirl_potion_ad_open': ('assets/potion-ad-source.png', (659, 930, 688, 954)),
+    }
+    if geometry.get(rule['id']) != (rule.get('asset'), tuple(rule.get('source_crop', ()))):
+        return button
+    # The game moved the widgets as a unit. Keep the old templates, their
+    # brightness guards, the daily counter offsets and the matched click box.
+    for candidate, _, companions in list(button.variants):
+        width, height = candidate.area[2:]
+        top_strip = (182, 130, 470 - width, 238 - height)
+        button.variants.append((deepcopy(candidate), top_strip, deepcopy(companions)))
+    return button
 
 

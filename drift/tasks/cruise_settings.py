@@ -56,13 +56,6 @@ class SettingsView(CruiseView):
             self.original_seen = False
             self.resume_scene = None
             return super().observe_setup(frame)
-        journal=getattr(who,'journal',{})
-        retirement=journal.get('retirement') or {}
-        if (journal.get('reason')=='lower' and retirement and not retirement.get('released')
-                and not journal.get('entered_verified_at')):
-            # An expired lower handoff still owes a portal return. Do not turn
-            # a stopped original-world recovery into an unrelated farm route.
-            return None
         menu = who.sailing.menu(frame)
         if not menu:
             if (not who.fishing._main_visible(frame) or who._battle(frame)

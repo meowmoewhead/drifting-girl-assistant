@@ -83,6 +83,28 @@ class RestaurantListTests(unittest.TestCase):
         self.task.visual.list_key.return_value=np.full((5,5),150,dtype=np.uint8)
         self.assertFalse(self.task.validate(action,self.frame()))
 
+    def test_alignment_uses_one_stillness_confirmation_and_keeps_last_input_budget(self):
+        self.list_phase([])
+        self.task._set('align',60)
+        deadline=self.task.journal['phase_deadline']
+        self.task.journal.update(aligns=3,previous_list=None,attempts={'align:0':3})
+        for _ in range(2): self.step()
+        self.assertEqual(self.issued,[])
+        self.step()
+        self.assertEqual([x['kind'] for x in self.issued],['align:0'])
+        self.assertEqual(self.task.journal['attempts']['align:0'],4)
+        self.assertEqual(self.task.journal['phase_deadline'],deadline)
+        # An actually moved list is not proof of the left end, even at cap.
+        self.task.visual.list_key.return_value=self.art(31)[:,:,0]
+        for _ in range(3): self.step()
+        self.assertEqual(self.task.phase,'align')
+        self.assertEqual(len(self.issued),1)
+        # A stable return to the saved pre-drag list proves the edge.
+        self.task.visual.list_key.return_value=np.arange(25,dtype=np.uint8).reshape(5,5)
+        for _ in range(3): self.step()
+        self.assertEqual(self.task.phase,'list')
+        self.assertEqual(self.task.journal['attempts']['align:0'],4)
+
     def test_reaching_end_with_eight_unique_dishes_triggers_backscan(self):
         self.list_phase([])
         self.task.journal.update(json.loads((FIXTURES/'coverage-eight.json').read_text(encoding='utf-8')))

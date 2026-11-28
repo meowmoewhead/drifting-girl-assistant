@@ -10,6 +10,10 @@ SELECTORS = {
     'driftinggirl_guild_potion_select': 'guild_potion_quantity',
     'driftinggirl_guild_material_select': 'guild_material_quantity',
 }
+STOCK_SELECTORS = {
+    'guild_potion': 'driftinggirl_guild_potion_select',
+    'guild_material': 'driftinggirl_guild_material_select',
+}
 
 
 class GuildReturnGuard:
@@ -55,6 +59,7 @@ class GuildSelectionGuard:
         self.frames = 0
         self.since = None
         self.reason = reason
+        self.stock_wait = None
 
     def status(self):
         return dict(rule_id=self.rule_id, reason=self.reason, frames=self.frames,
@@ -114,6 +119,36 @@ class GuildSelectionGuard:
         if rule_id in SELECTORS and context is not None:
             self.rule_id, self.origin = rule_id, context
             self.reason = 'armed'
+
+    def observe_unreadable_stock(self, frame, matchers, purchase_check, *, stage,
+                                 started, ready_at, deadline, now, stopped=False):
+        """Leave time for a close-only exit without extending the stock window."""
+        entry = matchers.get(STOCK_SELECTORS.get(stage))
+        if (entry is None or not entry[0].get('enabled') or not entry[0].get('purchase_condition')
+                or stopped or started is None or deadline is None
+                or now < max(ready_at, started+8) or deadline-now < 10):
+            self.stock_wait = None
+            return None
+        page = self.list_context(frame, matchers)
+        rule, button, offset = entry
+        if page is None or not button.match(frame, offset=offset, similarity=rule['threshold']):
+            self.stock_wait = None
+            return None
+        _, stock = purchase_check(rule, button, frame)
+        if stock is None or len(stock)!=4 or stock[3] is not None:
+            # Both readable availability and readable sold-out states use
+            # their existing select/skip paths; neither is a cleanup trigger.
+            self.stock_wait = None
+            return None
+        key = stage, started, page
+        previous = self.stock_wait
+        if previous is not None and frame is previous['frame']:
+            return None
+        if (previous is None or previous['key'] != key or now-previous['last_seen'] > 8):
+            self.stock_wait = dict(key=key, frame=frame, first_seen=now, last_seen=now, frames=1)
+            return None
+        previous.update(frame=frame, last_seen=now, frames=previous['frames']+1)
+        return page if previous['frames']>=3 and now-previous['first_seen']>=3 else None
 
     def observe(self, frame, matchers, purchase_check, *, stage, trigger,
                 started, deadline, now, stopped=False):

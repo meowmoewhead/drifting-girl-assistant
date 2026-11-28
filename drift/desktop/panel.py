@@ -36,7 +36,7 @@ RESTAURANT_EFFECTS = {
 TRAINING_LABELS = dict(enabled='启用失败后练级', failure_limit='失败次数', level_gain='练级增量（兼容参数）',
     minutes='练级分钟数（兼容参数）', retry_level_gap='普通关允许等级差', final_boss_retry_level_gap='最后一关允许等级差',
     auto_sailing='练级自动航巡', meter_auto_adjust='练级标尺校准', boss_interrupt='海神反击', battle_tap='战斗补伤害',
-    parallel_stage_limit='新门阶段上限（0不干预）', boss_auto_sailing_until_rank='早期 BOSS 航巡截止 RANK')
+    boss_auto_sailing_until_rank='早期 BOSS 航巡截止 RANK')
 
 
 def execution_text(feature):
@@ -540,8 +540,8 @@ class Panel:
 
     def portal_controls(self, box):
         enabled = {f['id']: f.get('enabled') for f in self.state.get('features', [])}
-        modes = {'降阶刷最后 BOSS': 'stone', '旧版任务导航练级': 'legacy', '关闭循环': 'off'}
-        current = '降阶刷最后 BOSS' if enabled.get('stone_farm') else '旧版任务导航练级' if enabled.get('parallel_world') else '关闭循环'
+        modes = {'到达 RANK 后重开': 'stone', '旧版任务导航练级': 'legacy', '关闭循环': 'off'}
+        current = '到达 RANK 后重开' if enabled.get('stone_farm') else '旧版任务导航练级' if enabled.get('parallel_world') else '关闭循环'
         variable = tk.StringVar(value=current)
         selector = ttk.Combobox(box, textvariable=variable, values=list(modes), state='readonly', width=32)
         selector.pack(side='left')
@@ -569,6 +569,11 @@ class Panel:
                 self.field(box, 'interval', '检查 / 冷却间隔（小时）', interval / SECONDS_PER_HOUR)
             else:
                 self.field(box, 'interval', '检查 / 冷却间隔（秒）', interval)
+            if feature['id'] == 'stone_farm':
+                self.field(box, 'restart_rank', '到达 / 超过此 RANK 后重开',
+                           feature['restart_rank'], choices=tuple(range(1, 41)))
+                ttk.Label(box, text='按游戏左上角的 RANK 判断。选 40 会等当前阶段通关。',
+                          style='CardMuted.TLabel').pack(anchor='w', pady=5)
             if feature['id'] == 'mana':
                 self.field(box, 'mana_threshold', '法力低于此值时补充', int(feature.get('mana_threshold') or 25))
             if feature.get('hold_seconds') is not None:

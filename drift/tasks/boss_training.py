@@ -17,21 +17,22 @@ DEFAULT_TRAINING = {'enabled': True, 'failure_limit': 2, 'level_gain': 20,
                     'minutes': 10, 'retry_level_gap': 20,
                     'final_boss_retry_level_gap': 0, 'auto_sailing': True,
                     'meter_auto_adjust': True, 'boss_interrupt': True, 'battle_tap': False,
-                    'parallel_stage_limit': 0, 'boss_auto_sailing_until_rank': 0}
+                    'boss_auto_sailing_until_rank': 0}
 
 
 def training_options(value=None):
     if value is None:
         return DEFAULT_TRAINING.copy()
-    if not isinstance(value, dict) or not set(value) <= set(DEFAULT_TRAINING):
+    if not isinstance(value, dict) or not set(value) <= set(DEFAULT_TRAINING) | {'parallel_stage_limit'}:
         raise ValueError('练级设置无效')
-    result = {**DEFAULT_TRAINING, **value}
+    # Older installations may still carry this retired option.
+    result = DEFAULT_TRAINING | {key:item for key,item in value.items() if key in DEFAULT_TRAINING}
     if any(not isinstance(result[key], bool) for key in
            ('enabled','auto_sailing','meter_auto_adjust','boss_interrupt','battle_tap')):
         raise ValueError('练级开关必须为布尔值')
     for key, low, high in (('failure_limit', 1, 10), ('level_gain', 1, 200),
                            ('minutes', 1, 60), ('retry_level_gap', 0, 200),
-                           ('final_boss_retry_level_gap', 0, 200), ('parallel_stage_limit', 0, 100),
+                           ('final_boss_retry_level_gap', 0, 200),
                            ('boss_auto_sailing_until_rank', 0, 39)):
         item = result[key]
         if isinstance(item, bool) or not isinstance(item, int) or not low <= item <= high:

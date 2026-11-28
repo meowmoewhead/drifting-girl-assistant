@@ -87,6 +87,7 @@ CONTROLLERS = {
     "meter_calibration": "meter_calibration",
     "stone_farm": "stone_farm",
     "parallel_world": "parallel_world",
+    "meal_delivery": "meal_delivery",
 }
 
 # 主循环里这些控制器一旦"持有界面",就暂停主界面目标;名字对应 state 里的字段。
@@ -98,6 +99,7 @@ MAIN_GUARDS = {
     "meter_calibration": "meter",
     "stone_farm": "stone",
     "parallel_world": "parallel",
+    "meal_delivery": "meal_delivery",
 }
 
 # 功能之间的显式依赖(原先只由 config.json 的 stage 图隐含表达)。

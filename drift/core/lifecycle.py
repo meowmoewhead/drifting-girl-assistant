@@ -30,8 +30,8 @@ def active(task):
 
 class UiOwnership:
     MANAGED={'equipment_upgrade','backpack_sale','backpack','parallel_skills','pass_daily',
-             'guild_daily','restaurant_upgrade','return_parallel','meter_calibration',
-             'stone_farm','cruise_setup','cruise_watchdog','parallel'}
+             'guild_daily','restaurant_upgrade','meal_delivery','return_parallel','meter_calibration',
+             'stone_farm','cruise_setup','cruise_watchdog','parallel','raid_reward'}
     ALIASES={'backpack':'backpack_sale','equipment':'equipment_upgrade','skills':'parallel_skills',
              'stone':'stone_farm','boss_route_stop':'parallel','meter_stop_before_battle':'meter_calibration'}
     PRIORITY={'battle','completion','game_recovery','raid_cast','cleanup'}

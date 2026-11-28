@@ -13,6 +13,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from app import Clicker
+from drift.core.matcher import scan_rules
 from digit_ocr import DigitReader
 from dev_tools.configure_potion_ad_position import RULE_ID, update
 
@@ -70,9 +71,9 @@ class PotionAdPositionTests(unittest.TestCase):
 
     def test_counter_and_click_follow_the_icon_up_and_down(self):
         original=self.image('assets/potion-ad-source.png')
-        for delta in (-180,-90,90):
+        for delta in (-450,-360,-270,-180,-90,90):
             frame=original.copy()
-            frame[650:1115,600:720]=0
+            frame[440:1115,600:720]=0
             frame[898+delta:966+delta,640:720]=original[898:966,640:720]
             passed,value,info,button=self.evaluate(frame)
             self.assertTrue(passed)
@@ -80,6 +81,43 @@ class PotionAdPositionTests(unittest.TestCase):
             self.assertEqual(info['box'],[650,904+delta,718,924+delta])
             x1,y1,x2,y2=button.button
             self.assertEqual(((x1+x2)//2,(y1+y2)//2),(678,944+delta))
+
+    def test_working_area_compatibility_only_for_stock_rule(self):
+        original=self.image('assets/potion-ad-source.png')
+        frame=original.copy()
+        frame[440:1115,600:720]=0
+        frame[448:516,640:720]=original[898:966,640:720]
+        self.assertTrue(self.evaluate(frame)[0])
+        custom=deepcopy(self.rule)
+        custom['search_area']=[600,649,720,1115]
+        self.assertFalse(self.evaluate(frame,custom)[0])
+        self.assertFalse(self.evaluate((frame*.6).astype(np.uint8))[0])
+
+    def test_sidebar_relayout_restarts_consecutive_frame_confirmation(self):
+        original=self.image('assets/potion-ad-source.png')
+        shifted=original.copy()
+        shifted[440:1115,600:720]=0
+        shifted[448:516,640:720]=original[898:966,640:720]
+        ctx=SimpleNamespace(root=ROOT,config=self.config,digit_reader=self.reader,
+            lock=threading.RLock(),state={'frames':0,'numbers':{}})
+        rule,button,offset=Clicker.load_rule(ctx,self.rule)
+        stable={rule['id']:0}
+        numbers,targets={},{}
+        def scan(frame):
+            ctx.state['frames']+=1
+            module=SimpleNamespace(interval_timer={},appear=lambda b,**kw:b.match(frame,**kw))
+            candidate,_,_=scan_rules(frame,[(rule,button,offset)],module,{},
+                load_rule=None,preview=False,interruption=None,stage='main',stage_expired=False,
+                stage_deadline=None,stage_started_at=0,stage_trigger=None,stable=stable,
+                number_values=numbers,target_keys=targets,previous=None,scheduled=False,
+                daily_schedule=None,task_schedule=None,config=self.config,state=ctx.state,lock=ctx.lock,
+                number_condition=None,counter_condition=lambda r,b,f:Clicker.counter_condition(ctx,r,b,f),
+                purchase_condition=None,daily_entries={},clock=lambda:SimpleNamespace(monotonic=lambda:1))
+            return candidate
+        for frame in (original,original,shifted,shifted):
+            self.assertIsNone(scan(frame))
+        self.assertIsNotNone(scan(shifted))
+        self.assertEqual(tuple(button.button),(650,478,706,510))
 
     def test_growth_and_modal_backgrounds_are_not_potion_entries(self):
         for name in ('assets/ad-entry-source.png','assets/potion-ad-confirm-source.png',

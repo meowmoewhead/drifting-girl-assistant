@@ -520,17 +520,16 @@ class RestaurantPreferenceFactoryTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which('node'), 'Node.js unavailable for offline panel execution')
 class RestaurantPreferencePanelTests(unittest.TestCase):
-    def panel(self, feature, selected=None, interval_value=None):
+    def panel(self, feature, selected=None, interval_hours=None):
         # Execute the actual renderDetail function with a minimal offline DOM.
         # No server, browser, API request or device is started.
         script = r'''
 const fs = require('fs'), vm = require('vm');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 const elements = new Map(), boxes = [], selects = [];
-let markup = '', sent = null, timer;
+let markup = '', sent;
 function element(id) {
   const node = {value:'', textContent:'', checked:false, listeners:{}, nextElementSibling:{},
-    isConnected:true, checkValidity:()=>true, querySelector:selector=>elements.get(selector.slice(1)),
     addEventListener(name, fn) { this.listeners[name] = fn; },
     closest(selector) { return ['#settings-form','#schedule-form'].includes(selector) ? null : this; }, insertAdjacentHTML(position, text) { parse(text); }};
   Object.defineProperty(node, 'innerHTML', {set(text) { if (id === 'feature-detail') markup = text; parse(text); }});
@@ -558,8 +557,6 @@ const context = {detailId:'', detailDirty:false, scheduleDirty:false, state:{rul
   deviceScanning:false, deviceScan:null,
   $:id=>elements.get(id), esc:value=>String(value ?? ''), icon:()=>'', toggleMarkup:()=>'',
   notes:{}, executionKind:()=>'', nextRunText:()=>'', timeInputValue:()=>'',
-  generation:0, setTimeout:fn=>{ timer = fn; }, clearTimeout:()=>{ timer = null; },
-  refreshStatus:async()=>{}, notice:message=>{ throw Error(message); },
   api:(path, data)=>{ sent = {path, data}; return Promise.resolve(); }, act:fn=>fn(),
   document:{querySelector:()=>({}), querySelectorAll:selector=> {
     if (selector.includes('#restaurant-targets')) return selector.includes(':checked') ? boxes.filter(b=>b.checked) : boxes;
@@ -569,27 +566,24 @@ const context = {detailId:'', detailDirty:false, scheduleDirty:false, state:{rul
 const source = fs.readFileSync('web/app.js', 'utf8');
 vm.createContext(context);
 vm.runInContext(source.slice(source.indexOf('function durationText('), source.indexOf('\nfunction notice(')), context);
-vm.runInContext(source.slice(source.indexOf('const parameterSaves ='), source.indexOf('async function act(')), context);
 vm.runInContext(source.slice(source.indexOf('function featureNote('), source.indexOf('\nfunction cruiseFields(')), context);
 vm.runInContext(source.slice(source.indexOf('function cruiseFields('), source.indexOf('\nfunction route()')), context);
 context.renderDetail(input.feature);
-if (sent) throw Error('Opening a task unexpectedly saved its parameters');
-const form = elements.get('feature-form');
 const intervalControl = elements.get('feature-interval');
 const initialInterval = intervalControl.value;
-if (input.intervalValue !== null) {
-  intervalControl.value = String(input.intervalValue);
-  form.listeners.input({target:{type:'number', tagName:'INPUT'}});
+if (input.intervalHours !== null) {
+  intervalControl.value = String(input.intervalHours);
+  intervalControl.listeners.input();
 }
 const select = selects[0];
 const initial = select ? (select.value ? [select.value] : []) : boxes.filter(b=>b.checked).map(b=>b.value);
 if (input.selected !== null) {
-  select.value = input.selected;
-  form.listeners.input({target:{tagName:'SELECT'}});
+  if (select) { select.value = input.selected; select.listeners.change?.(); }
+  else for (const box of boxes) { box.checked = input.selected.includes(box.value); box.listeners.input?.(); }
 }
 const dirty = context.detailDirty;
 context.renderDetail(input.feature); // Status refresh must preserve unsaved choices.
-timer?.();
+elements.get('feature-form').onsubmit({preventDefault(){}});
 for (const id of ['run', 'preview', 'stop', 'refresh', 'refresh-mini', 'device-detect','device-adb-path','device-select','device-connect','device-auto']) element(id);
 vm.runInContext(source.slice(source.indexOf('function updateControls('), source.indexOf('\nfunction showNumbers(')), context);
 const disabledStates = [];
@@ -605,20 +599,19 @@ process.stdout.write(JSON.stringify({markup, initial, dirty, sent, initialInterv
 '''
         data = dict(feature={'id':'restaurant_upgrade', 'category':'', 'name':'', 'description':'',
                     'steps':[], 'rules':[], 'interval':259200, 'execution':{'mode':'timed'}, **feature},
-                    selected=selected, intervalValue=interval_value)
+                    selected=selected, intervalHours=interval_hours)
         result = subprocess.run([shutil.which('node'), '-e', script], cwd=ROOT,
                                 input=json.dumps(data), text=True, encoding='utf-8',
-                                capture_output=True, check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
+                                capture_output=True, check=True)
         return json.loads(result.stdout)
 
     def test_interval_displays_hours_and_saves_seconds(self):
-        result = self.panel({'interval': 172800}, interval_value=1.5)
+        result = self.panel({'interval': 172800}, interval_hours=1.5)
         self.assertEqual(result['initialInterval'], 48)
         self.assertEqual(result['intervalMax'], '72')
         self.assertEqual(result['intervalStep'], 'any')
         self.assertEqual(result['sent']['data']['interval'], 5400)
-        unchanged = self.panel({'interval': 123.4}, selected='汤')
+        unchanged = self.panel({'interval': 123.4})
         self.assertEqual(unchanged['sent']['data']['interval'], 123.4)
 
     def test_nine_categories_restore_selected_and_submit_changed_selection(self):
@@ -652,7 +645,7 @@ process.stdout.write(JSON.stringify({markup, initial, dirty, sent, initialInterv
                          '琥珀/海蓝宝/次元石获得量', '经验值获得量'))]])
 
     def test_legacy_multiple_targets_show_first_and_explain_save_conversion(self):
-        result = self.panel({'targets':['烧烤', '干货']}, interval_value=24)
+        result = self.panel({'targets':['烧烤', '干货']})
         self.assertEqual(result['initial'], ['烧烤'])
         self.assertEqual(result['sent']['data']['targets'], ['烧烤'])
         self.assertIn('原设置包含多个类别', result['markup'])
@@ -670,7 +663,7 @@ process.stdout.write(JSON.stringify({markup, initial, dirty, sent, initialInterv
     def test_other_features_have_no_target_controls_or_payload(self):
         for feature in ({'id':'mana'}, {'id':'parallel_skills', 'growth_points':False}, {'id':'equipment_upgrade'}):
             with self.subTest(feature=feature):
-                result = self.panel(feature, interval_value=30)
+                result = self.panel(feature)
                 self.assertEqual(result['values'], [])
                 self.assertNotIn('targets', result['sent']['data'])
                 if feature['id'] == 'parallel_skills':

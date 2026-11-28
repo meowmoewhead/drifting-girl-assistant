@@ -20,6 +20,13 @@ from digit_ocr import DigitReader
 from drift.ui.guild_selection import GuildSelectionGuard
 
 
+def copy_shop_assets(root):
+    shutil.copytree(ROOT/'assets/guild-shop',root/'assets/guild-shop')
+    for item in ('assets/parallel/map-close.png','assets/task-popup/map-legend.png'):
+        (root/item).parent.mkdir(parents=True,exist_ok=True)
+        shutil.copy2(ROOT/item,root/item)
+
+
 class GuildSelectionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -88,6 +95,24 @@ class GuildSelectionTests(unittest.TestCase):
         self.assertFalse(self.observe(7))
         self.assertTrue(self.observe(8))
 
+    def test_unreadable_stock_has_only_a_fresh_same_page_exit_before_original_deadline(self):
+        unknown=self.shop.copy()
+        unknown[342:381,460:643]=216
+        page=GuildSelectionGuard.list_context(unknown,self.matchers)
+        self.assertIsNotNone(page)
+        def check(frame,now,stopped=False):
+            return self.guard.observe_unreadable_stock(frame,self.matchers,self.purchase,
+                stage='guild_material',started=0,ready_at=.6,deadline=30,now=now,stopped=stopped)
+        self.assertIsNone(check(unknown,8))
+        self.assertIsNone(check(unknown,10))  # cached image
+        self.assertIsNone(check(unknown.copy(),10))
+        self.assertEqual(check(unknown.copy(),11),page)
+        self.assertIsNone(check(unknown.copy(),21))  # no time for safe return
+        for frame in (self.shop,self.dialog,unknown//2):
+            for now in (9,11,13):
+                self.assertIsNone(check(frame.copy(),now))
+        self.assertIsNone(check(unknown.copy(),15,stopped=True))
+
     def test_complete_runtime_only_closes_missed_selection_and_preserves_daily(self):
         shop,main,special=self.shop,self.main,self.image('assets/guild-shop/special.png')
         class Device:
@@ -104,7 +129,7 @@ class GuildSelectionTests(unittest.TestCase):
                 self.taps.append(button.name)
             def stuck_record_add(self,button):pass
         with tempfile.TemporaryDirectory(prefix='guild-selection-') as directory:
-            root=Path(directory);shutil.copytree(ROOT/'assets/guild-shop',root/'assets/guild-shop')
+            root=Path(directory);copy_shop_assets(root)
             config=deepcopy(self.config);config['poll_interval']=.1
             keys=['driftinggirl_guild_tab',self.key,'driftinggirl_guild_material_plus','driftinggirl_guild_material_buy',
                   'driftinggirl_guild_material_confirm',
@@ -201,7 +226,7 @@ class GuildSelectionTests(unittest.TestCase):
             def click(self,_):raise AssertionError('Selection without a cleanup context')
             def stuck_record_add(self,_):pass
         with tempfile.TemporaryDirectory(prefix='guild-precheck-') as directory:
-            root=Path(directory);shutil.copytree(ROOT/'assets/guild-shop',root/'assets/guild-shop')
+            root=Path(directory);copy_shop_assets(root)
             config=deepcopy(self.config);config['poll_interval']=.1
             keys=[self.key,'driftinggirl_guild_material_plus','driftinggirl_guild_material_buy',
                   'driftinggirl_guild_material_confirm','driftinggirl_guild_close','driftinggirl_guild_return']
@@ -244,7 +269,7 @@ class GuildSelectionTests(unittest.TestCase):
                 self.taps.append((button.name,clock[0]))
             def stuck_record_add(self,_):pass
         with tempfile.TemporaryDirectory(prefix='guild-orphan-') as directory:
-            root=Path(directory);shutil.copytree(ROOT/'assets/guild-shop',root/'assets/guild-shop')
+            root=Path(directory);copy_shop_assets(root)
             config=deepcopy(self.config);config['poll_interval']=.1
             config['rules']=[deepcopy(self.rules[k]) for k in
                              ('driftinggirl_guild_close','driftinggirl_guild_return')]

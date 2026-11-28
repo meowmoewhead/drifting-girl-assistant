@@ -102,10 +102,11 @@ def map_navigation_owned(
     stone=None,
     backpack=None,
     restaurant=None,
+    meal_delivery=None,
     return_parallel=None,
 ):
     """True when a live controller is mid world-map navigation."""
-    for controller in (parallel, stone, backpack, restaurant, return_parallel):
+    for controller in (parallel, stone, backpack, restaurant, meal_delivery, return_parallel):
         if controller is None:
             continue
         phase = str(getattr(controller, "phase", "") or "")

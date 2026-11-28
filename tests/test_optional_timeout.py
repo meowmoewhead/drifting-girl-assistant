@@ -88,6 +88,21 @@ class OptionalTimeoutTests(unittest.TestCase):
         self.assertFalse(c.allowed(close[0]['id']))
         self.assertEqual(c.original_deadline,9)
 
+    def test_cleanup_folds_shifted_crown_menu_only_after_fresh_guarded_frames(self):
+        c=OptionalCleanup('achievements_claim',0)
+        ctx=SimpleNamespace(root=ROOT,config=self.config)
+        rules=c.prepare(list(self.matchers.values()),lambda r:Clicker.load_rule(ctx,r))
+        rule,b,offset=next(item for item in rules if item[0]['id'].endswith('_fold_cleanup'))
+        def matches(frame):
+            return b.match(frame,offset=offset,similarity=rule['threshold'])
+        self.assertFalse(matches(self.menu//2))
+        self.assertFalse(matches(self.battle))
+        for t,ready in ((1,False),(2,False),(4,True)):
+            frame=self.menu.copy()
+            self.assertTrue(matches(frame))
+            self.assertEqual(tuple(b.button),(650,460,690,497))
+            self.assertEqual(c.ready(rule['id'],b,frame,t),ready)
+
     def test_mailbox_cleanup_matches_available_mail_but_never_claims(self):
         source=deepcopy(self.config)
         selected=[]

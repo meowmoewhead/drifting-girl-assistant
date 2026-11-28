@@ -13,12 +13,15 @@ import time
 
 from drift.core.persistence import atomic_write_json,atomic_write_bytes,read_bytes,record_lock
 from drift.core.journal import archive_bytes
+from drift.tasks.stone_options import is_rank_restart
 
 
 def identity(record,serial):
-    if (record.get('reason')!='cycle' or record.get('rank')!=40
-            or record.get('entry_rank')!=0 or type(record.get('from_stage')) is not int
-            or record.get('to_stage')!=record['from_stage']+1):return None
+    legacy = (record.get('reason') == 'cycle' and record.get('rank') == 40
+              and record.get('entry_rank') == 0 and type(record.get('from_stage')) is int
+              and record.get('to_stage') == record['from_stage']+1)
+    if not legacy and not (is_rank_restart(record) and record.get('gate_closed') is True):
+        return None
     entered=record.get('entered_verified_at')
     if type(entered) not in (int,float) or not math.isfinite(entered):return None
     receipts=[r for r in record.get('issued_inputs',[]) if r.get('kind')=='enter-confirm' and r.get('input_id')]
@@ -30,7 +33,7 @@ def identity(record,serial):
 def payload(record):
     fields={'reason','rank','entry_rank','from_stage','to_stage','started_at','deadline','phase_deadline',
             'phase','pending','entered_verified_at','verified_gate_stage','attempts','issued_inputs','last_input',
-            'fishing_recovery','selected_fishing_verified_at'}
+            'fishing_recovery','selected_fishing_verified_at','restart_rank','rank40_verified','gate_closed'}
     return deepcopy({k:v for k,v in record.items() if k in fields or k.startswith('first_')})
 
 

@@ -29,7 +29,8 @@ class NativeAutoSaleTests(unittest.TestCase):
         self.actions = []
         self.w = StoneFarm(ROOT,self.reader,lambda a:self.actions.append(a) or True,
                            lambda _:None,state_path=Path(self.temp.name)/'stone.json')
-        self.w.journal.update(pending=True,reason='lower',rank=39,to_stage=9,entry_rank=31,
+        self.w.journal.update(pending=True,reason='restart',rank=39,to_stage=9,entry_rank=0,
+            restart_rank=35,rank40_verified=False,first_cast_verified_at=990,
             from_stage=9,phase='route_menu',deadline=1090,phase_deadline=1045,
             return_deadline=1030,attempts={},inputs=[])
         self.w.phase = 'route_menu'
